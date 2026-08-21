@@ -1,0 +1,58 @@
+<?php
+
+namespace App\Filament\Resources\PaymentSlips;
+
+use App\Filament\Resources\PaymentSlips\Pages\CreatePaymentSlip;
+use App\Filament\Resources\PaymentSlips\Pages\EditPaymentSlip;
+use App\Filament\Resources\PaymentSlips\Pages\ListPaymentSlips;
+use App\Filament\Resources\PaymentSlips\Pages\ViewPaymentSlip;
+use App\Filament\Resources\PaymentSlips\Schemas\PaymentSlipForm;
+use App\Filament\Resources\PaymentSlips\Schemas\PaymentSlipInfolist;
+use App\Filament\Resources\PaymentSlips\Tables\PaymentSlipsTable;
+use App\Models\PaymentSlip;
+use BackedEnum;
+use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Table;
+
+class PaymentSlipResource extends Resource
+{
+    protected static ?string $model = PaymentSlip::class;
+
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    protected static ?int $navigationSort = 1;
+
+    public static function form(Schema $schema): Schema
+    {
+        return PaymentSlipForm::configure($schema);
+    }
+
+    public static function infolist(Schema $schema): Schema
+    {
+        return PaymentSlipInfolist::configure($schema);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return PaymentSlipsTable::configure($table);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            //
+        ];
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => ListPaymentSlips::route('/'),
+            'create' => CreatePaymentSlip::route('/create'),
+            'view' => ViewPaymentSlip::route('/{record}'),
+            'edit' => EditPaymentSlip::route('/{record}/edit'),
+        ];
+    }
+}
