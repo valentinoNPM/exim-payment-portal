@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Buyer;
 use App\Models\ChartOfAccount;
+use App\Models\Division;
 use App\Models\Supplier;
 use App\Models\Tax;
 use App\Models\User;
@@ -23,33 +24,50 @@ class RolesAndUsersSeeder extends Seeder
         $checkerRole = Role::firstOrCreate(['name' => 'checker']);
         $approverRole = Role::firstOrCreate(['name' => 'approver']);
 
-        // 2. Create Default Users & Assign Roles
+        // 1b. Seed Divisions
+        $divExim = Division::firstOrCreate(['code' => 'EXIM'], ['name' => 'Export-Import Division']);
+        $divAcc = Division::firstOrCreate(['code' => 'ACC'], ['name' => 'Accounting & Finance']);
+        $divMgmt = Division::firstOrCreate(['code' => 'MGMT'], ['name' => 'Management']);
+
+        // 2. Create Default Users & Assign Roles + Divisions
         $makerUser = User::firstOrCreate(
             ['email' => 'maker@exim.com'],
             [
                 'name' => 'Staff EXIM Maker',
                 'password' => Hash::make('password'),
+                'division_id' => $divExim->id,
             ]
         );
         $makerUser->assignRole($makerRole);
+        if (! $makerUser->division_id) {
+            $makerUser->update(['division_id' => $divExim->id]);
+        }
 
         $checkerUser = User::firstOrCreate(
             ['email' => 'checker@exim.com'],
             [
                 'name' => 'Staff Accounting Checker',
                 'password' => Hash::make('password'),
+                'division_id' => $divAcc->id,
             ]
         );
         $checkerUser->assignRole($checkerRole);
+        if (! $checkerUser->division_id) {
+            $checkerUser->update(['division_id' => $divAcc->id]);
+        }
 
         $approverUser = User::firstOrCreate(
             ['email' => 'approver@exim.com'],
             [
                 'name' => 'General Manager Approver',
                 'password' => Hash::make('password'),
+                'division_id' => $divMgmt->id,
             ]
         );
         $approverUser->assignRole($approverRole);
+        if (! $approverUser->division_id) {
+            $approverUser->update(['division_id' => $divMgmt->id]);
+        }
 
         // 3. Seed Default Suppliers
         $suppliers = [
@@ -89,14 +107,14 @@ class RolesAndUsersSeeder extends Seeder
                 'name' => 'PPN 11%',
                 'rate' => 11.0000,
                 'calculation_type' => 'addition',
-                'is_active' => true
+                'is_active' => true,
             ],
             [
                 'code' => 'PPH-23-2',
                 'name' => 'PPh 23 (Jasa) 2%',
                 'rate' => 2.0000,
                 'calculation_type' => 'deduction',
-                'is_active' => true
+                'is_active' => true,
             ],
         ];
         foreach ($taxes as $tax) {

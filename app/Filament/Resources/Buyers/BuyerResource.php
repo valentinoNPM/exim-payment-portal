@@ -18,7 +18,9 @@ class BuyerResource extends Resource
 {
     protected static ?string $model = Buyer::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingStorefront;
+
+    protected static string | \UnitEnum | null $navigationGroup = 'Master Data';
 
     protected static ?int $navigationSort = 2;
 

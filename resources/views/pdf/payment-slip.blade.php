@@ -13,292 +13,378 @@
         }
         .container {
             width: 100%;
+            padding: 10px;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 8px;
+            margin-bottom: 0;
         }
         th, td {
-            border: 1px solid #00a8e8;
-            padding: 5px 8px;
+            border: 1px solid #5b2d8e;
+            padding: 4px 6px;
             text-align: left;
             vertical-align: top;
         }
+
+        /* Header */
         .header-table td {
-            padding: 10px;
+            border: none;
+            padding: 5px 8px;
         }
         .logo-box {
-            width: 50%;
+            width: 60%;
+            vertical-align: top;
+        }
+        .company-name {
             font-size: 16px;
             font-weight: bold;
-            color: #00a8e8;
-            line-height: 1.2;
+            color: #333;
         }
-        .logo-box .sub {
-            font-size: 10px;
-            font-style: italic;
-            font-weight: normal;
-            color: #777;
-        }
-        .logo-box .company {
+        .company-address {
             font-size: 8px;
-            font-weight: bold;
-            color: #000;
-            margin-top: 3px;
+            color: #555;
+            line-height: 1.3;
         }
         .title-box {
-            width: 50%;
-            font-size: 13px;
+            width: 40%;
+            font-size: 16px;
             font-weight: bold;
-            color: #00a8e8;
-            text-align: center;
+            color: #5b2d8e;
+            text-align: right;
             vertical-align: middle;
         }
-        .label-cell {
-            font-weight: bold;
-            color: #00a8e8;
-            background-color: #f2faff;
-            width: 15%;
-            text-transform: uppercase;
-        }
-        .value-cell {
-            width: 18%;
-        }
-        .customer-title {
-            font-weight: bold;
-            color: #00a8e8;
-            background-color: #f2faff;
-            width: 25%;
-            text-transform: uppercase;
-        }
-        .description-title {
-            font-weight: bold;
-            color: #00a8e8;
-            background-color: #f2faff;
-            width: 25%;
-            text-transform: uppercase;
-            vertical-align: middle;
-            text-align: center;
-        }
-        .ac-box {
-            width: 30%;
-            border-left: 1px dotted #00a8e8;
-        }
-        .ac-title {
-            font-weight: bold;
-            color: #00a8e8;
-            margin-bottom: 5px;
-        }
-        .dotted-line {
-            border-bottom: 1px dotted #00a8e8;
-            margin-bottom: 5px;
-            height: 10px;
-        }
-        .amount-label {
-            font-weight: bold;
-            color: #00a8e8;
-            background-color: #f2faff;
-            width: 15%;
-            text-transform: uppercase;
-        }
-        .amount-val {
-            font-weight: bold;
-            color: #00a8e8;
-            width: 35%;
-        }
-        .meta-label {
-            font-weight: bold;
-            color: #00a8e8;
-            background-color: #f2faff;
-            width: 18%;
-            text-transform: uppercase;
-        }
-        .meta-val {
-            width: 15%;
-        }
-        .approval-table th {
-            background-color: #f2faff;
-            color: #00a8e8;
-            font-weight: bold;
-            text-align: center;
+
+        /* Approval Grid */
+        .approval-grid th {
+            background-color: #f3eef9;
+            color: #5b2d8e;
             font-size: 8px;
-            width: 20%;
+            font-weight: bold;
+            text-align: center;
+            padding: 3px 4px;
         }
-        .approval-table td {
+        .approval-grid td {
+            text-align: center;
+            height: 22px;
+            vertical-align: middle;
+            font-size: 8px;
+        }
+        .approval-grid .label-cell {
+            background-color: #f3eef9;
+            color: #5b2d8e;
+            font-weight: bold;
+            width: 18%;
+        }
+
+        /* Data Section */
+        .data-table td {
+            border: none;
+            padding: 2px 6px;
+            font-size: 10px;
+        }
+        .data-label {
+            font-weight: bold;
+            width: 18%;
+            color: #333;
+        }
+        .data-separator {
+            width: 2%;
+            text-align: center;
+        }
+        .data-value {
+            width: 30%;
+        }
+
+        /* Detail Table */
+        .detail-table {
+            margin-top: 8px;
+        }
+        .detail-table th {
+            background-color: #f3eef9;
+            color: #5b2d8e;
+            font-weight: bold;
+            font-size: 9px;
+            text-align: center;
+            padding: 5px 4px;
+        }
+        .detail-table td {
+            padding: 4px 6px;
+            font-size: 9px;
+        }
+        .detail-table .amount-cell {
+            text-align: right;
+            white-space: nowrap;
+        }
+        .summary-label {
+            text-align: right;
+            font-weight: bold;
+            color: #5b2d8e;
+            padding-right: 10px;
+        }
+        .summary-value {
+            text-align: right;
+            font-weight: bold;
+        }
+
+        /* Payment Box */
+        .payment-table {
+            margin-top: 10px;
+        }
+        .payment-table th {
+            background-color: #f3eef9;
+            color: #5b2d8e;
+            font-weight: bold;
+            font-size: 8px;
+            text-align: center;
+            padding: 4px;
+        }
+        .payment-table td {
+            height: 30px;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 8px;
+        }
+        .payment-label {
+            background-color: #f3eef9;
+            color: #5b2d8e;
+            font-weight: bold;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        /* Footer Box */
+        .footer-table {
+            margin-top: 8px;
+        }
+        .footer-table th {
+            background-color: #f3eef9;
+            color: #5b2d8e;
+            font-weight: bold;
+            font-size: 9px;
+            text-align: center;
+            padding: 5px;
+        }
+        .footer-table td {
             height: 25px;
             text-align: center;
             vertical-align: middle;
-        }
-        .approval-label-column {
-            background-color: #f2faff;
-            font-weight: bold;
-            color: #00a8e8;
-            text-align: center;
-            vertical-align: middle;
-            width: 20%;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Logo & Title Header -->
+        <!-- Header: Company Info + Title -->
         <table class="header-table">
             <tr>
                 <td class="logo-box">
-                    <img src="{{ public_path('images/logo.svg') }}" style="height: 30px; width: auto; margin-bottom: 5px;" /><br/>
-                    <span class="company">PT. HANSOLL INDO JAVA</span>
+                    @if(file_exists(public_path('images/logo.svg')))
+                        <img src="{{ public_path('images/logo.svg') }}" style="height: 28px; width: auto; margin-bottom: 3px;" /><br/>
+                    @endif
+                    <span class="company-name">PT. HANSOLL INDO JAVA</span><br/>
+                    <span class="company-address">
+                        Dukuh Ngemplak, RT.006/RW.002, Dusun III, Randusari<br/>
+                        Randusari, Kec. Teras, Kabupaten Boyolali, Jawa Tengah 57372, Jawa Tengah - Indonesia<br/>
+                        Telp.: (0276) 3280401
+                    </span>
                 </td>
                 <td class="title-box">
-                    APPLICATION FOR PAYMENT/INCOME
+                    PAYMENT SLIP
                 </td>
             </tr>
         </table>
 
-        <!-- Slip Number Row -->
-        <table>
+        <!-- Approval Grid -->
+        <table class="approval-grid" style="margin-bottom: 8px;">
             <tr>
-                <td class="label-cell" style="width: 15%;">SLIP NO.</td>
-                <td style="width: 85%; font-weight: bold;">{{ $slip->slip_number }}</td>
+                <td rowspan="2" class="label-cell">APPROVAL</td>
+                <th>INCHARGE</th>
+                <th>PASSED</th>
+                <th>PASSED</th>
+                <th>PASSED</th>
+                <th>DIRECTOR</th>
+            </tr>
+            <tr>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
             </tr>
         </table>
 
-        <!-- Division, Name, Date Row -->
-        <table>
+        <!-- Data Section -->
+        @php
+            $invoiceNumbers = $slip->invoices->pluck('invoice_number')->filter()->implode(', ');
+            $department = $slip->creator?->division?->name ?? strtoupper($slip->transaction_type);
+        @endphp
+        <table class="data-table" style="margin-bottom: 8px;">
             <tr>
-                <td class="label-cell">DIVISION</td>
-                <td class="value-cell" style="width: 25%;">{{ strtoupper($slip->transaction_type) }}</td>
-                <td class="label-cell">NAME</td>
-                <td class="value-cell" style="width: 25%;">{{ $slip->creator?->name ?? 'Sugiyanto' }}</td>
-                <td class="label-cell">DATE</td>
-                <td class="value-cell" style="width: 15%;">{{ $slip->created_at->format('Y-m-d') }}</td>
+                <td class="data-label">Payment Slip Number</td>
+                <td class="data-separator">:</td>
+                <td class="data-value">{{ $slip->slip_number }}</td>
+                
             </tr>
-        </table>
-
-        <!-- Main Invoice details table -->
-        <table style="margin-bottom: 8px;">
             <tr>
-                <!-- Left Side: Customer & Description -->
-                <td style="width: 85%; padding: 0; border: 1px solid #00a8e8; border-right: none;">
-                    <table style="margin: 0; width: 100%; border: none;">
-                        <tr>
-                            <td class="customer-title" style="border-top: none; border-left: none;">CUSTOMER</td>
-                            <td style="border-top: none; border-right: none; font-weight: bold;">
-                                {{ $slip->supplier?->name }}
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="description-title" style="height: 140px; border-left: none; border-bottom: none;">
-                                DESCRIPTION<br/>OF. GOODS
-                            </td>
-                            <td style="border-right: none; border-bottom: none; line-height: 1.4;">
-                                <strong>CHARGE {{ strtoupper($slip->transaction_type) }}</strong><br/>
-                                @if(in_array($slip->status, ['verified', 'approved']))
-                                    <table style="width: 100%; border: none; margin-top: 5px;">
-                                        <tr style="border-bottom: 1px dashed #00a8e8;">
-                                            <th style="border: none; padding: 2px 0;">No</th>
-                                            <th style="border: none; padding: 2px 0;">REF</th>
-                                            <th style="border: none; padding: 2px 0; text-align: right;">Amount</th>
-                                            <th style="border: none; padding: 2px 0; text-align: right;">PPH 23</th>
-                                            <th style="border: none; padding: 2px 0; text-align: right;">Amount Dibayar</th>
-                                        </tr>
-                                        @foreach($slip->invoices as $idx => $invoice)
-                                        @php
-                                            $taxValue = 0;
-                                            if ($invoice->tax_addition_amount > 0) {
-                                                $taxValue = $invoice->tax_addition_amount;
-                                            } elseif ($invoice->tax_deduction_amount > 0) {
-                                                $taxValue = $invoice->tax_deduction_amount;
-                                            }
-                                        @endphp
-                                        <tr>
-                                            <td style="border: none; padding: 2px 0;">{{ $idx + 1 }}.</td>
-                                            <td style="border: none; padding: 2px 0;">{{ $invoice->invoice_number }}</td>
-                                            <td style="border: none; padding: 2px 0; text-align: right;">{{ number_format($invoice->subtotal_amount, 0, ',', '.') }}</td>
-                                            <td style="border: none; padding: 2px 0; text-align: right;">{{ $taxValue > 0 ? number_format($taxValue, 0, ',', '.') : '-' }}</td>
-                                            <td style="border: none; padding: 2px 0; text-align: right;">{{ number_format($invoice->grand_total_amount, 0, ',', '.') }}</td>
-                                        </tr>
-                                        @endforeach
-                                    </table>
-                                @else
-                                    @foreach($slip->invoices as $idx => $invoice)
-                                        {{ $idx + 1 }}. REF {{ $invoice->invoice_number }} = Rp. {{ number_format($invoice->subtotal_amount, 0, ',', '.') }}<br/>
-                                    @endforeach
-                                @endif
-                            </td>
-                        </tr>
-                    </table>
+                <td class="data-label">Date</td>
+                <td class="data-separator">:</td>
+                <td class="data-value">{{ $slip->created_at->format('Y-m-d') }}</td>
+                <td class="data-label">No. Invoice</td>
+                <td class="data-separator">:</td>
+                <td class="data-value">{{ $invoiceNumbers }}</td>
+            </tr>
+            <tr>
+                <td class="data-label">Department</td>
+                <td class="data-separator">:</td>
+                <td class="data-value">{{ $department }} ({{ strtoupper($slip->transaction_type) }})</td>
+                <td colspan="3"></td>
+            </tr>
+            <tr>
+                <td class="data-label">Name</td>
+                <td class="data-separator">:</td>
+                <td class="data-value">{{ $slip->creator?->name ?? '-' }}</td>
+                <td colspan="3"></td>
+            </tr>
+            <tr>
+                <td class="data-label">Supplier</td>
+                <td class="data-separator">:</td>
+                <td class="data-value">{{ $slip->supplier?->name ?? '-' }}</td>
+                <td colspan="3"></td>
+            </tr>
+            <tr>
+                <td class="data-label">Account Name</td>
+                <td class="data-separator">:</td>
+                <td class="data-value">
+                    @php
+                        $coaNames = $slip->invoices->map(fn($inv) => $inv->coa_name_snapshot)->filter()->unique()->implode(', ');
+                    @endphp
+                    {{ $coaNames ?: '-' }}
                 </td>
-                <!-- Right Side: A/C No Section -->
-                <td class="ac-box" style="width: 15%; height: 180px;">
-                    <div class="ac-title">A/C NO.</div>
-                    <div class="dotted-line"></div>
-                    <div class="dotted-line"></div>
-                    <div class="dotted-line"></div>
-                    <div class="dotted-line"></div>
-                    <div class="dotted-line"></div>
-                    <div class="dotted-line"></div>
-                </td>
+                <td colspan="3"></td>
+            </tr>
+            <tr>
+                <td class="data-label">Transaction</td>
+                <td class="data-separator">:</td>
+                <td class="data-value" colspan="4">CHARGE {{ strtoupper($slip->transaction_type) }}</td>
             </tr>
         </table>
 
-        <!-- Amounts Row -->
-        <table>
+        <!-- Detail Table -->
+        <table class="detail-table">
+            <thead>
+                <tr>
+                    <th style="width: 45%;">Detail</th>
+                    <th style="width: 14%;">Amount</th>
+                    <th style="width: 14%;">PPN</th>
+                    <th style="width: 14%;">PPH</th>
+                    <th style="width: 13%;">Amount Dibayar</th>
+                </tr>
+            </thead>
+            <tbody>
+                @php
+                    $totalSubtotal = 0;
+                    $totalPpn = 0;
+                    $totalPph = 0;
+                    $totalGrand = 0;
+                @endphp
+                @foreach($slip->invoices as $idx => $invoice)
+                @php
+                    $invSubtotal = (float) $invoice->subtotal_amount;
+                    $invPpn = (float) $invoice->tax_addition_amount;
+                    $invPph = (float) $invoice->tax_deduction_amount;
+                    $invGrand = (float) $invoice->grand_total_amount;
+                    $totalSubtotal += $invSubtotal;
+                    $totalPpn += $invPpn;
+                    $totalPph += $invPph;
+                    $totalGrand += $invGrand;
+
+                    // Build description: REF [invoice_number] - [item names]
+                    $itemNames = $invoice->items->pluck('item_name')->implode(', ');
+                    $description = "REF {$invoice->invoice_number}";
+                    if ($itemNames) {
+                        $description .= " - {$itemNames}";
+                    }
+                @endphp
+                <tr>
+                    <td>{{ $idx + 1 }}. {{ $description }}</td>
+                    <td class="amount-cell">Rp {{ number_format($invSubtotal, 0, ',', '.') }}</td>
+                    <td class="amount-cell">{{ $invPpn > 0 ? 'Rp ' . number_format($invPpn, 0, ',', '.') : '-' }}</td>
+                    <td class="amount-cell">{{ $invPph > 0 ? 'Rp ' . number_format($invPph, 0, ',', '.') : '-' }}</td>
+                    <td class="amount-cell">Rp {{ number_format($invGrand, 0, ',', '.') }}</td>
+                </tr>
+                @endforeach
+
+                <!-- Empty spacer rows if few invoices -->
+                @for($i = count($slip->invoices); $i < 3; $i++)
+                <tr>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                </tr>
+                @endfor
+            </tbody>
+
+            <!-- Summary Rows -->
+            <tfoot>
+                <tr>
+                    <td class="summary-label" colspan="4">SUB TOTAL</td>
+                    <td class="summary-value">Rp {{ number_format($totalSubtotal, 0, ',', '.') }}</td>
+                </tr>
+                <tr>
+                    <td class="summary-label" colspan="4">
+                        PPN
+                        @php
+                            $ppnLabel = $slip->invoices->first()?->ppnTax?->name;
+                        @endphp
+                        {{ $ppnLabel ? "({$ppnLabel})" : '(0%)' }}
+                    </td>
+                    <td class="summary-value">Rp {{ number_format($totalPpn, 0, ',', '.') }}</td>
+                </tr>
+                <tr>
+                    <td class="summary-label" colspan="4">
+                        PPH
+                        @php
+                            $pphLabel = $slip->invoices->first()?->pphTax?->name;
+                        @endphp
+                        {{ $pphLabel ? "({$pphLabel})" : '(0%)' }}
+                    </td>
+                    <td class="summary-value">Rp {{ number_format($totalPph, 0, ',', '.') }}</td>
+                </tr>
+                <tr>
+                    <td class="summary-label" colspan="4" style="font-size: 11px;">GRAND TOTAL</td>
+                    <td class="summary-value" style="font-size: 11px;">Rp {{ number_format($totalGrand, 0, ',', '.') }}</td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <!-- Payment Signature Box -->
+        <table class="payment-table">
             <tr>
-                <td class="amount-label" style="width: 15%;">AMOUNT</td>
-                <td class="amount-val" style="width: 25%;">Rp. : {{ number_format($slip->subtotal_amount, 0, ',', '.') }}</td>
-                <td class="amount-label" style="width: 25%; font-size: 9px;">AMOUNT DIBAYAR</td>
-                <td class="amount-val" style="width: 35%;">Rp. : {{ number_format($slip->grand_total_amount, 0, ',', '.') }}</td>
+                <td rowspan="2" class="payment-label" style="width: 15%;">PAYMENT</td>
+                <th style="width: 21%;">INCHARGE</th>
+                <th style="width: 21%;">ACC MANAGER</th>
+                <th style="width: 22%;">GENERAL MANAGER</th>
+                <th style="width: 21%;">PASSED</th>
+            </tr>
+            <tr>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
             </tr>
         </table>
 
-        <!-- Due Date, Pay Type, Bank, etc -->
-        <table>
+        <!-- Footer: Tanggal Bayar & Received/Confirmed -->
+        <table class="footer-table">
             <tr>
-                <td class="meta-label">DUE DATE</td>
-                <td class="meta-val"></td>
-                <td class="meta-label">PAY TYPE</td>
-                <td class="meta-val"></td>
-                <td class="meta-label">BANK</td>
-                <td class="meta-val"></td>
+                <th style="width: 50%;">Tanggal Bayar</th>
+                <th style="width: 50%;">Received / Confirmed</th>
             </tr>
             <tr>
-                <td class="meta-label">PAY DATE</td>
-                <td class="meta-val"></td>
-                <td class="meta-label">CHECK NO.</td>
-                <td class="meta-val"></td>
-                <td class="meta-label">SIGN DATE</td>
-                <td class="meta-val"></td>
-            </tr>
-        </table>
-
-        <!-- Approvals Signature Box -->
-        <table class="approval-table" style="margin-top: 15px;">
-            <tr>
-                <td rowspan="2" class="approval-label-column" style="width: 20%;">NAME</td>
-                <th style="width: 20%;">PROPOSAL</th>
-                <th style="width: 20%;">I. CHARGE</th>
-                <th style="width: 20%;">MANAGER</th>
-                <th style="width: 20%;">DIRECTOR</th>
-            </tr>
-            <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>
-            <tr>
-                <td rowspan="2" class="approval-label-column">SIGN</td>
-                <th style="background-color: #f2faff; color: #00a8e8; font-weight: bold; font-size: 8px;">ACCOUNTING</th>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>
-            <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
             </tr>
         </table>
     </div>

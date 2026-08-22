@@ -18,9 +18,11 @@ class TaxResource extends Resource
 {
     protected static ?string $model = Tax::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedReceiptPercent;
 
-    protected static ?int $navigationSort = 5;
+    protected static string | \UnitEnum | null $navigationGroup = 'Master Data';
+
+    protected static ?int $navigationSort = 4;
 
     public static function form(Schema $schema): Schema
     {

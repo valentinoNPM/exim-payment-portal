@@ -10,7 +10,7 @@ class GeneratePaymentSlipPdf
     public function execute(PaymentSlip $slip): \Barryvdh\DomPDF\PDF
     {
         // Eager load relations for PDF content
-        $slip->load(['supplier', 'invoices.documentFile', 'creator']);
+        $slip->load(['supplier', 'invoices.documentFile', 'invoices.items', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
 
         return Pdf::loadView('pdf.payment-slip', [
             'slip' => $slip,

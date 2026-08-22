@@ -20,7 +20,9 @@ class PaymentSlipResource extends Resource
 {
     protected static ?string $model = PaymentSlip::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
+
+    protected static string | \UnitEnum | null $navigationGroup = 'Payment';
 
     protected static ?int $navigationSort = 1;
 
