@@ -24,13 +24,24 @@ class PaymentSlipsTable
                 TextColumn::make('id')->sortable(),
                 TextColumn::make('transaction_type')->badge()->sortable(),
                 TextColumn::make('supplier.name')->sortable()->searchable(),
+                TextColumn::make('creator.name')
+                    ->label('Author')
+                    ->description(fn (PaymentSlip $record): string => $record->creator?->division?->name ?? '-')
+                    ->sortable()
+                    ->searchable()
+                    ->visible(fn () => auth()->user()->hasRole('checker') || auth()->user()->hasRole('approver')),
                 TextColumn::make('grand_total_amount')
                     ->label('Amount')
                     ->formatStateUsing(fn ($state) => 'Rp '.number_format($state, 2, ',', '.'))
                     ->sortable(),
                 TextColumn::make('status')->badge()->sortable(),
-                TextColumn::make('created_at')->dateTime()->sortable()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('created_at')
+                    ->label('Date Created')
+                    ->dateTime('d M Y H:i')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: false),
             ])
+            ->defaultSort('created_at', 'desc')
             ->filters([
                 //
             ])

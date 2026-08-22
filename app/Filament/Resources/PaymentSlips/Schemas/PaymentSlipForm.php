@@ -13,11 +13,13 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class PaymentSlipForm
@@ -63,68 +65,85 @@ class PaymentSlipForm
                                     ->required(),
                             ])
                             ->action(function (array $data, Set $set, Get $get) {
-                                $files = $data['raw_pdf_files'] ?? [];
-                                if (empty($files)) {
-                                    return;
-                                }
-
-                                $extractor = app(GeminiInvoiceExtractor::class);
-
-                                // Generate full storage paths
-                                $filePaths = array_map(function ($path) {
-                                    return Storage::disk('local')->path($path);
-                                }, array_values($files));
-
-                                $extractedInvoices = $extractor->extract($filePaths);
-
-                                $currentInvoices = $get('invoices') ?? [];
-
-                                $docIds = [];
-                                foreach (array_values($files) as $path) {
-                                    $fullPath = Storage::disk('local')->path($path);
-                                    $doc = DocumentFile::create([
-                                        'disk' => 'local',
-                                        'path' => $path,
-                                        'original_name' => basename($path),
-                                        'mime_type' => 'application/pdf',
-                                        'size_bytes' => Storage::disk('local')->size($path),
-                                        'checksum' => md5_file($fullPath),
-                                        'uploaded_at' => now(),
-                                    ]);
-                                    $docIds[] = $doc->id;
-                                }
-
-                                foreach ($extractedInvoices as $index => $inv) {
-                                    // Jika hanya 1 file, semua invoice menggunakan file tersebut.
-                                    // Jika multi-file, sesuaikan dengan index atau gunakan file terakhir.
-                                    $docId = count($docIds) === 1
-                                        ? $docIds[0]
-                                        : ($docIds[$index] ?? end($docIds));
-
-                                    $newItem = [
-                                        'invoice_number' => $inv['invoice_number'] ?? '',
-                                        'invoice_date' => $inv['invoice_date'] ?? '',
-                                        'document_file_id' => $docId,
-                                        'items' => [],
-                                    ];
-
-                                    $subtotal = 0;
-                                    foreach ($inv['items'] as $item) {
-                                        $qty = $item['qty'] ?? 1;
-                                        $price = $item['original_price'] ?? 0;
-                                        $subtotal += ($qty * $price);
-                                        $newItem['items'][(string) str()->uuid()] = [
-                                            'item_name' => $item['item_name'] ?? '',
-                                            'quantity' => $qty,
-                                            'unit_price_amount' => $price,
-                                        ];
+                                try {
+                                    $files = $data['raw_pdf_files'] ?? [];
+                                    if (empty($files)) {
+                                        return;
                                     }
-                                    $newItem['subtotal_amount'] = number_format($subtotal, 0, ',', '.');
 
-                                    $currentInvoices[(string) str()->uuid()] = $newItem;
+                                    $extractor = app(GeminiInvoiceExtractor::class);
+
+                                    // Generate full storage paths
+                                    $filePaths = array_map(function ($path) {
+                                        return Storage::disk('local')->path($path);
+                                    }, array_values($files));
+
+                                    $extractedInvoices = $extractor->extract($filePaths);
+
+                                    $currentInvoices = $get('invoices') ?? [];
+
+                                    $docIds = [];
+                                    foreach (array_values($files) as $path) {
+                                        $fullPath = Storage::disk('local')->path($path);
+                                        $doc = DocumentFile::create([
+                                            'disk' => 'local',
+                                            'path' => $path,
+                                            'original_name' => basename($path),
+                                            'mime_type' => 'application/pdf',
+                                            'size_bytes' => Storage::disk('local')->size($path),
+                                            'checksum' => md5_file($fullPath),
+                                            'uploaded_at' => now(),
+                                        ]);
+                                        $docIds[] = $doc->id;
+                                    }
+
+                                    foreach ($extractedInvoices as $index => $inv) {
+                                        // Jika hanya 1 file, semua invoice menggunakan file tersebut.
+                                        // Jika multi-file, sesuaikan dengan index atau gunakan file terakhir.
+                                        $docId = count($docIds) === 1
+                                            ? $docIds[0]
+                                            : ($docIds[$index] ?? end($docIds));
+
+                                        $newItem = [
+                                            'invoice_number' => $inv['invoice_number'] ?? '',
+                                            'invoice_date' => $inv['invoice_date'] ?? '',
+                                            'document_file_id' => $docId,
+                                            'items' => [],
+                                        ];
+
+                                        $subtotal = 0;
+                                        foreach ($inv['items'] as $item) {
+                                            $qty = $item['qty'] ?? 1;
+                                            $price = $item['original_price'] ?? 0;
+                                            $subtotal += ($qty * $price);
+                                            $newItem['items'][(string) str()->uuid()] = [
+                                                'item_name' => $item['item_name'] ?? '',
+                                                'quantity' => $qty,
+                                                'unit_price_amount' => $price,
+                                            ];
+                                        }
+                                        $newItem['subtotal_amount'] = number_format($subtotal, 0, ',', '.');
+
+                                        $currentInvoices[(string) str()->uuid()] = $newItem;
+                                    }
+
+                                    $set('invoices', $currentInvoices);
+
+                                    Notification::make()
+                                        ->title('Ekstraksi Berhasil')
+                                        ->success()
+                                        ->send();
+
+                                } catch (\Throwable $e) {
+                                    Log::error('AI Extraction Fallback triggered: '.$e->getMessage());
+
+                                    Notification::make()
+                                        ->title('Ekstraksi AI Gagal')
+                                        ->body('Gagal membaca PDF menggunakan Gemini: '.$e->getMessage().'. Silakan input invoice secara manual menggunakan tombol "Add Invoice".')
+                                        ->danger()
+                                        ->duration(10000)
+                                        ->send();
                                 }
-
-                                $set('invoices', $currentInvoices);
                             }),
                     ])
                     ->schema([
