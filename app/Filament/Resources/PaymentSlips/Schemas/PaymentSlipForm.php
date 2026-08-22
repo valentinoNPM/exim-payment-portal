@@ -145,10 +145,41 @@ class PaymentSlipForm
                                     ->dehydrated(),
 
                                 Actions::make([
+                                    Action::make('upload_manual_pdf')
+                                        ->label(fn (Get $get) => $get('document_file_id') ? 'Ganti PDF' : 'Upload PDF')
+                                        ->icon('heroicon-o-arrow-up-tray')
+                                        ->color('success')
+                                        ->hidden(fn (string $operation, ?Invoice $record) => $operation === 'view' || ($record && $record->paymentSlip?->status !== 'draft'))
+                                        ->form([
+                                            FileUpload::make('manual_pdf')
+                                                ->label('File PDF Invoice')
+                                                ->disk('local')
+                                                ->directory('invoice-uploads')
+                                                ->acceptedFileTypes(['application/pdf'])
+                                                ->required(),
+                                        ])
+                                        ->action(function (array $data, Set $set) {
+                                            $path = $data['manual_pdf'];
+                                            $fullPath = Storage::disk('local')->path($path);
+
+                                            $doc = DocumentFile::create([
+                                                'disk' => 'local',
+                                                'path' => $path,
+                                                'original_name' => basename($path),
+                                                'mime_type' => 'application/pdf',
+                                                'size_bytes' => Storage::disk('local')->size($path),
+                                                'checksum' => md5_file($fullPath),
+                                                'uploaded_at' => now(),
+                                            ]);
+
+                                            $set('document_file_id', $doc->id);
+                                        }),
+
                                     Action::make('preview_pdf')
                                         ->label('Preview PDF')
                                         ->icon('heroicon-o-eye')
                                         ->color('info')
+                                        ->visible(fn (Get $get) => filled($get('document_file_id')))
                                         ->action(function (Get $get, $livewire) {
                                             $docId = $get('document_file_id');
                                             if ($docId && method_exists($livewire, 'setActivePdf')) {
