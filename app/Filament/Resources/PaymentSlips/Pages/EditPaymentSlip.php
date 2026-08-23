@@ -74,7 +74,8 @@ class EditPaymentSlip extends EditRecord
                     "payment-slip-{$this->getRecord()->slip_number}.pdf"
                 )),
             ViewAction::make(),
-            DeleteAction::make(),
+            DeleteAction::make()
+                ->visible(fn (PaymentSlip $record) => $record->status === 'draft' && auth()->user()->hasRole('maker')),
         ];
     }
 }

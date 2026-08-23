@@ -133,6 +133,8 @@ class ViewPaymentSlip extends ViewRecord
                     "payment-slip-{$this->getRecord()->slip_number}.pdf"
                 )),
             EditAction::make(),
+            \Filament\Actions\DeleteAction::make()
+                ->visible(fn () => $this->getRecord()->status === 'draft' && auth()->user()->hasRole('maker')),
         ];
     }
 }
