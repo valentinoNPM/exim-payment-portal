@@ -24,7 +24,24 @@ class CreatePaymentSlip extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $data['slip_number'] = 'SLIP-'.date('YmdHis').'-'.rand(1000, 9999);
+        $lastSlip = \App\Models\PaymentSlip::where('slip_number', 'like', 'PS-%-HANSOLL-%')
+            ->lockForUpdate()
+            ->orderBy('id', 'desc')
+            ->first();
+
+        $nextSequence = 1;
+
+        if ($lastSlip) {
+            $parts = explode('-', $lastSlip->slip_number);
+            if (count($parts) >= 2) {
+                $nextSequence = ((int) $parts[1]) + 1;
+            }
+        }
+
+        $paddedSequence = str_pad($nextSequence, 5, '0', STR_PAD_LEFT);
+        $currentYear = date('Y');
+
+        $data['slip_number'] = "PS-{$paddedSequence}-HANSOLL-{$currentYear}";
         $data['created_by'] = auth()->id();
 
         return $data;

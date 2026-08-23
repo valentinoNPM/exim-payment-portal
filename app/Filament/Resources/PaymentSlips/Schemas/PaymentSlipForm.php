@@ -29,6 +29,10 @@ class PaymentSlipForm
         return $schema
             ->components([
                 Section::make('Transaction Details')->schema([
+                    TextInput::make('slip_number')
+                        ->label('Slip Number')
+                        ->disabled()
+                        ->visible(fn (string $operation) => $operation !== 'create'),
                     Select::make('transaction_type')
                         ->options([
                             'import' => 'Import',
@@ -368,10 +372,6 @@ class PaymentSlipForm
                             ->prefix('Rp')
                             ->formatStateUsing(fn ($state) => number_format((float) $state, 2, ',', '.'))
                             ->disabled(),
-                        TextInput::make('slip_number')
-                            ->label('Slip Number')
-                            ->disabled()
-                            ->visible(fn (string $operation) => $operation !== 'create'),
                         Select::make('status')
                             ->options([
                                 'draft' => 'Draft',
@@ -381,7 +381,7 @@ class PaymentSlipForm
                                 'exported' => 'Exported',
                             ])
                             ->disabled(),
-                    ])->columns(3),
+                    ])->columns(2),
             ]);
     }
 }
