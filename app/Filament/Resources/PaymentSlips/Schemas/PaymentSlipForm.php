@@ -43,13 +43,45 @@ class PaymentSlipForm
                         ->disabled(fn (?object $record) => $record && $record->status !== 'draft'),
                     Select::make('supplier_id')
                         ->relationship('supplier', 'name')
+                        ->searchable()
                         ->required()
-                        ->disabled(fn (?object $record) => $record && $record->status !== 'draft'),
+                        ->disabled(fn (?object $record) => $record && $record->status !== 'draft')
+                        ->createOptionForm([
+                            TextInput::make('code')
+                                ->label('Supplier Code')
+                                ->required()
+                                ->unique('suppliers', 'code')
+                                ->placeholder('Contoh: SUP-001'),
+                            TextInput::make('name')
+                                ->label('Supplier Name')
+                                ->required()
+                                ->placeholder('Nama Perusahaan/Supplier'),
+                            \Filament\Forms\Components\Textarea::make('address')
+                                ->label('Address')
+                                ->columnSpanFull()
+                                ->placeholder('Alamat Lengkap'),
+                        ]),
                     Select::make('buyer_id')
                         ->relationship('buyer', 'name')
+                        ->searchable()
                         ->visible(fn (Get $get) => $get('transaction_type') === 'import')
                         ->required(fn (Get $get) => $get('transaction_type') === 'import')
-                        ->disabled(fn (?object $record) => $record && $record->status !== 'draft'),
+                        ->disabled(fn (?object $record) => $record && $record->status !== 'draft')
+                        ->createOptionForm([
+                            TextInput::make('code')
+                                ->label('Buyer Code')
+                                ->required()
+                                ->unique('buyers', 'code')
+                                ->placeholder('Contoh: BUY-001'),
+                            TextInput::make('name')
+                                ->label('Buyer Name')
+                                ->required()
+                                ->placeholder('Nama Perusahaan/Buyer'),
+                            \Filament\Forms\Components\Textarea::make('address')
+                                ->label('Address')
+                                ->columnSpanFull()
+                                ->placeholder('Alamat Lengkap'),
+                        ]),
                 ])->columns(2)->columnSpanFull(),
 
                 Section::make('Invoices')
