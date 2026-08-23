@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\PaymentSlips\Pages;
 
 use App\Filament\Resources\PaymentSlips\PaymentSlipResource;
+use App\Models\PaymentSlip;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
