@@ -209,6 +209,7 @@ class PaymentSlipForm
                     ->schema([
                         Repeater::make('invoices')
                             ->relationship('invoices')
+                            ->live()
                             ->addable(fn (?object $record) => ! $record || $record->status === 'draft')
                             ->deletable(fn (?object $record) => ! $record || $record->status === 'draft')
                             ->schema([
@@ -316,7 +317,7 @@ class PaymentSlipForm
                                     ->options(fn () => Tax::where('calculation_type', 'addition')->where('is_active', true)->pluck('name', 'id'))
                                     ->preload()
                                     ->placeholder('Tanpa PPN')
-                                    ->live(debounce: 500)
+                                    ->live()
                                     ->afterStateUpdated(function (Get $get, Set $set, $state) {
                                         $rawSubtotal = str_replace(['.', ','], ['', '.'], $get('subtotal_amount'));
                                         $subtotal = (float) $rawSubtotal;
@@ -348,7 +349,7 @@ class PaymentSlipForm
                                     ->options(fn () => Tax::where('calculation_type', 'deduction')->where('is_active', true)->pluck('name', 'id'))
                                     ->preload()
                                     ->placeholder('Tanpa PPh')
-                                    ->live(debounce: 500)
+                                    ->live()
                                     ->afterStateUpdated(function (Get $get, Set $set, $state) {
                                         $rawSubtotal = str_replace(['.', ','], ['', '.'], $get('subtotal_amount'));
                                         $subtotal = (float) $rawSubtotal;
@@ -423,11 +424,17 @@ class PaymentSlipForm
                 Section::make('Overview')
                     ->columnSpanFull()
                     ->schema([
-                        TextInput::make('grand_total_amount')
+                        Placeholder::make('grand_total_amount_view')
                             ->label('Amount')
-                            ->prefix('Rp')
-                            ->formatStateUsing(fn ($state) => number_format((float) $state, 2, ',', '.'))
-                            ->disabled(),
+                            ->content(function (Get $get) {
+                                $invoices = $get('invoices') ?? [];
+                                $total = 0;
+                                foreach ($invoices as $inv) {
+                                    $invTotal = str_replace(['.', ','], ['', '.'], $inv['grand_total_amount'] ?? '0');
+                                    $total += (float) $invTotal;
+                                }
+                                return 'Rp ' . number_format($total, 0, ',', '.');
+                            }),
                         Select::make('status')
                             ->options([
                                 'draft' => 'Draft',
