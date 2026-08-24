@@ -218,54 +218,61 @@
             $invoiceNumbers = $slip->invoices->pluck('invoice_number')->filter()->implode(', ');
             $department = $slip->creator?->division?->name ?? strtoupper($slip->transaction_type);
         @endphp
-        <table class="data-table" style="margin-bottom: 8px;">
+        <table style="width: 100%; border: none; margin-bottom: 8px;">
             <tr>
-                <td class="data-label">Payment Slip Number</td>
-                <td class="data-separator">:</td>
-                <td class="data-value">{{ $slip->slip_number }}</td>
-                
-            </tr>
-            <tr>
-                <td class="data-label">Date</td>
-                <td class="data-separator">:</td>
-                <td class="data-value">{{ $slip->created_at->format('Y-m-d') }}</td>
-                <td class="data-label">No. Invoice</td>
-                <td class="data-separator">:</td>
-                <td class="data-value">{{ $invoiceNumbers }}</td>
-            </tr>
-            <tr>
-                <td class="data-label">Department</td>
-                <td class="data-separator">:</td>
-                <td class="data-value">{{ $department }} ({{ strtoupper($slip->transaction_type) }})</td>
-                <td colspan="3"></td>
-            </tr>
-            <tr>
-                <td class="data-label">Name</td>
-                <td class="data-separator">:</td>
-                <td class="data-value">{{ $slip->creator?->name ?? '-' }}</td>
-                <td colspan="3"></td>
-            </tr>
-            <tr>
-                <td class="data-label">Supplier</td>
-                <td class="data-separator">:</td>
-                <td class="data-value">{{ $slip->supplier?->name ?? '-' }}</td>
-                <td colspan="3"></td>
-            </tr>
-            <tr>
-                <td class="data-label">Account Name</td>
-                <td class="data-separator">:</td>
-                <td class="data-value">
-                    @php
-                        $coaNames = $slip->invoices->map(fn($inv) => $inv->coa_name_snapshot)->filter()->unique()->implode(', ');
-                    @endphp
-                    {{ $coaNames ?: '-' }}
+                <td style="width: 60%; vertical-align: top; border: none; padding: 0;">
+                    <table class="data-table" style="width: 100%;">
+                        <tr>
+                            <td class="data-label" style="width: 32%;">Payment Slip Number</td>
+                            <td class="data-separator" style="width: 4%;">:</td>
+                            <td class="data-value" style="width: 64%;">{{ $slip->slip_number }}</td>
+                        </tr>
+                        <tr>
+                            <td class="data-label">Date</td>
+                            <td class="data-separator">:</td>
+                            <td class="data-value">{{ $slip->created_at->format('Y-m-d') }}</td>
+                        </tr>
+                        <tr>
+                            <td class="data-label">Department</td>
+                            <td class="data-separator">:</td>
+                            <td class="data-value">{{ $department }} ({{ strtoupper($slip->transaction_type) }})</td>
+                        </tr>
+                        <tr>
+                            <td class="data-label">Name</td>
+                            <td class="data-separator">:</td>
+                            <td class="data-value">{{ $slip->creator?->name ?? '-' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="data-label">Supplier</td>
+                            <td class="data-separator">:</td>
+                            <td class="data-value">{{ $slip->supplier?->name ?? '-' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="data-label">Account Name</td>
+                            <td class="data-separator">:</td>
+                            <td class="data-value">
+                                @php
+                                    $coaNames = $slip->invoices->map(fn($inv) => $inv->coa_name_snapshot)->filter()->unique()->implode(', ');
+                                @endphp
+                                {{ $coaNames ?: '-' }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="data-label">Transaction</td>
+                            <td class="data-separator">:</td>
+                            <td class="data-value">CHARGE {{ strtoupper($slip->transaction_type) }}</td>
+                        </tr>
+                    </table>
                 </td>
-                <td colspan="3"></td>
-            </tr>
-            <tr>
-                <td class="data-label">Transaction</td>
-                <td class="data-separator">:</td>
-                <td class="data-value" colspan="4">CHARGE {{ strtoupper($slip->transaction_type) }}</td>
+                <td style="width: 40%; vertical-align: top; border: none; padding: 0;">
+                    <table class="data-table" style="width: 100%;">
+                        <tr>
+                            <td class="data-label" style="width: 25%;">No. Invoice</td>
+                            <td class="data-separator" style="width: 5%;">:</td>
+                            <td class="data-value" style="width: 70%;">{{ $invoiceNumbers }}</td>
+                        </tr>
+                    </table>
+                </td>
             </tr>
         </table>
 

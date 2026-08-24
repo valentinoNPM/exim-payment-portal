@@ -7,12 +7,16 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Tax;
 use App\Services\GeminiInvoiceExtractor;
+use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\ViewField;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Section;
@@ -28,6 +32,11 @@ class PaymentSlipForm
     {
         return $schema
             ->components([
+                ViewField::make('status_progress')
+                    ->view('filament.components.status-steps')
+                    ->columnSpanFull()
+                    ->hidden(fn (string $operation) => $operation === 'create'),
+
                 Section::make('Transaction Details')->schema([
                     TextInput::make('slip_number')
                         ->label('Slip Number')
@@ -56,7 +65,7 @@ class PaymentSlipForm
                                 ->label('Supplier Name')
                                 ->required()
                                 ->placeholder('Nama Perusahaan/Supplier'),
-                            \Filament\Forms\Components\Textarea::make('address')
+                            Textarea::make('address')
                                 ->label('Address')
                                 ->columnSpanFull()
                                 ->placeholder('Alamat Lengkap'),
@@ -77,11 +86,26 @@ class PaymentSlipForm
                                 ->label('Buyer Name')
                                 ->required()
                                 ->placeholder('Nama Perusahaan/Buyer'),
-                            \Filament\Forms\Components\Textarea::make('address')
+                            Textarea::make('address')
                                 ->label('Address')
                                 ->columnSpanFull()
                                 ->placeholder('Alamat Lengkap'),
                         ]),
+                    TextInput::make('maker_name')
+                        ->label('Nama')
+                        ->formatStateUsing(fn (?object $record) => $record?->creator?->name ?? '-')
+                        ->disabled()
+                        ->visible(fn (string $operation) => $operation === 'view'),
+                    TextInput::make('division_name')
+                        ->label('Division')
+                        ->formatStateUsing(fn (?object $record) => $record?->creator?->division?->name ?? '-')
+                        ->disabled()
+                        ->visible(fn (string $operation) => $operation === 'view'),
+                    TextInput::make('created_at_display')
+                        ->label('Date')
+                        ->formatStateUsing(fn (?object $record) => $record?->created_at ? Carbon::parse($record->created_at)->format('d/m/Y H:i') : '-')
+                        ->disabled()
+                        ->visible(fn (string $operation) => $operation === 'view'),
                 ])->columns(2)->columnSpanFull(),
 
                 Section::make('Invoices')

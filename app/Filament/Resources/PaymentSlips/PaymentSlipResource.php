@@ -11,6 +11,7 @@ use App\Filament\Resources\PaymentSlips\Schemas\PaymentSlipInfolist;
 use App\Filament\Resources\PaymentSlips\Tables\PaymentSlipsTable;
 use App\Models\PaymentSlip;
 use BackedEnum;
+use Filament\Navigation\NavigationItem;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -24,7 +25,25 @@ class PaymentSlipResource extends Resource
 
     protected static string | \UnitEnum | null $navigationGroup = 'Payment';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 2;
+
+    public static function getNavigationItems(): array
+    {
+        $items = parent::getNavigationItems();
+
+        if (auth()->check() && auth()->user()->hasRole('maker')) {
+            array_unshift(
+                $items,
+                NavigationItem::make('New Payment Slip')
+                    ->url(fn (): string => static::getUrl('create'))
+                    ->icon('heroicon-o-plus-circle')
+                    ->group(static::getNavigationGroup())
+                    ->sort(1)
+            );
+        }
+
+        return $items;
+    }
 
     public static function form(Schema $schema): Schema
     {
