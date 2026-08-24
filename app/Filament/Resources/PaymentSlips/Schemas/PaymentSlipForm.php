@@ -168,6 +168,8 @@ class PaymentSlipForm
                                             'invoice_number' => $inv['invoice_number'] ?? '',
                                             'invoice_date' => $inv['invoice_date'] ?? '',
                                             'document_file_id' => $docId,
+                                            'ppn_tax_id' => null,
+                                            'pph_tax_id' => null,
                                             'items' => [],
                                         ];
 
@@ -183,6 +185,9 @@ class PaymentSlipForm
                                             ];
                                         }
                                         $newItem['subtotal_amount'] = number_format($subtotal, 0, ',', '.');
+                                        $newItem['tax_addition_amount'] = '0';
+                                        $newItem['tax_deduction_amount'] = '0';
+                                        $newItem['grand_total_amount'] = number_format($subtotal, 0, ',', '.');
 
                                         $currentInvoices[(string) str()->uuid()] = $newItem;
                                     }
