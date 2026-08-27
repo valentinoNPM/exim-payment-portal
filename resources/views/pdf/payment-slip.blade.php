@@ -223,7 +223,7 @@
                         <tr>
                             <td class="data-label">Department</td>
                             <td class="data-separator">:</td>
-                            <td class="data-value">{{ $department }} ({{ strtoupper($slip->transaction_type) }})</td>
+                            <td class="data-value">{{ $department }}</td>
                         </tr>
                         <tr>
                             <td class="data-label">Name</td>
