@@ -33,29 +33,32 @@
             padding: 5px 8px;
         }
         .logo-box {
-            width: 60%;
+            width: 100%;
             vertical-align: top;
         }
         .company-name {
-            font-size: 16px;
+            font-size: 28px;
             font-weight: bold;
             color: #333;
         }
         .company-address {
-            font-size: 8px;
+            font-size: 10px;
             color: #555;
             line-height: 1.3;
         }
-        .title-box {
-            width: 40%;
+        .document-title {
             font-size: 16px;
             font-weight: bold;
             color: #5b2d8e;
-            text-align: right;
-            vertical-align: middle;
+            text-align: center;
+            margin: 10px 0;
+            letter-spacing: 0.5px;
         }
 
         /* Approval Grid */
+        .approval-grid {
+            margin-top: 10px;
+        }
         .approval-grid th {
             background-color: #f3eef9;
             color: #5b2d8e;
@@ -74,7 +77,7 @@
             background-color: #f3eef9;
             color: #5b2d8e;
             font-weight: bold;
-            width: 18%;
+            width: 15%;
         }
 
         /* Data Section */
@@ -174,12 +177,12 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header: Company Info + Title -->
+        <!-- Header: Company Info -->
         <table class="header-table">
             <tr>
                 <td class="logo-box">
                     @if(file_exists(public_path('images/logo.svg')))
-                        <img src="{{ public_path('images/logo.svg') }}" style="height: 28px; width: auto; margin-bottom: 3px;" /><br/>
+                        <img src="{{ public_path('images/logo.svg') }}" style="height: 14px; width: auto; margin-bottom: 3px;" /><br/>
                     @endif
                     <span class="company-name">PT. HANSOLL INDO JAVA</span><br/>
                     <span class="company-address">
@@ -188,30 +191,15 @@
                         Telp.: (0276) 3280401
                     </span>
                 </td>
-                <td class="title-box">
-                    PAYMENT SLIP
-                </td>
             </tr>
         </table>
 
-        <!-- Approval Grid -->
-        <table class="approval-grid" style="margin-bottom: 8px;">
-            <tr>
-                <td rowspan="2" class="label-cell">APPROVAL</td>
-                <th>INCHARGE</th>
-                <th>PASSED</th>
-                <th>PASSED</th>
-                <th>PASSED</th>
-                <th>DIRECTOR</th>
-            </tr>
-            <tr>
-                <td>&nbsp;</td>
-                <td>&nbsp;</td>
-                <td>&nbsp;</td>
-                <td>&nbsp;</td>
-                <td>&nbsp;</td>
-            </tr>
-        </table>
+        <hr style="border: none; border-top: 1.5px solid #5b2d8e; margin: 5px 0 10px 0;" />
+
+        <!-- Title: Payment Slip -->
+        <div class="document-title">
+            PAYMENT SLIP
+        </div>
 
         <!-- Data Section -->
         @php
@@ -364,6 +352,25 @@
                     <td class="summary-value" style="font-size: 11px;">Rp {{ number_format($totalGrand, 0, ',', '.') }}</td>
                 </tr>
             </tfoot>
+        </table>
+
+        <!-- Approval Grid -->
+        <table class="approval-grid">
+            <tr>
+                <td rowspan="2" class="label-cell">APPROVAL</td>
+                <th>INCHARGE</th>
+                <th>PASSED</th>
+                <th>PASSED</th>
+                <th>PASSED</th>
+                <th>DIRECTOR</th>
+            </tr>
+            <tr>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+            </tr>
         </table>
 
         <!-- Payment Signature Box -->
