@@ -35,7 +35,7 @@ class AdminPanelProvider extends PanelProvider
             // Branding
             ->brandName('EXIM Payment Portal')
             ->brandLogo(asset('images/logo.svg'))
-            ->brandLogoHeight('3rem')
+            ->brandLogoHeight('1.5rem')
             ->favicon(asset('favicon.ico'))
 
             // Color scheme — sleek Indigo primary with custom supporting colors
