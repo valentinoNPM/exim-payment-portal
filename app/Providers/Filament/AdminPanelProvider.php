@@ -38,9 +38,9 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogoHeight('1.5rem')
             ->favicon(asset('favicon.ico'))
 
-            // Color scheme — sleek Indigo primary with custom supporting colors
+            // Color scheme — Fintech Gold primary with Slate grays
             ->colors([
-                'primary' => Color::Indigo,
+                'primary' => '#F59E0B', // Fintech Gold/Amber
                 'gray' => Color::Slate,
                 'danger' => Color::Rose,
                 'info' => Color::Sky,
@@ -48,11 +48,11 @@ class AdminPanelProvider extends PanelProvider
                 'warning' => Color::Amber,
             ])
 
-            // Dark mode
+            // Dark mode default / forced if needed, but let's keep it toggleable
             ->darkMode()
 
-            // Modern font
-            ->font('Inter')
+            // Modern font for Fintech Dashboard
+            ->font('Plus Jakarta Sans')
 
             // Sidebar
             ->sidebarCollapsibleOnDesktop()

@@ -5,6 +5,7 @@ namespace App\Filament\Widgets;
 use App\Filament\Resources\PaymentSlips\PaymentSlipResource;
 use App\Models\PaymentSlip;
 use Filament\Actions\Action;
+use Filament\Support\Enums\Alignment;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
@@ -39,6 +40,7 @@ class PaymentSlipQueueTable extends BaseWidget
             ->columns([
                 Tables\Columns\TextColumn::make('slip_number')
                     ->label('Slip Number')
+                    ->fontFamily('mono')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('transaction_type')
@@ -66,7 +68,9 @@ class PaymentSlipQueueTable extends BaseWidget
                     ->formatStateUsing(fn (string $state): string => ucfirst(str_replace('_', ' ', $state))),
                 Tables\Columns\TextColumn::make('grand_total_amount')
                     ->label('Total Amount')
-                    ->money('IDR')
+                    ->money('IDR', locale: 'id')
+                    ->fontFamily('mono')
+                    ->alignment(Alignment::End)
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Created At')

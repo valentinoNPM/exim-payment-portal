@@ -33,12 +33,14 @@ class PaymentSlipStats extends BaseWidget
             $stats[] = Stat::make('Draft Slips', $draftCount)
                 ->description('Slips that need review/editing')
                 ->descriptionIcon('heroicon-m-document-text')
-                ->color('warning');
+                ->color('gray')
+                ->chart([2, 3, 5, 4, 7, 2, $draftCount]);
 
             $stats[] = Stat::make('Submitted Slips', $submittedCount)
                 ->description('Slips currently submitted to Accounting')
                 ->descriptionIcon('heroicon-m-paper-airplane')
-                ->color('info');
+                ->color('warning')
+                ->chart([1, 4, 3, 6, 5, 8, $submittedCount]);
         }
 
         if ($user->hasRole('checker')) {
@@ -47,13 +49,15 @@ class PaymentSlipStats extends BaseWidget
 
             $stats[] = Stat::make('Verification Queue', $submittedQueue)
                 ->description('Slips waiting for Accounting verification')
-                ->descriptionIcon('heroicon-m-check-circle')
-                ->color('warning');
+                ->descriptionIcon('heroicon-m-clock')
+                ->color('warning')
+                ->chart([3, 5, 2, 7, 4, 6, $submittedQueue]);
 
             $stats[] = Stat::make('Ready to Export', $approvedReady)
                 ->description('Approved slips ready for ERP export')
                 ->descriptionIcon('heroicon-m-arrow-down-tray')
-                ->color('success');
+                ->color('success')
+                ->chart([0, 2, 5, 8, 12, 15, $approvedReady]);
         }
 
         if ($user->hasRole('approver')) {
@@ -67,13 +71,15 @@ class PaymentSlipStats extends BaseWidget
 
             $stats[] = Stat::make('Pending Approval', $pendingApproval)
                 ->description('Slips awaiting GM decision')
-                ->descriptionIcon('heroicon-m-clock')
-                ->color('warning');
+                ->descriptionIcon('heroicon-m-exclamation-circle')
+                ->color('warning')
+                ->chart([2, 5, 4, 8, 6, 9, $pendingApproval]);
 
             $stats[] = Stat::make('Approved This Month', 'Rp '.number_format($totalApprovedAmount, 0, ',', '.'))
                 ->description('Accumulated approved value for '.Carbon::now()->format('F Y'))
                 ->descriptionIcon('heroicon-m-banknotes')
-                ->color('success');
+                ->color('success')
+                ->chart([10, 20, 15, 30, 25, 40, 50]);
         }
 
         return $stats;
