@@ -54,7 +54,7 @@ class PaymentSlipForm
                         ->relationship('supplier', 'name')
                         ->searchable()
                         ->required()
-                        ->placeholder('--')
+                        ->placeholder('Pilih Supplier')
                         ->disabled(fn (?object $record) => $record && $record->status !== 'draft')
                         ->createOptionForm([
                             TextInput::make('code')
@@ -75,7 +75,7 @@ class PaymentSlipForm
                         ->relationship('buyer', 'name')
                         ->searchable()
                         ->required()
-                        ->placeholder('--')
+                        ->placeholder('Pilih Buyer')
                         ->disabled(fn (?object $record) => $record && $record->status !== 'draft')
                         ->createOptionForm([
                             TextInput::make('code')
