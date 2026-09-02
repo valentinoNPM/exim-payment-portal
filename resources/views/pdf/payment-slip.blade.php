@@ -236,6 +236,11 @@
                             <td class="data-value">{{ $slip->supplier?->name ?? '-' }}</td>
                         </tr>
                         <tr>
+                            <td class="data-label">Buyer</td>
+                            <td class="data-separator">:</td>
+                            <td class="data-value">{{ $slip->buyer?->name ?? '-' }}</td>
+                        </tr>
+                        <tr>
                             <td class="data-label">Account Name</td>
                             <td class="data-separator">:</td>
                             <td class="data-value">

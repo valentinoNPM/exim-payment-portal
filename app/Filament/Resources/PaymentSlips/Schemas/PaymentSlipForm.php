@@ -54,6 +54,7 @@ class PaymentSlipForm
                         ->relationship('supplier', 'name')
                         ->searchable()
                         ->required()
+                        ->placeholder('--')
                         ->disabled(fn (?object $record) => $record && $record->status !== 'draft')
                         ->createOptionForm([
                             TextInput::make('code')
@@ -73,8 +74,8 @@ class PaymentSlipForm
                     Select::make('buyer_id')
                         ->relationship('buyer', 'name')
                         ->searchable()
-                        ->visible(fn (Get $get) => $get('transaction_type') === 'import')
-                        ->required(fn (Get $get) => $get('transaction_type') === 'import')
+                        ->required()
+                        ->placeholder('--')
                         ->disabled(fn (?object $record) => $record && $record->status !== 'draft')
                         ->createOptionForm([
                             TextInput::make('code')
