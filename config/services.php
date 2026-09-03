@@ -42,6 +42,7 @@ return [
             'enabled' => env('MARKITDOWN_ENABLED', true),
             'python_path' => env('MARKITDOWN_PYTHON_PATH', 'python'),
         ],
+        'minimum_text_length' => env('GEMINI_MINIMUM_TEXT_LENGTH', 100),
     ],
 
 ];
