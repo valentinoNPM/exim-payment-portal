@@ -123,6 +123,7 @@ class PaymentSlipForm
                                     ->disk('local')
                                     ->directory('invoice-uploads')
                                     ->acceptedFileTypes(['application/pdf'])
+                                    ->maxSize(102400)
                                     ->required(),
                             ])
                             ->action(function (array $data, Set $set, Get $get) {
@@ -242,6 +243,7 @@ class PaymentSlipForm
                                                 ->disk('local')
                                                 ->directory('invoice-uploads')
                                                 ->acceptedFileTypes(['application/pdf'])
+                                                ->maxSize(102400)
                                                 ->required(),
                                         ])
                                         ->action(function (array $data, Set $set) {
