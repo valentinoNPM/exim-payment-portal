@@ -61,6 +61,30 @@ public static function table(Table $table): Table
 4. Untuk perubahan pada data pembayaran atau status, pertahankan aturan bisnis yang ada dan jangan mengandalkan tampilan admin sebagai satu-satunya validasi.
 5. Jalankan formatter dan tes yang relevan sebelum selesai: `vendor/bin/pint --dirty` dan `php artisan test` (atau tes yang lebih spesifik bila tersedia).
 
+## Izin kerja rutin dan non-destruktif
+
+Untuk pekerjaan coding yang sudah diminta user, agent memiliki izin eksplisit untuk langsung melakukan operasi rutin dan non-destruktif di dalam repository ini tanpa meminta konfirmasi tambahan. Jangan menghentikan pekerjaan hanya untuk menanyakan izin atas langkah implementasi normal.
+
+Operasi yang boleh langsung dilakukan meliputi:
+
+- Membaca, mencari, dan memeriksa file proyek, source package lokal, konfigurasi, log aplikasi, serta struktur database/migration.
+- Menjalankan pemeriksaan Git yang hanya membaca keadaan repository, termasuk `git status`, `git diff`, `git log`, `git show`, dan `git branch --show-current`.
+- Membuat file baru dan memperbarui file yang relevan dengan scope tugas, termasuk source code, test, konfigurasi, dokumentasi, view, dan migration baru yang memang diperlukan oleh fitur.
+- Menjalankan formatter, linter, static analysis, build, dan test lokal, termasuk `vendor/bin/pint --dirty`, `php artisan test`, serta perintah test yang lebih spesifik.
+- Menjalankan perintah Laravel lokal yang bersifat diagnostik atau membersihkan cache yang dapat dibuat ulang, termasuk `php artisan about`, `route:list`, `config:clear`, `cache:clear`, `view:clear`, dan `optimize:clear`.
+- Membuat file sementara di dalam workspace untuk inspeksi atau pengujian dan membersihkan kembali file sementara yang dibuat sendiri oleh agent.
+- Memperbaiki error format, test, atau build yang disebabkan langsung oleh perubahan dalam scope tugas.
+
+Tetap minta persetujuan sebelum tindakan yang destruktif, sulit dipulihkan, berdampak ke luar repository, atau memperluas scope secara material, termasuk:
+
+- Menghapus atau menimpa data user, file sumber yang tidak terkait, database non-test, upload, atau artifact penting.
+- Menjalankan `git reset`, `git clean`, rebase, force push, menghapus branch, membuang perubahan lokal, commit, atau push jika user belum memintanya.
+- Menjalankan migration yang mengubah database berisi data nyata, seeding yang dapat menimpa data, atau query data massal yang mutatif. Membuat file migration dan menjalankannya pada database test tetap diperbolehkan.
+- Mengubah `.env`, credential, secret, konfigurasi produksi, layanan eksternal, atau mengirim data ke pihak luar.
+- Menambah, menghapus, atau menaikkan versi dependency tanpa kebutuhan yang jelas dalam permintaan user.
+
+Jika platform atau sandbox tetap menampilkan permintaan approval, ikuti mekanisme keamanan platform. Namun, jangan meminta konfirmasi percakapan tambahan untuk operasi yang sudah diizinkan di atas.
+
 ## Larangan kompatibilitas
 
 - Jangan menghasilkan kode Filament 3/4 yang mengandalkan `Filament\Forms\Form`, `Filament\Tables\Actions\*`, `->actions()`, atau `->bulkActions()`.

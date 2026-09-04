@@ -1,5 +1,7 @@
 *.log
-/docs/
+/docs/*
+!/docs/erp-export/
+!/docs/erp-export/*.md
 .DS_Store
 .env
 .env.backup
