@@ -249,7 +249,7 @@ On narrow screens, fields stack vertically with the item description first.
 
 - A table is the natural UI for selecting one record from an approved queue.
 - A row action expresses the one-slip/one-file rule directly.
-- A modal or slide-over keeps the user in context while collecting a small amount of transient data.
+- A modal or slide-over keeps the user in context while collecting a small amount of per-invoice export data that is persisted when export succeeds.
 - A compact preview exposes the financially important fields without forcing the user to inspect 59 columns.
 - Optional values stay optional and do not pollute the Payment Slip database.
 

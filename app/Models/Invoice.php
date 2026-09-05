@@ -16,14 +16,12 @@ class Invoice extends Model
         'payment_slip_id',
         'invoice_number',
         'invoice_date',
+        'vat_invoice_number',
         'subtotal_amount',
         'tax_addition_amount',
         'tax_deduction_amount',
         'grand_total_amount',
         'document_file_id',
-        'coa_id',
-        'coa_code_snapshot',
-        'coa_name_snapshot',
         'ppn_tax_id',
         'pph_tax_id',
     ];
@@ -49,11 +47,6 @@ class Invoice extends Model
     public function items(): HasMany
     {
         return $this->hasMany(InvoiceItem::class);
-    }
-
-    public function chartOfAccount(): BelongsTo
-    {
-        return $this->belongsTo(ChartOfAccount::class, 'coa_id');
     }
 
     public function ppnTax(): BelongsTo
@@ -82,17 +75,6 @@ class Invoice extends Model
     protected static function booted()
     {
         static::saving(function ($invoice) {
-            if ($invoice->isDirty('coa_id')) {
-                if ($invoice->coa_id) {
-                    $coa = ChartOfAccount::find($invoice->coa_id);
-                    $invoice->coa_code_snapshot = $coa?->code;
-                    $invoice->coa_name_snapshot = $coa?->name;
-                } else {
-                    $invoice->coa_code_snapshot = null;
-                    $invoice->coa_name_snapshot = null;
-                }
-            }
-
             // Recalculate taxes using Opsi B (direct FK ppn_tax_id / pph_tax_id)
             if ($invoice->isDirty(['ppn_tax_id', 'pph_tax_id', 'subtotal_amount'])) {
                 $subtotal = (float) $invoice->subtotal_amount;

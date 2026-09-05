@@ -119,6 +119,25 @@ class GeminiInvoiceExtractorTest extends TestCase
         $this->assertSame(400000.0, $result[0]['items'][0]['original_price']);
     }
 
+    public function test_report_keeps_successful_files_when_another_file_fails_without_retry(): void
+    {
+        Storage::disk('local')->put('invoices/success.pdf', 'fake-success');
+        Storage::disk('local')->put('invoices/failure.pdf', 'fake-failure');
+        $extractor = new PartialFailureGeminiInvoiceExtractor;
+
+        $report = $extractor->extractWithReport([
+            ['path' => Storage::disk('local')->path('invoices/success.pdf'), 'original_name' => 'invoice-success.pdf'],
+            ['path' => Storage::disk('local')->path('invoices/failure.pdf'), 'original_name' => 'invoice-failure.pdf'],
+        ]);
+
+        $this->assertCount(1, $report['successful']);
+        $this->assertCount(1, $report['failed']);
+        $this->assertSame('invoice-success.pdf', $report['successful'][0]['original_name']);
+        $this->assertSame('invoice-failure.pdf', $report['failed'][0]['original_name']);
+        $this->assertStringContainsString('Teks PDF berhasil dibaca', $report['failed'][0]['message']);
+        $this->assertSame(2, $extractor->textRequests);
+    }
+
     private function validInvoice(): array
     {
         return [
@@ -130,6 +149,39 @@ class GeminiInvoiceExtractorTest extends TestCase
                 'original_price' => 400000,
             ]],
         ];
+    }
+}
+
+class PartialFailureGeminiInvoiceExtractor extends GeminiInvoiceExtractor
+{
+    public int $textRequests = 0;
+
+    private string $currentFile = '';
+
+    protected function extractViaMarkitdown(string $filePath): ?string
+    {
+        $this->currentFile = basename($filePath);
+
+        return 'INVOICE NUMBER INV-001 with enough invoice table content';
+    }
+
+    protected function extractViaTextPrompt(string $textContent): array
+    {
+        $this->textRequests++;
+
+        if ($this->currentFile === 'failure.pdf') {
+            throw new RuntimeException('Gemini tidak tersedia (HTTP 503).');
+        }
+
+        return [[
+            'invoice_number' => 'INV-001',
+            'invoice_date' => '2026-09-03',
+            'items' => [[
+                'item_name' => 'Custom Clearance',
+                'qty' => 1,
+                'original_price' => 400000,
+            ]],
+        ]];
     }
 }
 

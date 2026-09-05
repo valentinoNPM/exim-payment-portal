@@ -5,7 +5,6 @@ namespace App\Filament\Widgets;
 use App\Models\PaymentSlip;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
-use Illuminate\Support\Carbon;
 
 class PaymentSlipStats extends BaseWidget
 {
@@ -54,32 +53,10 @@ class PaymentSlipStats extends BaseWidget
                 ->chart([3, 5, 2, 7, 4, 6, $submittedQueue]);
 
             $stats[] = Stat::make('Ready to Export', $approvedReady)
-                ->description('Approved slips ready for ERP export')
+                ->description('Verified slips ready for ERP export')
                 ->descriptionIcon('heroicon-m-arrow-down-tray')
                 ->color('success')
                 ->chart([0, 2, 5, 8, 12, 15, $approvedReady]);
-        }
-
-        if ($user->hasRole('approver')) {
-            $pendingApproval = PaymentSlip::where('status', 'pending_approval')->count();
-
-            // Total amount approved this month
-            $startOfMonth = Carbon::now()->startOfMonth();
-            $totalApprovedAmount = PaymentSlip::where('status', 'approved')
-                ->where('approved_at', '>=', $startOfMonth)
-                ->sum('grand_total_amount');
-
-            $stats[] = Stat::make('Pending Approval', $pendingApproval)
-                ->description('Slips awaiting GM decision')
-                ->descriptionIcon('heroicon-m-exclamation-circle')
-                ->color('warning')
-                ->chart([2, 5, 4, 8, 6, 9, $pendingApproval]);
-
-            $stats[] = Stat::make('Approved This Month', 'Rp '.number_format($totalApprovedAmount, 0, ',', '.'))
-                ->description('Accumulated approved value for '.Carbon::now()->format('F Y'))
-                ->descriptionIcon('heroicon-m-banknotes')
-                ->color('success')
-                ->chart([10, 20, 15, 30, 25, 40, 50]);
         }
 
         return $stats;

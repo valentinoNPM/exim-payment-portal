@@ -8,7 +8,7 @@ use RuntimeException;
 
 class DocumentFileRegistrar
 {
-    public function registerLocalUploads(array $paths): array
+    public function registerLocalUploads(array $paths, array $originalNames = []): array
     {
         $documentIds = [];
 
@@ -33,7 +33,7 @@ class DocumentFileRegistrar
                 $document = DocumentFile::create([
                     'disk' => 'local',
                     'path' => $path,
-                    'original_name' => basename($path),
+                    'original_name' => $originalNames[$path] ?? basename($path),
                     'mime_type' => Storage::disk('local')->mimeType($path) ?: 'application/pdf',
                     'size_bytes' => Storage::disk('local')->size($path),
                     'checksum' => $checksum,

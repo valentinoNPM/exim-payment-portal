@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Smalot\PdfParser\Parser;
 use Throwable;
@@ -48,14 +49,60 @@ EOT;
         $extractedData = [];
 
         foreach ($pdfPaths as $pdfPath) {
-            $startedAt = microtime(true);
-            $fullPath = $this->resolvePdfPath($pdfPath);
-            $text = $this->findUsableLocalText($fullPath, $pdfPath);
-            $result = [];
+            $extractedData = array_merge($extractedData, $this->extractFile($pdfPath, basename($pdfPath)));
+        }
+
+        return $extractedData;
+    }
+
+    /**
+     * @param  list<array{path: string, original_name: string}>  $files
+     * @return array{successful: list<array{path: string, original_name: string, invoices: array}>, failed: list<array{path: string, original_name: string, message: string}>}
+     */
+    public function extractWithReport(array $files): array
+    {
+        $successful = [];
+        $failed = [];
+
+        foreach ($files as $file) {
+            try {
+                $successful[] = [
+                    'path' => $file['path'],
+                    'original_name' => $file['original_name'],
+                    'invoices' => $this->extractFile($file['path'], $file['original_name']),
+                ];
+            } catch (Throwable $exception) {
+                Log::error('GeminiInvoiceExtractor: File extraction failed', [
+                    'original_name' => $file['original_name'],
+                    'file' => $file['path'],
+                    'error' => $exception->getMessage(),
+                    'exception' => $exception::class,
+                ]);
+
+                $failed[] = [
+                    'path' => $file['path'],
+                    'original_name' => $file['original_name'],
+                    'message' => $exception->getMessage(),
+                ];
+            }
+        }
+
+        return ['successful' => $successful, 'failed' => $failed];
+    }
+
+    protected function extractFile(string $pdfPath, string $originalName): array
+    {
+        $startedAt = microtime(true);
+        $fullPath = $this->resolvePdfPath($pdfPath);
+        $text = $this->findUsableLocalText($fullPath, $pdfPath);
+        $result = [];
+
+        try {
 
             if ($text !== null) {
                 Log::info('GeminiInvoiceExtractor: Using text prompt', [
                     'file' => $pdfPath,
+                    'original_name' => $originalName,
                     'text_length' => mb_strlen($text),
                 ]);
 
@@ -64,6 +111,7 @@ EOT;
                 if ($result === []) {
                     Log::warning('GeminiInvoiceExtractor: Text prompt returned no valid invoices; falling back to multimodal', [
                         'file' => $pdfPath,
+                        'original_name' => $originalName,
                     ]);
                 }
             }
@@ -71,6 +119,7 @@ EOT;
             if ($result === []) {
                 Log::info('GeminiInvoiceExtractor: Using Tier 3 (Multimodal Vision)', [
                     'file' => $pdfPath,
+                    'original_name' => $originalName,
                 ]);
 
                 $result = $this->validateExtractedInvoices($this->extractViaMultimodal([$pdfPath]));
@@ -87,15 +136,23 @@ EOT;
 
             Log::info('GeminiInvoiceExtractor: Extraction completed', [
                 'file' => $pdfPath,
+                'original_name' => $originalName,
                 'invoice_count' => count($result),
                 'item_count' => $itemCount,
                 'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
             ]);
 
-            $extractedData = array_merge($extractedData, $result);
-        }
+            return $result;
+        } catch (Throwable $exception) {
+            if ($text !== null && str_contains($exception->getMessage(), 'Gemini')) {
+                throw new RuntimeException(
+                    'Teks PDF berhasil dibaca, tetapi layanan AI gagal: '.$exception->getMessage(),
+                    previous: $exception,
+                );
+            }
 
-        return $extractedData;
+            throw $exception;
+        }
     }
 
     protected function findUsableLocalText(string $fullPath, string $displayPath): ?string
@@ -320,9 +377,19 @@ EOT;
     protected function parseGeminiResponse(Response $response): array
     {
         if ($response->failed()) {
-            Log::error('Gemini API request failed', ['status' => $response->status()]);
+            $requestId = $response->header('x-request-id') ?? $response->header('x-goog-request-id');
+            $responseJson = $response->json();
+            $safeResponse = is_array($responseJson) && isset($responseJson['error'])
+                ? ['error' => $responseJson['error']]
+                : Str::limit($response->body(), 2000);
 
-            throw new RuntimeException('Failed to communicate with Gemini API: '.$response->status());
+            Log::error('Gemini API request failed', [
+                'status' => $response->status(),
+                'request_id' => $requestId,
+                'response' => $safeResponse,
+            ]);
+
+            throw new RuntimeException('Gemini tidak tersedia (HTTP '.$response->status().').');
         }
 
         $jsonString = $response->json('candidates.0.content.parts.0.text');

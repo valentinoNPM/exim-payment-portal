@@ -24,13 +24,11 @@ class PaymentSlipQueueTable extends BaseWidget
 
         if (! $user) {
             $query->whereRaw('1=0');
+        } elseif ($user->hasRole('checker')) {
+            $query->where('status', 'submitted');
         } elseif ($user->hasRole('maker')) {
             $query->where('created_by', $user->id)
                 ->where('status', 'draft');
-        } elseif ($user->hasRole('checker')) {
-            $query->where('status', 'submitted');
-        } elseif ($user->hasRole('approver')) {
-            $query->where('status', 'pending_approval');
         } else {
             $query->whereRaw('1=0');
         }
@@ -65,7 +63,7 @@ class PaymentSlipQueueTable extends BaseWidget
                         'approved' => 'success',
                         default => 'gray',
                     })
-                    ->formatStateUsing(fn (string $state): string => ucfirst(str_replace('_', ' ', $state))),
+                    ->formatStateUsing(fn (string $state): string => $state === 'approved' ? 'Verified' : ucfirst(str_replace('_', ' ', $state))),
                 Tables\Columns\TextColumn::make('grand_total_amount')
                     ->label('Total Amount')
                     ->money('IDR', locale: 'id')

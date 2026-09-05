@@ -8,22 +8,22 @@ Target stack: PHP 8.3+, Laravel 13.26.1, Livewire 4.4.1, Filament 5.7.6
 
 Add an output-only feature that converts one approved Payment Slip into one Microsoft Excel file matching the validated ERP journal template.
 
-This feature must reuse the current transactional data and avoid database schema changes. It is not an ERP API integration, a redesign of Payment Slips, or a general-purpose journal builder.
+This feature reuses the current transactional data, with one approved schema change to make item-level COA authoritative and persist VAT Invoice Numbers. It is not an ERP API integration, a redesign of Payment Slips, or a general-purpose journal builder.
 
 ## 2. Final product decisions
 
 1. One Payment Slip produces one export file.
 2. Export is initiated from a new admin page, not from the Payment Slip creation form.
-3. The ready-to-export list contains Payment Slips with status `approved`. An approved slip has already passed Accounting verification and GM approval. Do not export a `pending_approval` slip merely because `verified_at` is populated.
+3. The ready-to-export list contains Payment Slips with status `approved`. In the UI this status means **Verified**: Accounting verification is the final in-system decision, and GM does not use this system. Verification sets `verified_at`, `approved_at`, and `approved_by` to the Checker and makes the slip ready for export. The legacy `pending_approval` value remains only for database compatibility and is not part of the active workflow.
 4. Only the `checker` role may access the page and export files.
 5. Every Invoice Item produces its own expense journal row. Do not aggregate rows in the first version.
 6. PPN and PPh values must use the final stored Payment Slip/Invoice values. Do not calculate or round tax again in the exporter.
 7. Additional ERP fields are optional. Empty optional fields do not block export.
-8. `VAT Invoice No.` is an optional, transient export input. It is not persisted in the first version.
+8. `VAT Invoice No.` is optional and persisted per Invoice in `invoices.vat_invoice_number`.
 9. Account and balance failures are structural errors and must block export.
 10. The generated workbook must match the canonical template at `docs/vmc 5 -expeditor-.xlsx`: sheet names, two header rows, column order A:BG, date representation, and data types.
 11. Do not add, remove, or upgrade Laravel, Livewire, Filament, or spreadsheet packages.
-12. Do not add a migration or a new database table for this feature.
+12. Use a migration to move legacy Invoice COA values to empty Invoice Items, remove Invoice-level COA fields, and add `invoices.vat_invoice_number`. Do not add a separate VAT table.
 
 ## 3. Scope
 
@@ -37,7 +37,7 @@ This feature must reuse the current transactional data and avoid database schema
 - Server-side structural validation.
 - XLSX generation from the validated ERP template.
 - Existing export history records, status transition, and audit event.
-- COA selection/use at Invoice Item level with a backward-compatible Invoice-level fallback.
+- COA selection and validation exclusively at Invoice Item level.
 
 ### Deferred
 
@@ -48,14 +48,13 @@ This feature must reuse the current transactional data and avoid database schema
 - Multiple currencies.
 - Negative values, reversals, credit notes, or correction journals.
 - ERP API or webhook integration.
-- Persisting optional VAT Invoice Numbers.
 - User-configurable ERP formats.
 
 The deferred scenarios must not receive speculative logic in the first implementation.
 
 ## 4. Database policy
 
-No schema change is required.
+One schema migration is required. It preserves legacy account data by copying Invoice COA values into Invoice Items that do not yet have a COA before removing the Invoice-level fields.
 
 | Output need | Existing source |
 | --- | --- |
@@ -67,11 +66,11 @@ No schema change is required.
 | Invoice number and date | `invoices.invoice_number`, `invoices.invoice_date` |
 | Expense amount | `invoice_items.subtotal_amount` |
 | Expense description | `invoice_items.item_name` plus existing invoice context |
-| Expense COA | `invoice_items.coa_id` / snapshot; Invoice COA is a legacy fallback |
+| Expense COA | `invoice_items.coa_id` / snapshot |
 | PPN/PPh amounts | stored Invoice/Payment Slip tax totals |
 | Export record | existing `erp_export_batches` and `erp_export_items` |
 | Export audit | existing `payment_slip_audits` |
-| Optional VAT Invoice No. | transient action-form state only |
+| Optional VAT Invoice No. | `invoices.vat_invoice_number` |
 
 ### COA compatibility rule
 
@@ -81,11 +80,9 @@ The exporter resolves expense COA in this order:
 
 1. Invoice Item snapshot code.
 2. Active Invoice Item COA relation code.
-3. Legacy Invoice snapshot code.
-4. Legacy Invoice COA relation code.
-5. If all are empty, block export and identify the invoice and item.
+3. If both are empty, block verification/export and identify the invoice and item.
 
-Do not delete Invoice-level COA fields in this update. They remain a compatibility fallback for existing records.
+Invoice-level COA fields and UI are removed after their legacy values are copied to empty Invoice Items by the migration.
 
 When an Invoice Item COA is selected, populate its snapshot fields using the same principle already applied to Invoice snapshots. This is a model/application change, not a migration.
 
@@ -174,7 +171,7 @@ Create one supplier row per invoice:
 - Offset Account type: `Ledger`
 - Invoice: invoice number
 - Document date: invoice date
-- VAT Invoice No.: optional transient value for this invoice; blank when not supplied
+- VAT Invoice No.: optional persisted value from `invoices.vat_invoice_number`; blank when not supplied
 
 Do not use the supplier NPWP/Tax No. or commercial Invoice Number as a substitute for VAT Invoice No.
 

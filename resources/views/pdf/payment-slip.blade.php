@@ -245,7 +245,7 @@
                             <td class="data-separator">:</td>
                             <td class="data-value">
                                 @php
-                                    $coaNames = $slip->invoices->map(fn($inv) => $inv->coa_name_snapshot)->filter()->unique()->implode(', ');
+                                    $coaNames = $slip->invoices->flatMap(fn($inv) => $inv->items->pluck('coa_name_snapshot'))->filter()->unique()->implode(', ');
                                 @endphp
                                 {{ $coaNames ?: '-' }}
                             </td>

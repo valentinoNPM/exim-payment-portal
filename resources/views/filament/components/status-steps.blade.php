@@ -1,12 +1,12 @@
 @php
     $record = $getRecord();
     $currentStatus = $record ? $record->status : 'draft';
+    if ($currentStatus === 'pending_approval') $currentStatus = 'approved';
     
     $steps = [
         'draft' => 'Draft',
         'submitted' => 'Accounting',
-        'pending_approval' => 'GM Approval',
-        'approved' => 'Approved',
+        'approved' => 'Verified',
         'exported' => 'Exported',
     ];
 

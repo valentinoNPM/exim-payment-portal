@@ -16,6 +16,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 class PaymentSlipResource extends Resource
 {
@@ -23,7 +24,7 @@ class PaymentSlipResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
 
-    protected static string | \UnitEnum | null $navigationGroup = 'Payment';
+    protected static string|\UnitEnum|null $navigationGroup = 'Payment';
 
     protected static ?int $navigationSort = 2;
 
@@ -48,6 +49,14 @@ class PaymentSlipResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return PaymentSlipForm::configure($schema);
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        $status = PaymentSlip::query()->whereKey($record->getKey())->value('status');
+
+        return ($status === 'draft' && auth()->user()?->hasAnyRole(['maker', 'checker']))
+            || ($status === 'submitted' && auth()->user()?->hasRole('checker'));
     }
 
     public static function infolist(Schema $schema): Schema

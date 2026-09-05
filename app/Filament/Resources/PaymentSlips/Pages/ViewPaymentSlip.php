@@ -3,12 +3,12 @@
 namespace App\Filament\Resources\PaymentSlips\Pages;
 
 use App\Actions\GeneratePaymentSlipPdf;
+use App\Actions\VerifyPaymentSlip;
 use App\Filament\Resources\PaymentSlips\PaymentSlipResource;
 use App\Models\DocumentFile;
-use App\Models\PaymentSlipAudit;
 use Filament\Actions\Action;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 
@@ -63,66 +63,10 @@ class ViewPaymentSlip extends ViewRecord
                 ->color('success')
                 ->visible(fn () => $this->getRecord()->status === 'submitted' && auth()->user()->hasRole('checker'))
                 ->action(function () {
-                    $this->getRecord()->update([
-                        'status' => 'pending_approval',
-                        'verified_at' => now(),
-                    ]);
+                    app(VerifyPaymentSlip::class)->execute($this->getRecord(), auth()->user());
                     Notification::make()
-                        ->title('Payment Slip verified. Awaiting GM approval.')
+                        ->title('Payment Slip verified and ready for ERP export.')
                         ->success()
-                        ->send();
-                }),
-            Action::make('approve_slip')
-                ->label('Approve')
-                ->icon('heroicon-o-hand-thumb-up')
-                ->color('success')
-                ->visible(fn () => $this->getRecord()->status === 'pending_approval' && auth()->user()->hasRole('approver'))
-                ->requiresConfirmation()
-                ->action(function () {
-                    $record = $this->getRecord();
-                    $record->update([
-                        'status' => 'approved',
-                        'approved_by' => auth()->id(),
-                        'approved_at' => now(),
-                    ]);
-                    PaymentSlipAudit::create([
-                        'payment_slip_id' => $record->id,
-                        'user_id' => auth()->id(),
-                        'event' => 'approved',
-                        'new_values' => ['status' => 'approved'],
-                    ]);
-                    Notification::make()
-                        ->title('Payment Slip approved.')
-                        ->success()
-                        ->send();
-                }),
-            Action::make('reject_slip')
-                ->label('Reject')
-                ->icon('heroicon-o-x-circle')
-                ->color('danger')
-                ->visible(fn () => $this->getRecord()->status === 'pending_approval' && auth()->user()->hasRole('approver'))
-                ->form([
-                    Textarea::make('rejection_note')
-                        ->label('Catatan Penolakan')
-                        ->required(),
-                ])
-                ->action(function (array $data) {
-                    $record = $this->getRecord();
-                    $record->update([
-                        'status' => 'draft',
-                        'approved_by' => null,
-                        'approved_at' => null,
-                    ]);
-                    PaymentSlipAudit::create([
-                        'payment_slip_id' => $record->id,
-                        'user_id' => auth()->id(),
-                        'event' => 'rejected',
-                        'notes' => $data['rejection_note'],
-                        'new_values' => ['status' => 'draft'],
-                    ]);
-                    Notification::make()
-                        ->title('Payment Slip rejected and returned to draft.')
-                        ->warning()
                         ->send();
                 }),
             Action::make('download_pdf')
@@ -133,7 +77,7 @@ class ViewPaymentSlip extends ViewRecord
                     "payment-slip-{$this->getRecord()->slip_number}.pdf"
                 )),
             EditAction::make(),
-            \Filament\Actions\DeleteAction::make()
+            DeleteAction::make()
                 ->visible(fn () => $this->getRecord()->status === 'draft' && auth()->user()->hasRole('maker')),
         ];
     }

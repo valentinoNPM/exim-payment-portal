@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -25,7 +26,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 
 class PaymentSlipForm
@@ -124,56 +125,81 @@ class PaymentSlipForm
                                     ->multiple()
                                     ->disk('local')
                                     ->directory('invoice-uploads')
+                                    ->storeFileNamesIn('raw_pdf_file_names')
                                     ->acceptedFileTypes(['application/pdf'])
                                     ->maxSize(102400)
                                     ->required(),
+                                Hidden::make('raw_pdf_file_names'),
                             ])
                             ->action(function (array $data, Set $set, Get $get) {
-                                try {
-                                    $files = $data['raw_pdf_files'] ?? [];
-                                    if (empty($files)) {
-                                        return;
+                                $files = array_values($data['raw_pdf_files'] ?? []);
+                                if ($files === []) {
+                                    return;
+                                }
+
+                                $storedNames = $data['raw_pdf_file_names'] ?? [];
+                                $fileNames = [];
+                                $extractionFiles = [];
+
+                                foreach ($files as $path) {
+                                    $originalName = $storedNames[$path] ?? basename($path);
+                                    $fileNames[$path] = $originalName;
+                                    $extractionFiles[] = [
+                                        'path' => Storage::disk('local')->path($path),
+                                        'original_name' => $originalName,
+                                    ];
+                                }
+
+                                $report = app(GeminiInvoiceExtractor::class)->extractWithReport($extractionFiles);
+                                $newInvoices = [];
+                                $invoiceCount = 0;
+                                $itemCount = 0;
+
+                                foreach ($report['successful'] as $successful) {
+                                    $storedPath = collect($files)->first(fn (string $path): bool => Storage::disk('local')->path($path) === $successful['path']);
+                                    if (! $storedPath) {
+                                        continue;
                                     }
 
-                                    $extractor = app(GeminiInvoiceExtractor::class);
-
-                                    // Generate full storage paths
-                                    $filePaths = array_map(function ($path) {
-                                        return Storage::disk('local')->path($path);
-                                    }, array_values($files));
-
-                                    $extractedInvoices = $extractor->extract($filePaths);
-
-                                    if ($extractedInvoices === []) {
-                                        throw new \RuntimeException('Tidak ada invoice valid yang ditemukan.');
-                                    }
-
-                                    $docIds = app(DocumentFileRegistrar::class)
-                                        ->registerLocalUploads(array_values($files));
-
-                                    $newInvoices = app(InvoiceExtractionDataMapper::class)
-                                        ->toRepeaterState($extractedInvoices, $docIds);
-                                    $set('invoices', array_merge($get('invoices') ?? [], $newInvoices));
-
-                                    $itemCount = array_sum(array_map(
+                                    $documentIds = app(DocumentFileRegistrar::class)
+                                        ->registerLocalUploads([$storedPath], $fileNames);
+                                    $newInvoices = array_merge(
+                                        $newInvoices,
+                                        app(InvoiceExtractionDataMapper::class)->toRepeaterState($successful['invoices'], $documentIds),
+                                    );
+                                    $invoiceCount += count($successful['invoices']);
+                                    $itemCount += array_sum(array_map(
                                         static fn (array $invoice): int => count($invoice['items']),
-                                        $extractedInvoices,
+                                        $successful['invoices'],
                                     ));
+                                }
 
+                                if ($newInvoices !== []) {
+                                    $set('invoices', array_merge($get('invoices') ?? [], $newInvoices));
+                                }
+
+                                $failedNames = array_column($report['failed'], 'original_name');
+                                $summary = count($report['successful']).' file berhasil, '.count($report['failed']).' file gagal. ';
+                                $summary .= $invoiceCount.' invoice dan '.$itemCount.' item ditemukan.';
+
+                                if ($report['failed'] === []) {
+                                    Notification::make()->title('Ekstraksi berhasil')->body($summary)->success()->send();
+                                } elseif ($report['successful'] !== []) {
                                     Notification::make()
-                                        ->title('Ekstraksi Berhasil')
-                                        ->body(count($extractedInvoices).' invoice dan '.$itemCount.' item ditemukan.')
-                                        ->success()
+                                        ->title('Ekstraksi selesai sebagian')
+                                        ->body($summary.' File gagal: '.implode(', ', $failedNames).'. Data dari file yang berhasil tetap dimasukkan.')
+                                        ->warning()
+                                        ->persistent()
                                         ->send();
-
-                                } catch (\Throwable $e) {
-                                    Log::error('AI Extraction Fallback triggered: '.$e->getMessage());
-
+                                } else {
+                                    $failureDetails = collect($report['failed'])
+                                        ->map(fn (array $failure): string => $failure['original_name'].': '.$failure['message'])
+                                        ->implode(' ');
                                     Notification::make()
-                                        ->title('Ekstraksi AI Gagal')
-                                        ->body('Gagal membaca PDF menggunakan Gemini: '.$e->getMessage().'. Silakan input invoice secara manual menggunakan tombol "Add Invoice".')
+                                        ->title('Ekstraksi AI gagal')
+                                        ->body($failureDetails.' Silakan input invoice secara manual.')
                                         ->danger()
-                                        ->duration(10000)
+                                        ->persistent()
                                         ->send();
                                 }
                             }),
@@ -191,6 +217,11 @@ class PaymentSlipForm
                                 DatePicker::make('invoice_date')
                                     ->required()
                                     ->disabled(fn (?Invoice $record) => $record && $record->paymentSlip?->status !== 'draft'),
+                                TextInput::make('vat_invoice_number')
+                                    ->label('VAT Invoice No.')
+                                    ->helperText('Optional. Fill only when a tax invoice number is available.')
+                                    ->maxLength(255)
+                                    ->disabled(fn (?Invoice $record): bool => $record && ! in_array($record->paymentSlip?->status, ['draft', 'submitted'], true)),
                                 Select::make('document_file_id')
                                     ->relationship('documentFile', 'original_name')
                                     ->disabled()
@@ -244,7 +275,7 @@ class PaymentSlipForm
                                 TextInput::make('subtotal_amount')
                                     ->label('Total Amount')
                                     ->prefix('Rp')
-                                    ->formatStateUsing(fn ($state) => number_format((float) $state, 0, ',', '.'))
+                                    ->formatStateUsing(fn ($state) => number_format((float) $state, 2, ',', '.'))
                                     ->dehydrateStateUsing(fn ($state) => (float) str_replace(['.', ','], ['', '.'], $state))
                                     ->live(debounce: 500)
                                     ->afterStateUpdated(function (Get $get, Set $set, $state) {
@@ -273,17 +304,6 @@ class PaymentSlipForm
                                         $set('tax_deduction_amount', number_format($deduction, 0, ',', '.'));
                                         $set('grand_total_amount', number_format($subtotal + $addition - $deduction, 0, ',', '.'));
                                     }),
-
-                                Select::make('coa_id')
-                                    ->relationship('chartOfAccount', 'name')
-                                    ->label('COA')
-                                    ->preload()
-                                    ->hidden(fn () => auth()->user()->hasRole('maker'))
-                                    ->disabled(fn (?Invoice $record) => ! auth()->user()->hasRole('checker') ||
-                                        ! $record ||
-                                        ! $record->paymentSlip ||
-                                        $record->paymentSlip->status !== 'submitted'
-                                    ),
 
                                 Select::make('ppn_tax_id')
                                     ->label('PPN (Penambahan)')
@@ -354,24 +374,25 @@ class PaymentSlipForm
                                     ->prefix('Rp')
                                     ->formatStateUsing(fn ($state) => number_format((float) $state, 0, ',', '.'))
                                     ->dehydrateStateUsing(fn ($state) => (float) str_replace(['.', ','], ['', '.'], $state))
-                                    ->readOnly(),
+                                    ->readOnly()->dehydrated(false),
 
                                 TextInput::make('tax_deduction_amount')
                                     ->label('Pengurangan Pajak (PPh)')
                                     ->prefix('Rp')
                                     ->formatStateUsing(fn ($state) => number_format((float) $state, 0, ',', '.'))
                                     ->dehydrateStateUsing(fn ($state) => (float) str_replace(['.', ','], ['', '.'], $state))
-                                    ->readOnly(),
+                                    ->readOnly()->dehydrated(false),
 
                                 TextInput::make('grand_total_amount')
                                     ->label('Amount Dibayar')
                                     ->prefix('Rp')
                                     ->formatStateUsing(fn ($state) => number_format((float) $state, 0, ',', '.'))
                                     ->dehydrateStateUsing(fn ($state) => (float) str_replace(['.', ','], ['', '.'], $state))
-                                    ->readOnly(),
+                                    ->readOnly()->dehydrated(false),
 
                                 Repeater::make('items')
                                     ->relationship('items')
+                                    ->mutateRelationshipDataBeforeFillUsing(fn (array $data): array => auth()->user()?->hasRole('maker') && ! auth()->user()?->hasRole('checker') ? Arr::except($data, ['coa_id', 'coa_code_snapshot', 'coa_name_snapshot']) : $data)
                                     ->addable(fn (?Invoice $record) => ! $record || $record->paymentSlip?->status === 'draft')
                                     ->deletable(fn (?Invoice $record) => ! $record || $record->paymentSlip?->status === 'draft')
                                     ->schema([
@@ -388,8 +409,17 @@ class PaymentSlipForm
                                             ->prefix('Rp')
                                             ->required()
                                             ->disabled(fn (?InvoiceItem $record) => $record && $record->invoice?->paymentSlip?->status !== 'draft'),
+                                        Select::make('coa_id')
+                                            ->label('COA')
+                                            ->relationship('chartOfAccount', 'name')
+                                            ->getOptionLabelFromRecordUsing(fn ($record): string => $record->code.' - '.$record->name)
+                                            ->searchable(['code', 'name'])
+                                            ->preload()
+                                            ->required(fn (?InvoiceItem $record): bool => auth()->user()?->hasRole('checker') && $record?->invoice?->paymentSlip?->status === 'submitted')
+                                            ->hidden(fn (): bool => ! auth()->user()?->hasRole('checker'))
+                                            ->disabled(fn (?InvoiceItem $record): bool => ! $record || $record->invoice?->paymentSlip?->status !== 'submitted'),
                                     ])
-                                    ->columns(3),
+                                    ->columns(['default' => 1, 'lg' => 4]),
                             ])
                             ->defaultItems(0),
                     ]),
@@ -413,8 +443,8 @@ class PaymentSlipForm
                             ->options([
                                 'draft' => 'Draft',
                                 'submitted' => 'Submitted',
-                                'pending_approval' => 'Pending Approval',
-                                'approved' => 'Approved',
+                                'pending_approval' => 'Pending Approval (legacy)',
+                                'approved' => 'Verified',
                                 'exported' => 'Exported',
                             ])
                             ->disabled(),

@@ -15,7 +15,7 @@ This plan is ordered so that accounting correctness is proven before the downloa
 
 - Tests can create an approved Payment Slip with supplier, invoice items, COA, PPN, and PPh.
 - The canonical workbook can be opened by the installed spreadsheet library.
-- No production schema change exists.
+- The approved migration preserves legacy COA data and adds the Invoice VAT field.
 
 ## Milestone 1 - COA per Invoice Item
 
@@ -23,21 +23,21 @@ This plan is ordered so that accounting correctness is proven before the downloa
 
 - Add COA selection to each Invoice Item in Accounting's verification UI.
 - Populate Invoice Item COA snapshots when COA changes.
-- Preserve the existing Invoice COA as fallback for historical data.
-- Add a reusable Account resolver with item-first fallback order.
+- Copy legacy Invoice COA into empty Invoice Items, then remove Invoice-level COA.
+- Add a reusable Account resolver that reads Invoice Item COA only.
 
 ### Tests
 
 - Checker can select an item COA during the allowed status.
 - Maker cannot see or alter the item COA.
 - Item snapshot persists the selected code/name.
-- Legacy invoice-only COA resolves successfully.
-- Missing item and invoice COA produces a named validation error.
+- Legacy invoice-only COA is migrated to its items.
+- Missing item COA produces a named validation error.
 
 ### Exit criteria
 
 - Different items in one invoice can resolve to different expense accounts.
-- Existing records with only Invoice-level COA remain exportable.
+- Existing records retain their COA at Invoice Item level after migration.
 
 ## Milestone 2 - Journal builder and validator
 
@@ -104,7 +104,7 @@ This plan is ordered so that accounting correctness is proven before the downloa
 - Add Ready and Export History tabs.
 - Add search, useful columns, and default sorting.
 - Add the `Prepare file` row action.
-- Add optional VAT Invoice Number fields per invoice.
+- Add optional persisted VAT Invoice Number fields per invoice.
 - Add compact journal preview and balance summary.
 - Add clear blocking error states and loading/double-submit protection.
 

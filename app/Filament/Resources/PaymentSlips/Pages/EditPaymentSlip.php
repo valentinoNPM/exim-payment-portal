@@ -2,10 +2,15 @@
 
 namespace App\Filament\Resources\PaymentSlips\Pages;
 
+use App\Actions\GeneratePaymentSlipPdf;
+use App\Actions\VerifyPaymentSlip;
 use App\Filament\Resources\PaymentSlips\PaymentSlipResource;
+use App\Models\DocumentFile;
 use App\Models\PaymentSlip;
+use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 
 class EditPaymentSlip extends EditRecord
@@ -23,12 +28,13 @@ class EditPaymentSlip extends EditRecord
         if ($firstInvoice && $firstInvoice->documentFile) {
             $this->activePdfUrl = route('document-files.view', $firstInvoice->documentFile);
         }
+
         return $data;
     }
 
     public function setActivePdf(int $documentFileId): void
     {
-        $doc = \App\Models\DocumentFile::find($documentFileId);
+        $doc = DocumentFile::find($documentFileId);
         if ($doc) {
             $this->activePdfUrl = route('document-files.view', $doc);
         }
@@ -37,7 +43,7 @@ class EditPaymentSlip extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            \Filament\Actions\Action::make('submit_slip')
+            Action::make('submit_slip')
                 ->label('Submit')
                 ->icon('heroicon-o-paper-airplane')
                 ->color('success')
@@ -47,31 +53,29 @@ class EditPaymentSlip extends EditRecord
                         'status' => 'submitted',
                         'submitted_at' => now(),
                     ]);
-                    \Filament\Notifications\Notification::make()
+                    Notification::make()
                         ->title('Payment Slip submitted to Accounting.')
                         ->success()
                         ->send();
                 }),
-            \Filament\Actions\Action::make('verify_slip')
+            Action::make('verify_slip')
                 ->label('Verify')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
                 ->visible(fn () => $this->getRecord()->status === 'submitted' && auth()->user()->hasRole('checker'))
                 ->action(function () {
-                    $this->getRecord()->update([
-                        'status' => 'approved',
-                        'verified_at' => now(),
-                    ]);
-                    \Filament\Notifications\Notification::make()
-                        ->title('Payment Slip verified and approved.')
+                    $this->save();
+                    app(VerifyPaymentSlip::class)->execute($this->getRecord(), auth()->user());
+                    Notification::make()
+                        ->title('Payment Slip verified and ready for ERP export.')
                         ->success()
                         ->send();
                 }),
-            \Filament\Actions\Action::make('download_pdf')
+            Action::make('download_pdf')
                 ->label('Download PDF')
                 ->icon('heroicon-o-document-arrow-down')
                 ->action(fn () => response()->streamDownload(
-                    fn () => print(app(\App\Actions\GeneratePaymentSlipPdf::class)->execute($this->getRecord())->output()),
+                    fn () => print (app(GeneratePaymentSlipPdf::class)->execute($this->getRecord())->output()),
                     "payment-slip-{$this->getRecord()->slip_number}.pdf"
                 )),
             ViewAction::make(),

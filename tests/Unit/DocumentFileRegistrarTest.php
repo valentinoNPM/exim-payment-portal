@@ -25,4 +25,17 @@ class DocumentFileRegistrarTest extends TestCase
         $this->assertSame($firstIds, $secondIds);
         $this->assertSame(1, DocumentFile::query()->count());
     }
+
+    public function test_it_preserves_the_original_upload_name(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('invoice-uploads/random-name.pdf', 'pdf-content');
+
+        (new DocumentFileRegistrar)->registerLocalUploads(
+            ['invoice-uploads/random-name.pdf'],
+            ['invoice-uploads/random-name.pdf' => 'Vendor Invoice 001.pdf'],
+        );
+
+        $this->assertSame('Vendor Invoice 001.pdf', DocumentFile::query()->sole()->original_name);
+    }
 }
