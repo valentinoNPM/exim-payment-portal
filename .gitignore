@@ -2,6 +2,7 @@
 /docs/*
 !/docs/erp-export/
 !/docs/erp-export/*.md
+!/docs/vmc 5 -expeditor-.xlsx
 .DS_Store
 .env
 .env.backup
