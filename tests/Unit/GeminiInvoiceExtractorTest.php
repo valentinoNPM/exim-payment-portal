@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Services\GeminiInvoiceExtractor;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Tests\TestCase;
@@ -138,6 +139,48 @@ class GeminiInvoiceExtractorTest extends TestCase
         $this->assertSame(2, $extractor->textRequests);
     }
 
+    public function test_transient_gemini_errors_are_retried(): void
+    {
+        config()->set('services.gemini.api_key', 'test-key');
+        config()->set('services.gemini.model', 'gemini-3.5-flash-lite');
+        Http::fakeSequence()
+            ->push(['error' => ['message' => 'High demand']], 503)
+            ->push(['error' => ['message' => 'High demand']], 503)
+            ->push($this->successfulGeminiResponse(), 200);
+
+        $result = (new RetryingGeminiInvoiceExtractor)->extract(['invoices/test.pdf']);
+
+        $this->assertCount(1, $result);
+        Http::assertSentCount(3);
+    }
+
+    public function test_permanent_gemini_errors_are_not_retried(): void
+    {
+        config()->set('services.gemini.api_key', 'test-key');
+        config()->set('services.gemini.model', 'gemini-3.5-flash-lite');
+        Http::fake(['*' => Http::response(['error' => ['message' => 'Bad request']], 400)]);
+
+        $report = (new RetryingGeminiInvoiceExtractor)->extractWithReport([
+            ['path' => Storage::disk('local')->path('invoices/test.pdf'), 'original_name' => 'test.pdf'],
+        ]);
+
+        $this->assertCount(1, $report['failed']);
+        Http::assertSentCount(1);
+    }
+
+    private function successfulGeminiResponse(): array
+    {
+        return [
+            'candidates' => [[
+                'content' => [
+                    'parts' => [[
+                        'text' => json_encode([$this->validInvoice()], JSON_THROW_ON_ERROR),
+                    ]],
+                ],
+            ]],
+        ];
+    }
+
     private function validInvoice(): array
     {
         return [
@@ -149,6 +192,20 @@ class GeminiInvoiceExtractorTest extends TestCase
                 'original_price' => 400000,
             ]],
         ];
+    }
+}
+
+class RetryingGeminiInvoiceExtractor extends GeminiInvoiceExtractor
+{
+    protected function extractViaMarkitdown(string $filePath): ?string
+    {
+        return 'INVOICE NUMBER INV-001 with enough invoice table content';
+    }
+
+    /** @return list<int> */
+    protected function retryDelays(): array
+    {
+        return [0, 0, 0];
     }
 }
 

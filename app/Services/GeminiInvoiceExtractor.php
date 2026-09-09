@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use DateTimeImmutable;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -320,7 +323,7 @@ EOT;
     protected function extractViaTextPrompt(string $textContent): array
     {
         return $this->parseGeminiResponse(
-            Http::timeout(60)->post($this->geminiEndpoint(), [
+            $this->geminiRequest(60)->post($this->geminiEndpoint(), [
                 'contents' => [[
                     'parts' => [
                         ['text' => $this->prompt],
@@ -355,11 +358,41 @@ EOT;
         $parts[] = ['text' => $this->prompt];
 
         return $this->parseGeminiResponse(
-            Http::timeout(180)->post($this->geminiEndpoint(), [
+            $this->geminiRequest(180)->post($this->geminiEndpoint(), [
                 'contents' => [['parts' => $parts]],
                 'generationConfig' => ['response_mime_type' => 'application/json'],
             ]),
         );
+    }
+
+    protected function geminiRequest(int $timeout): PendingRequest
+    {
+        return Http::timeout($timeout)->retry(
+            $this->retryDelays(),
+            when: fn (Throwable $exception): bool => $this->shouldRetryGeminiRequest($exception),
+            throw: false,
+        );
+    }
+
+    /** @return list<int> */
+    protected function retryDelays(): array
+    {
+        return [2000, 5000, 10000];
+    }
+
+    protected function shouldRetryGeminiRequest(Throwable $exception): bool
+    {
+        if ($exception instanceof ConnectionException) {
+            return true;
+        }
+
+        if (! $exception instanceof RequestException || $exception->response === null) {
+            return false;
+        }
+
+        $status = $exception->response->status();
+
+        return $status === 429 || $status >= 500;
     }
 
     protected function geminiEndpoint(): string
