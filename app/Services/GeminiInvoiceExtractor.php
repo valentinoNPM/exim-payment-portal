@@ -31,6 +31,7 @@ Strict rules:
 7. Do not create items from SUB TOTAL, GRAND TOTAL, VAT, PPN, PPH, INVOICE TOTAL, or other standalone tax/summary rows.
 8. Return numeric JSON values for qty and original_price, without currency symbols or thousands separators.
 9. Check the sum of line totals against the corresponding printed subtotal or item total. Keep separately listed invoice-level taxes out of that sum. For example, a line showing quantity 11 and billed total 185000 must produce qty=1 and original_price=185000, not 2035000. Do not invent an adjustment item to hide a mismatch.
+10. TAX No, NPWP, VAT registration numbers and customer tax identifiers are never invoice numbers. PDF text may interleave columns: "TAX No: NUMBER E832794415" followed by "018826347015000" means invoice_number is E832794415, not the tax identifier on the next line.
 
 Output strictly as a JSON array:
 [
@@ -133,6 +134,8 @@ EOT;
                 throw new RuntimeException("No valid invoices were found in PDF: {$pdfPath}");
             }
 
+            $result = $this->reconcileInvoiceNumbers($result, $text);
+
             $itemCount = array_sum(array_map(
                 static fn (array $invoice): int => count($invoice['items']),
                 $result,
@@ -224,6 +227,24 @@ EOT;
         }
 
         return preg_match('/\b(?:invoice|inv\.?\s*(?:no|number)|no\.?\s*invoice)\b/i', $text) === 1;
+    }
+
+    protected function reconcileInvoiceNumbers(array $invoices, ?string $text): array
+    {
+        // Only reconcile an unambiguous single Expeditors bill. Never choose
+        // the first reference from a multi-invoice document.
+        if ($text === null || count($invoices) !== 1 || stripos($text, 'expeditors') === false) {
+            return $invoices;
+        }
+
+        preg_match_all('/\bNUMBER[\s|:]*\b(E\d{9})\b/i', $text, $matches);
+        $numbers = array_values(array_unique(array_map('strtoupper', $matches[1])));
+
+        if (count($numbers) === 1) {
+            $invoices[0]['invoice_number'] = $numbers[0];
+        }
+
+        return $invoices;
     }
 
     protected function validateExtractedInvoices(array $invoices): array

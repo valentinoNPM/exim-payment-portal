@@ -193,6 +193,30 @@ class GeminiInvoiceExtractorTest extends TestCase
             ]],
         ];
     }
+
+    public function test_expeditors_interleaved_tax_label_does_not_replace_billing_number(): void
+    {
+        $extractor = new FakeGeminiInvoiceExtractor;
+        $extractor->markitdownText = "PT. Expeditors Indonesia INVOICE\nTAX No: NUMBER E832794415\n018826347015000";
+        $invoice = $this->validInvoice();
+        $invoice['invoice_number'] = '018826347015000';
+        $extractor->textResult = [$invoice];
+
+        $result = $extractor->extract(['invoices/test.pdf']);
+
+        $this->assertSame('E832794415', $result[0]['invoice_number']);
+    }
+
+    public function test_multiple_expeditors_numbers_are_not_reconciled_by_guessing(): void
+    {
+        $extractor = new FakeGeminiInvoiceExtractor;
+        $extractor->markitdownText = "Expeditors INVOICE NUMBER E832794415\nINVOICE NUMBER E832794416";
+        $extractor->textResult = [$this->validInvoice()];
+
+        $result = $extractor->extract(['invoices/test.pdf']);
+
+        $this->assertSame('INV-001', $result[0]['invoice_number']);
+    }
 }
 
 class RetryingGeminiInvoiceExtractor extends GeminiInvoiceExtractor
