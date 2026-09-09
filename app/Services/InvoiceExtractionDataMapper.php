@@ -22,7 +22,10 @@ class InvoiceExtractionDataMapper
             $subtotal = 0.0;
 
             foreach ($invoice['items'] as $item) {
-                $quantity = (float) ($item['qty'] ?? 1);
+                // The extractor returns a billed line total, not a per-unit price.
+                // Normalize to one accounting line to avoid multiplying twice or
+                // introducing rounding errors by dividing totals into unit prices.
+                $quantity = 1.0;
                 $unitPrice = (float) ($item['original_price'] ?? 0);
                 $subtotal += $quantity * $unitPrice;
                 $items[(string) str()->uuid()] = [
