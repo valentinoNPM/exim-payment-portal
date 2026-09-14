@@ -1,6 +1,6 @@
 # Invoice extraction: implementation plan and roadmap
 
-Updated: 12 September 2026.
+Updated: 14 September 2026.
 
 ## Architecture decision and scope
 
@@ -37,14 +37,14 @@ path for unsupported documents. No automatic rule learning or fine-tuning is pla
 | Milestone | Scope | Status |
 | --- | --- | --- |
 | M1 | Private production baseline across 8 suppliers | Captured; labels provisional |
-| M2 | Remove MarkItDown; PHP text extraction with Gemini PDF fallback | Implemented locally; not deployed |
-| M3 | Shared result contract, source evidence and advisory validation | Implemented locally; not real-document validated or deployed |
+| M2 | Remove MarkItDown; PHP text extraction with Gemini PDF fallback | Implemented and deployed on 14 September 2026 |
+| M3 | Shared result contract, source evidence and advisory validation | Implemented and deployed on 14 September 2026; real-document validation pending |
 | M4 | Cross-supplier evaluation and source-reviewed expected results | Next; not started |
 | M5 | General extraction improvements from M4 findings, including scans | Planned; scope depends on M4 |
 | M6 | Persistent review/audit workflow and release acceptance | Planned; workflow decisions require confirmation |
-| M7 | Controlled production rollout and ongoing evaluation | Planned; deployment requires authorization |
+| M7 | Controlled production rollout and ongoing evaluation | In progress; M2/M3 deployed, monitoring and broader evaluation pending |
 
-Local automated verification after M3: 47 tests passed, 248 assertions. This does
+Automated verification before deployment: 50 tests passed, 280 assertions. This does
 not establish real-document extraction accuracy. No existing invoices were rewritten.
 
 ## M1: production baseline (11 September 2026)
@@ -94,8 +94,8 @@ reconciliation remain. Old MARKITDOWN environment variables become inert; do not
 uninstall shared Python environments as part of this change.
 
 Local unit tests cover text routing, empty text and parser exceptions, invalid AI
-results, PDF fallback, retry and number/amount regressions. Production rollout is
-a separate step after local review. No old invoices are rewritten.
+results, PDF fallback, retry and number/amount regressions. M2 was deployed after
+local review on 14 September 2026. No old invoices were rewritten.
 
 ## M3: shared extraction contract and advisory validation
 
@@ -115,8 +115,9 @@ Users can still save after reviewing; this is an advisory validation stage, not
 a submission gate. Persisting audit evidence and explicit review acknowledgement
 is a future workflow change. Existing invoices are unaffected.
 
-No real-document Gemini evaluation has been run for this new prompt. Next evaluate
-all supplier groups against the private baseline before production rollout.
+No full-baseline real-document Gemini evaluation has been run for this new prompt.
+Next evaluate all supplier groups against the private baseline while monitoring the
+manually reviewed production use authorized on 14 September 2026.
 
 Implementation uses a versioned normalized array, not dedicated DTO classes.
 Relevant files: `app/Services/GeminiInvoiceExtractor.php`,
