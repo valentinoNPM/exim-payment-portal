@@ -154,14 +154,8 @@ class PaymentSlipForm
                                 $newInvoices = [];
                                 $invoiceCount = 0;
                                 $itemCount = 0;
-                                $reviewWarnings = [];
 
                                 foreach ($report['successful'] as $successful) {
-                                    foreach ($successful['invoices'] as $invoice) {
-                                        foreach ($invoice['warnings'] ?? [] as $warning) {
-                                            $reviewWarnings[] = $successful['original_name'].' / '.$invoice['invoice_number'].': '.$warning;
-                                        }
-                                    }
                                     $storedPath = collect($files)->first(fn (string $path): bool => Storage::disk('local')->path($path) === $successful['path']);
                                     if (! $storedPath) {
                                         continue;
@@ -188,18 +182,7 @@ class PaymentSlipForm
                                 $summary = count($report['successful']).' file berhasil, '.count($report['failed']).' file gagal. ';
                                 $summary .= $invoiceCount.' invoice dan '.$itemCount.' item ditemukan.';
 
-                                if ($reviewWarnings !== []) {
-                                    Notification::make()
-                                        ->title('Hasil ekstraksi perlu diperiksa')
-                                        ->body(implode(' ', array_unique($reviewWarnings)))
-                                        ->warning()
-                                        ->persistent()
-                                        ->send();
-                                }
-
-                                if ($report['failed'] === [] && $reviewWarnings !== []) {
-                                    Notification::make()->title('Ekstraksi selesai dengan peringatan')->body($summary.' Cocokkan nomor dan nominal dengan PDF sebelum menyimpan.')->warning()->send();
-                                } elseif ($report['failed'] === []) {
+                                if ($report['failed'] === []) {
                                     Notification::make()->title('Ekstraksi berhasil')->body($summary)->success()->send();
                                 } elseif ($report['successful'] !== []) {
                                     Notification::make()
@@ -228,13 +211,6 @@ class PaymentSlipForm
                             ->addable(fn (?object $record) => ! $record || $record->status === 'draft')
                             ->deletable(fn (?object $record) => ! $record || $record->status === 'draft')
                             ->schema([
-                                Textarea::make('extraction_review')
-                                    ->label('Pemeriksaan hasil ekstraksi')
-                                    ->readOnly()
-                                    ->dehydrated(false)
-                                    ->rows(8)
-                                    ->columnSpanFull()
-                                    ->visible(fn (Get $get): bool => filled($get('extraction_review'))),
                                 TextInput::make('invoice_number')
                                     ->required()
                                     ->disabled(fn (?Invoice $record) => $record && $record->paymentSlip?->status !== 'draft'),

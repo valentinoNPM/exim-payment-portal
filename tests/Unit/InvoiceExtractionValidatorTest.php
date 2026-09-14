@@ -55,7 +55,7 @@ class InvoiceExtractionValidatorTest extends TestCase
         $this->assertSame(100.0, $state['subtotal_amount']);
         $this->assertSame(100.0, $state['grand_total_amount']);
         $this->assertSame(1.0, array_values($state['items'])[0]['quantity']);
-        $this->assertStringContainsString('111,00', $state['extraction_review']);
+        $this->assertArrayNotHasKey('extraction_review', $state);
     }
 
     public function test_matching_quotes_and_values_reconcile_but_changed_amount_is_flagged(): void
