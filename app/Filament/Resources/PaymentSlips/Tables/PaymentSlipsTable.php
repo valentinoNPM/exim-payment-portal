@@ -21,7 +21,10 @@ class PaymentSlipsTable
     {
         return $table
             ->columns([
-                TextColumn::make('id')->sortable(),
+                TextColumn::make('slip_number')
+                    ->label('Slip Number')
+                    ->sortable()
+                    ->searchable(),
                 TextColumn::make('transaction_type')->badge()->sortable(),
                 TextColumn::make('supplier.name')
                     ->label('Supplier')

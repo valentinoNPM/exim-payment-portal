@@ -39,6 +39,8 @@ class PaymentSlipAccessTest extends TestCase
         $this->actingAs($maker);
 
         Livewire::test(ListPaymentSlips::class)
+            ->assertTableColumnExists('slip_number')
+            ->assertTableColumnDoesNotExist('id')
             ->assertCanSeeTableRecords([$ownSlip])
             ->assertCanNotSeeTableRecords([$otherSlip])
             ->assertSee('Buyer: Buyer PS-OWN');
