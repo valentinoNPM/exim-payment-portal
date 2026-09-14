@@ -23,7 +23,11 @@ class PaymentSlipsTable
             ->columns([
                 TextColumn::make('id')->sortable(),
                 TextColumn::make('transaction_type')->badge()->sortable(),
-                TextColumn::make('supplier.name')->sortable()->searchable(),
+                TextColumn::make('supplier.name')
+                    ->label('Supplier')
+                    ->description(fn (PaymentSlip $record): string => 'Buyer: '.($record->buyer?->name ?? '-'))
+                    ->sortable()
+                    ->searchable(),
                 TextColumn::make('creator.name')
                     ->label('Author')
                     ->description(fn (PaymentSlip $record): string => $record->creator?->division?->name ?? '-')

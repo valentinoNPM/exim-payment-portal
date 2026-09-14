@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Filament\Resources\PaymentSlips\Pages\ListPaymentSlips;
 use App\Filament\Resources\PaymentSlips\PaymentSlipResource;
+use App\Models\Buyer;
 use App\Models\PaymentSlip;
 use App\Models\Supplier;
 use App\Models\User;
@@ -39,7 +40,8 @@ class PaymentSlipAccessTest extends TestCase
 
         Livewire::test(ListPaymentSlips::class)
             ->assertCanSeeTableRecords([$ownSlip])
-            ->assertCanNotSeeTableRecords([$otherSlip]);
+            ->assertCanNotSeeTableRecords([$otherSlip])
+            ->assertSee('Buyer: Buyer PS-OWN');
 
         $this->get(PaymentSlipResource::getUrl('view', ['record' => $ownSlip]))->assertOk();
         $this->get(PaymentSlipResource::getUrl('view', ['record' => $otherSlip]))->assertNotFound();
@@ -91,11 +93,16 @@ class PaymentSlipAccessTest extends TestCase
             'code' => 'SUP-'.$number,
             'name' => 'Supplier '.$number,
         ]);
+        $buyer = Buyer::create([
+            'code' => 'BUY-'.$number,
+            'name' => 'Buyer '.$number,
+        ]);
 
         return PaymentSlip::create([
             'slip_number' => $number,
             'transaction_type' => 'export',
             'supplier_id' => $supplier->id,
+            'buyer_id' => $buyer->id,
             'status' => $status,
             'created_by' => $creator->id,
         ]);
