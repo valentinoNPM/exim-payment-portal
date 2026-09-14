@@ -47,16 +47,16 @@ class ErpExportTest extends TestCase
         Storage::fake('local');
     }
 
-    public function test_builder_preserves_stored_taxes_separate_items_and_identifiers(): void
+    public function test_builder_rounds_stored_taxes_and_preserves_separate_items_and_identifiers(): void
     {
         $slip = ErpPaymentSlip::create($this->checker);
         $rows = app(ErpJournalBuilder::class)->build($slip, [$slip->invoices()->first()->id => '000099']);
         $this->assertCount(10, $rows);
         $this->assertSame('I05_902020', $rows[0]->costCenter);
         $this->assertSame($rows[0]->account, $rows[1]->account);
-        $this->assertSame(3301, $rows[2]->debit);
+        $this->assertSame(3300, $rows[2]->debit);
         $this->assertSame('11990501', $rows[2]->account);
-        $this->assertSame(601, $rows[3]->credit);
+        $this->assertSame(600, $rows[3]->credit);
         $this->assertSame('21020401', $rows[3]->account);
         $this->assertSame(32700, $rows[4]->credit);
         $this->assertSame('000123', $rows[4]->account);
@@ -178,7 +178,7 @@ class ErpExportTest extends TestCase
             $credit += $sheet->getCell('Q'.$row)->getValue() ?? 0;
             $this->assertNull($sheet->getCell('BG'.$row)->getValue());
         }
-        $this->assertEqualsWithDelta(666.01, $debit, 0.001);
+        $this->assertEqualsWithDelta(666.00, $debit, 0.001);
         $this->assertEqualsWithDelta($debit, $credit, 0.001);
         $this->assertNull($sheet->getCell('O13')->getValue());
         $book->disconnectWorksheets();
@@ -251,7 +251,7 @@ class ErpExportTest extends TestCase
         $html = $page->getMountedActionModalHtml();
         $this->assertStringContainsString('Journal preview', $html);
         $this->assertStringContainsString('000045', $html);
-        $this->assertStringContainsString('666,01', $html);
+        $this->assertStringContainsString('666,00', $html);
         app(ExportPaymentSlipToErp::class)->execute($slip, $this->checker);
         Livewire::test(ErpExports::class)->assertCanNotSeeTableRecords([$slip])->set('activeTab', 'history')->assertCanSeeTableRecords([$slip]);
     }

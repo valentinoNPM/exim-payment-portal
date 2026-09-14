@@ -4,6 +4,7 @@ namespace App\Services\Erp;
 
 use App\Data\ErpJournalRow;
 use App\Models\PaymentSlip;
+use App\Services\InvoiceAmountCalculator;
 use Illuminate\Validation\ValidationException;
 
 class ErpJournalBuilder
@@ -34,14 +35,24 @@ class ErpJournalBuilder
             $invoiceRows = [];
             $expense = 0;
             foreach ($invoice->items->sortBy('line_number') as $item) {
-                $amount = $this->validator->money($item->getRawOriginal('subtotal_amount') ?? $item->subtotal_amount, "{$context}, item {$item->item_name}");
+                $amount = InvoiceAmountCalculator::roundMinorUnits(
+                    $this->validator->money($item->getRawOriginal('subtotal_amount') ?? $item->subtotal_amount, "{$context}, item {$item->item_name}"),
+                );
                 $expense += $amount;
                 $invoiceRows[] = new ErpJournalRow($invoice->invoice_number, $date, 'Expense', 'ledger', $this->resolver->resolve($item, $invoice), $item->item_name.' for '.$descriptionContext, $amount, null, $costCenter);
             }
             $this->require($expense > 0, "{$context} has no positive expense value.");
-            $ppn = $this->validator->money($invoice->getRawOriginal('tax_addition_amount') ?? $invoice->tax_addition_amount, "{$context} PPN");
-            $pph = $this->validator->money($invoice->getRawOriginal('tax_deduction_amount') ?? $invoice->tax_deduction_amount, "{$context} PPh");
-            $net = $this->validator->money($invoice->getRawOriginal('grand_total_amount') ?? $invoice->grand_total_amount, "{$context} net payable");
+            $ppn = InvoiceAmountCalculator::roundMinorUnits(
+                $this->validator->money($invoice->getRawOriginal('tax_addition_amount') ?? $invoice->tax_addition_amount, "{$context} PPN"),
+            );
+            $pph = InvoiceAmountCalculator::roundMinorUnits(
+                $this->validator->money($invoice->getRawOriginal('tax_deduction_amount') ?? $invoice->tax_deduction_amount, "{$context} PPh"),
+            );
+            $net = $expense + $ppn - $pph;
+            $storedNet = InvoiceAmountCalculator::roundMinorUnits(
+                $this->validator->money($invoice->getRawOriginal('grand_total_amount') ?? $invoice->grand_total_amount, "{$context} net payable"),
+            );
+            $this->require($storedNet === $net, "{$context}: net payable is inconsistent with the rounded expense and taxes.");
             $vat = $vatNumbers[$invoice->id] ?? $invoice->vat_invoice_number ?? '';
             $this->require(is_string($vat) && mb_strlen($vat) <= 255, "{$context}: VAT Invoice No. must be text of at most 255 characters.");
             $vat = trim($vat);

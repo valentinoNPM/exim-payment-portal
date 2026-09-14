@@ -8,6 +8,7 @@ use App\Models\InvoiceItem;
 use App\Models\Tax;
 use App\Services\DocumentFileRegistrar;
 use App\Services\GeminiInvoiceExtractor;
+use App\Services\InvoiceAmountCalculator;
 use App\Services\InvoiceExtractionDataMapper;
 use Carbon\Carbon;
 use Filament\Actions\Action;
@@ -281,28 +282,7 @@ class PaymentSlipForm
                                     ->afterStateUpdated(function (Get $get, Set $set, $state) {
                                         $rawSubtotal = str_replace(['.', ','], ['', '.'], $state);
                                         $subtotal = (float) $rawSubtotal;
-                                        $addition = 0;
-                                        $deduction = 0;
-
-                                        $ppnTaxId = $get('ppn_tax_id');
-                                        if ($ppnTaxId) {
-                                            $ppnTax = Tax::find($ppnTaxId);
-                                            if ($ppnTax) {
-                                                $addition = $subtotal * ($ppnTax->rate / 100);
-                                            }
-                                        }
-
-                                        $pphTaxId = $get('pph_tax_id');
-                                        if ($pphTaxId) {
-                                            $pphTax = Tax::find($pphTaxId);
-                                            if ($pphTax) {
-                                                $deduction = $subtotal * ($pphTax->rate / 100);
-                                            }
-                                        }
-
-                                        $set('tax_addition_amount', number_format($addition, 0, ',', '.'));
-                                        $set('tax_deduction_amount', number_format($deduction, 0, ',', '.'));
-                                        $set('grand_total_amount', number_format($subtotal + $addition - $deduction, 0, ',', '.'));
+                                        self::setCalculatedAmounts($set, $subtotal, $get('ppn_tax_id'), $get('pph_tax_id'));
                                     }),
 
                                 Select::make('ppn_tax_id')
@@ -314,27 +294,7 @@ class PaymentSlipForm
                                     ->afterStateUpdated(function (Get $get, Set $set, $state) {
                                         $rawSubtotal = str_replace(['.', ','], ['', '.'], $get('subtotal_amount'));
                                         $subtotal = (float) $rawSubtotal;
-                                        $addition = 0;
-                                        $deduction = 0;
-
-                                        if ($state) {
-                                            $ppnTax = Tax::find($state);
-                                            if ($ppnTax) {
-                                                $addition = $subtotal * ($ppnTax->rate / 100);
-                                            }
-                                        }
-
-                                        $pphTaxId = $get('pph_tax_id');
-                                        if ($pphTaxId) {
-                                            $pphTax = Tax::find($pphTaxId);
-                                            if ($pphTax) {
-                                                $deduction = $subtotal * ($pphTax->rate / 100);
-                                            }
-                                        }
-
-                                        $set('tax_addition_amount', number_format($addition, 0, ',', '.'));
-                                        $set('tax_deduction_amount', number_format($deduction, 0, ',', '.'));
-                                        $set('grand_total_amount', number_format($subtotal + $addition - $deduction, 0, ',', '.'));
+                                        self::setCalculatedAmounts($set, $subtotal, $state, $get('pph_tax_id'));
                                     }),
 
                                 Select::make('pph_tax_id')
@@ -346,27 +306,7 @@ class PaymentSlipForm
                                     ->afterStateUpdated(function (Get $get, Set $set, $state) {
                                         $rawSubtotal = str_replace(['.', ','], ['', '.'], $get('subtotal_amount'));
                                         $subtotal = (float) $rawSubtotal;
-                                        $addition = 0;
-                                        $deduction = 0;
-
-                                        $ppnTaxId = $get('ppn_tax_id');
-                                        if ($ppnTaxId) {
-                                            $ppnTax = Tax::find($ppnTaxId);
-                                            if ($ppnTax) {
-                                                $addition = $subtotal * ($ppnTax->rate / 100);
-                                            }
-                                        }
-
-                                        if ($state) {
-                                            $pphTax = Tax::find($state);
-                                            if ($pphTax) {
-                                                $deduction = $subtotal * ($pphTax->rate / 100);
-                                            }
-                                        }
-
-                                        $set('tax_addition_amount', number_format($addition, 0, ',', '.'));
-                                        $set('tax_deduction_amount', number_format($deduction, 0, ',', '.'));
-                                        $set('grand_total_amount', number_format($subtotal + $addition - $deduction, 0, ',', '.'));
+                                        self::setCalculatedAmounts($set, $subtotal, $get('ppn_tax_id'), $state);
                                     }),
 
                                 TextInput::make('tax_addition_amount')
@@ -450,5 +390,18 @@ class PaymentSlipForm
                             ->disabled(),
                     ])->columns(2),
             ]);
+    }
+
+    private static function setCalculatedAmounts(Set $set, float $subtotal, mixed $ppnTaxId, mixed $pphTaxId): void
+    {
+        $amounts = InvoiceAmountCalculator::calculate(
+            $subtotal,
+            Tax::find($ppnTaxId)?->rate,
+            Tax::find($pphTaxId)?->rate,
+        );
+
+        $set('tax_addition_amount', number_format($amounts['tax_addition'], 0, ',', '.'));
+        $set('tax_deduction_amount', number_format($amounts['tax_deduction'], 0, ',', '.'));
+        $set('grand_total_amount', number_format($amounts['grand_total'], 0, ',', '.'));
     }
 }

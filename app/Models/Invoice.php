@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\InvoiceAmountCalculator;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -79,21 +80,15 @@ class Invoice extends Model
             if ($invoice->isDirty(['ppn_tax_id', 'pph_tax_id', 'subtotal_amount'])) {
                 $subtotal = (float) $invoice->subtotal_amount;
 
-                $ppnAmount = 0;
-                if ($invoice->ppn_tax_id) {
-                    $ppnTax = Tax::find($invoice->ppn_tax_id);
-                    $ppnAmount = $ppnTax ? $subtotal * ($ppnTax->rate / 100) : 0;
-                }
+                $amounts = InvoiceAmountCalculator::calculate(
+                    $subtotal,
+                    Tax::find($invoice->ppn_tax_id)?->rate,
+                    Tax::find($invoice->pph_tax_id)?->rate,
+                );
 
-                $pphAmount = 0;
-                if ($invoice->pph_tax_id) {
-                    $pphTax = Tax::find($invoice->pph_tax_id);
-                    $pphAmount = $pphTax ? $subtotal * ($pphTax->rate / 100) : 0;
-                }
-
-                $invoice->tax_addition_amount = $ppnAmount;
-                $invoice->tax_deduction_amount = $pphAmount;
-                $invoice->grand_total_amount = $subtotal + $ppnAmount - $pphAmount;
+                $invoice->tax_addition_amount = $amounts['tax_addition'];
+                $invoice->tax_deduction_amount = $amounts['tax_deduction'];
+                $invoice->grand_total_amount = $amounts['grand_total'];
             }
         });
 
@@ -114,21 +109,15 @@ class Invoice extends Model
     {
         $subtotal = (float) $this->subtotal_amount;
 
-        $ppnAmount = 0;
-        if ($this->ppn_tax_id) {
-            $ppnTax = Tax::find($this->ppn_tax_id);
-            $ppnAmount = $ppnTax ? $subtotal * ($ppnTax->rate / 100) : 0;
-        }
+        $amounts = InvoiceAmountCalculator::calculate(
+            $subtotal,
+            Tax::find($this->ppn_tax_id)?->rate,
+            Tax::find($this->pph_tax_id)?->rate,
+        );
 
-        $pphAmount = 0;
-        if ($this->pph_tax_id) {
-            $pphTax = Tax::find($this->pph_tax_id);
-            $pphAmount = $pphTax ? $subtotal * ($pphTax->rate / 100) : 0;
-        }
-
-        $this->tax_addition_amount = $ppnAmount;
-        $this->tax_deduction_amount = $pphAmount;
-        $this->grand_total_amount = $subtotal + $ppnAmount - $pphAmount;
+        $this->tax_addition_amount = $amounts['tax_addition'];
+        $this->tax_deduction_amount = $amounts['tax_deduction'];
+        $this->grand_total_amount = $amounts['grand_total'];
         $this->saveQuietly();
 
         if ($this->paymentSlip) {

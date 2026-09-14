@@ -289,10 +289,10 @@
                 @endphp
                 @foreach($slip->invoices as $idx => $invoice)
                 @php
-                    $invSubtotal = (float) $invoice->subtotal_amount;
-                    $invPpn = (float) $invoice->tax_addition_amount;
-                    $invPph = (float) $invoice->tax_deduction_amount;
-                    $invGrand = (float) $invoice->grand_total_amount;
+                    $invSubtotal = \App\Services\InvoiceAmountCalculator::roundRupiah((float) $invoice->subtotal_amount);
+                    $invPpn = \App\Services\InvoiceAmountCalculator::roundRupiah((float) $invoice->tax_addition_amount);
+                    $invPph = \App\Services\InvoiceAmountCalculator::roundRupiah((float) $invoice->tax_deduction_amount);
+                    $invGrand = $invSubtotal + $invPpn - $invPph;
                     $totalSubtotal += $invSubtotal;
                     $totalPpn += $invPpn;
                     $totalPph += $invPph;
