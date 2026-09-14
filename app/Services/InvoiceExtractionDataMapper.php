@@ -26,7 +26,7 @@ class InvoiceExtractionDataMapper
                 // Normalize to one accounting line to avoid multiplying twice or
                 // introducing rounding errors by dividing totals into unit prices.
                 $quantity = 1.0;
-                $unitPrice = (float) ($item['original_price'] ?? 0);
+                $unitPrice = (float) ($item['line_total'] ?? $item['original_price'] ?? 0);
                 $subtotal += $quantity * $unitPrice;
                 $items[(string) str()->uuid()] = [
                     'item_name' => $item['item_name'],
@@ -46,9 +46,32 @@ class InvoiceExtractionDataMapper
                 'tax_addition_amount' => 0,
                 'tax_deduction_amount' => 0,
                 'grand_total_amount' => $subtotal,
+                'extraction_review' => $this->reviewSummary($invoice),
             ];
         }
 
         return $state;
+    }
+
+    private function reviewSummary(array $invoice): string
+    {
+        if (! isset($invoice['schema_version'])) {
+            return '';
+        }
+        $lines = ['Mata uang dokumen: '.($invoice['currency'] ?? 'Belum diketahui')];
+        foreach (['printed_subtotal' => 'Subtotal PDF', 'printed_tax' => 'Pajak PDF', 'printed_amount_due' => 'Total tagihan PDF'] as $field => $label) {
+            $lines[] = $label.': '.(isset($invoice[$field]) ? number_format($invoice[$field], 2, ',', '.') : 'Belum diketahui');
+        }
+        $lines[] = 'Nominal PDF adalah referensi; Amount Dibayar tetap mengikuti pengaturan pajak aplikasi.';
+        foreach ($invoice['evidence'] ?? [] as $field => $evidence) {
+            if (is_string($evidence['quote'] ?? null)) {
+                $lines[] = $field.' — halaman '.($evidence['page'] ?? '?').': '.$evidence['quote'];
+            }
+        }
+        foreach ($invoice['warnings'] ?? [] as $warning) {
+            $lines[] = 'Periksa: '.$warning;
+        }
+
+        return implode("\n", $lines);
     }
 }

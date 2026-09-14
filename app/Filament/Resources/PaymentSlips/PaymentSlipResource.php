@@ -16,6 +16,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class PaymentSlipResource extends Resource
@@ -51,12 +52,60 @@ class PaymentSlipResource extends Resource
         return PaymentSlipForm::configure($schema);
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+
+        if ($user?->hasRole('maker') && ! $user->hasAnyRole(['checker', 'approver'])) {
+            $query->where('created_by', $user->getKey());
+        }
+
+        return $query;
+    }
+
+    public static function canView(Model $record): bool
+    {
+        return static::canAccessRecord($record);
+    }
+
     public static function canEdit(Model $record): bool
     {
         $status = PaymentSlip::query()->whereKey($record->getKey())->value('status');
+        $user = auth()->user();
 
-        return ($status === 'draft' && auth()->user()?->hasAnyRole(['maker', 'checker']))
-            || ($status === 'submitted' && auth()->user()?->hasRole('checker'));
+        if (! $user || ! static::canAccessRecord($record)) {
+            return false;
+        }
+
+        if ($user->hasRole('checker')) {
+            return in_array($status, ['draft', 'submitted'], true);
+        }
+
+        return $status === 'draft' && $user->hasRole('maker');
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        $user = auth()->user();
+
+        return $user?->hasRole('maker')
+            && (int) $record->getAttribute('created_by') === (int) $user->getKey()
+            && PaymentSlip::query()->whereKey($record->getKey())->value('status') === 'draft';
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return auth()->user()?->hasRole('maker') ?? false;
+    }
+
+    public static function canSubmit(Model $record): bool
+    {
+        $user = auth()->user();
+
+        return $user?->hasRole('maker')
+            && (int) $record->getAttribute('created_by') === (int) $user->getKey()
+            && PaymentSlip::query()->whereKey($record->getKey())->value('status') === 'draft';
     }
 
     public static function infolist(Schema $schema): Schema
@@ -84,5 +133,21 @@ class PaymentSlipResource extends Resource
             'view' => ViewPaymentSlip::route('/{record}'),
             'edit' => EditPaymentSlip::route('/{record}/edit'),
         ];
+    }
+
+    private static function canAccessRecord(Model $record): bool
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->hasAnyRole(['checker', 'approver'])) {
+            return true;
+        }
+
+        return $user->hasRole('maker')
+            && (int) $record->getAttribute('created_by') === (int) $user->getKey();
     }
 }

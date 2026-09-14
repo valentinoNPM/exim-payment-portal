@@ -46,8 +46,9 @@ class ViewPaymentSlip extends ViewRecord
                 ->label('Submit')
                 ->icon('heroicon-o-paper-airplane')
                 ->color('success')
-                ->visible(fn () => $this->getRecord()->status === 'draft' && auth()->user()->hasRole('maker'))
+                ->visible(fn (): bool => PaymentSlipResource::canSubmit($this->getRecord()))
                 ->action(function () {
+                    abort_unless(PaymentSlipResource::canSubmit($this->getRecord()), 403);
                     $this->getRecord()->update([
                         'status' => 'submitted',
                         'submitted_at' => now(),
@@ -78,7 +79,7 @@ class ViewPaymentSlip extends ViewRecord
                 )),
             EditAction::make(),
             DeleteAction::make()
-                ->visible(fn () => $this->getRecord()->status === 'draft' && auth()->user()->hasRole('maker')),
+                ->visible(fn (): bool => PaymentSlipResource::canDelete($this->getRecord())),
         ];
     }
 }

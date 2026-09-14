@@ -16,15 +16,14 @@ class GeminiInvoiceExtractorTest extends TestCase
 
         Storage::fake('local');
         Storage::disk('local')->put('invoices/test.pdf', 'fake-pdf');
-        config()->set('services.gemini.markitdown.enabled', true);
         config()->set('services.gemini.minimum_text_length', 20);
     }
 
     public function test_whitespace_preprocessors_fall_back_directly_to_multimodal(): void
     {
         $extractor = new FakeGeminiInvoiceExtractor;
-        $extractor->markitdownText = "\r\n";
-        $extractor->pdfParserText = '';
+        $extractor->pdfParserText = "\r\n";
+        $extractor->pdfParserText = "\r\n";
         $extractor->multimodalResult = [$this->validInvoice()];
 
         $result = $extractor->extract(['invoices/test.pdf']);
@@ -34,23 +33,35 @@ class GeminiInvoiceExtractorTest extends TestCase
         $this->assertSame(1, $extractor->multimodalRequests);
     }
 
-    public function test_usable_markitdown_text_uses_one_text_request(): void
+    public function test_usable_pdf_text_uses_one_text_request(): void
     {
         $extractor = new FakeGeminiInvoiceExtractor;
-        $extractor->markitdownText = 'INVOICE NUMBER INV-001 with enough invoice table content';
+        $extractor->pdfParserText = 'INVOICE NUMBER INV-001 with enough invoice table content';
         $extractor->textResult = [$this->validInvoice()];
 
         $extractor->extract(['invoices/test.pdf']);
 
         $this->assertSame(1, $extractor->textRequests);
-        $this->assertSame(0, $extractor->pdfParserRequests);
+        $this->assertSame(1, $extractor->pdfParserRequests);
         $this->assertSame(0, $extractor->multimodalRequests);
     }
 
-    public function test_pdf_parser_is_used_when_markitdown_text_is_not_usable(): void
+    public function test_pdf_parser_failure_falls_back_to_pdf_input(): void
     {
         $extractor = new FakeGeminiInvoiceExtractor;
-        $extractor->markitdownText = 'metadata only';
+        $extractor->pdfParserThrows = true;
+        $extractor->multimodalResult = [$this->validInvoice()];
+
+        $result = $extractor->extract(['invoices/test.pdf']);
+
+        $this->assertCount(1, $result);
+        $this->assertSame(0, $extractor->textRequests);
+        $this->assertSame(1, $extractor->multimodalRequests);
+    }
+
+    public function test_alternative_invoice_marker_uses_text_request(): void
+    {
+        $extractor = new FakeGeminiInvoiceExtractor;
         $extractor->pdfParserText = 'Inv No INV-001 with enough invoice table content';
         $extractor->textResult = [$this->validInvoice()];
 
@@ -64,7 +75,7 @@ class GeminiInvoiceExtractorTest extends TestCase
     public function test_empty_text_response_falls_back_to_multimodal(): void
     {
         $extractor = new FakeGeminiInvoiceExtractor;
-        $extractor->markitdownText = 'INVOICE NUMBER INV-001 with enough invoice table content';
+        $extractor->pdfParserText = 'INVOICE NUMBER INV-001 with enough invoice table content';
         $extractor->textResult = [];
         $extractor->multimodalResult = [$this->validInvoice()];
 
@@ -77,7 +88,7 @@ class GeminiInvoiceExtractorTest extends TestCase
     public function test_invalid_invoice_structures_are_rejected_and_fall_back(): void
     {
         $extractor = new FakeGeminiInvoiceExtractor;
-        $extractor->markitdownText = 'INVOICE NUMBER INV-001 with enough invoice table content';
+        $extractor->pdfParserText = 'INVOICE NUMBER INV-001 with enough invoice table content';
         $extractor->textResult = [[
             'invoice_number' => '',
             'invoice_date' => '03/09/2026',
@@ -94,7 +105,6 @@ class GeminiInvoiceExtractorTest extends TestCase
     public function test_all_tiers_returning_no_valid_invoice_throws_an_exception(): void
     {
         $extractor = new FakeGeminiInvoiceExtractor;
-        $extractor->markitdownText = '';
         $extractor->pdfParserText = '';
         $extractor->multimodalResult = [];
 
@@ -107,7 +117,6 @@ class GeminiInvoiceExtractorTest extends TestCase
     public function test_invalid_items_are_removed_without_discarding_valid_items(): void
     {
         $extractor = new FakeGeminiInvoiceExtractor;
-        $extractor->markitdownText = '';
         $extractor->pdfParserText = '';
         $invoice = $this->validInvoice();
         $invoice['items'][] = ['item_name' => '', 'qty' => 0, 'original_price' => -1];
@@ -197,7 +206,7 @@ class GeminiInvoiceExtractorTest extends TestCase
     public function test_expeditors_interleaved_tax_label_does_not_replace_billing_number(): void
     {
         $extractor = new FakeGeminiInvoiceExtractor;
-        $extractor->markitdownText = "PT. Expeditors Indonesia INVOICE\nTAX No: NUMBER E832794415\n018826347015000";
+        $extractor->pdfParserText = "PT. Expeditors Indonesia INVOICE\nTAX No: NUMBER E832794415\n018826347015000";
         $invoice = $this->validInvoice();
         $invoice['invoice_number'] = '018826347015000';
         $extractor->textResult = [$invoice];
@@ -210,7 +219,7 @@ class GeminiInvoiceExtractorTest extends TestCase
     public function test_multiple_expeditors_numbers_are_not_reconciled_by_guessing(): void
     {
         $extractor = new FakeGeminiInvoiceExtractor;
-        $extractor->markitdownText = "Expeditors INVOICE NUMBER E832794415\nINVOICE NUMBER E832794416";
+        $extractor->pdfParserText = "Expeditors INVOICE NUMBER E832794415\nINVOICE NUMBER E832794416";
         $extractor->textResult = [$this->validInvoice()];
 
         $result = $extractor->extract(['invoices/test.pdf']);
@@ -221,7 +230,7 @@ class GeminiInvoiceExtractorTest extends TestCase
 
 class RetryingGeminiInvoiceExtractor extends GeminiInvoiceExtractor
 {
-    protected function extractViaMarkitdown(string $filePath): ?string
+    protected function extractViaPdfParser(string $filePath): ?string
     {
         return 'INVOICE NUMBER INV-001 with enough invoice table content';
     }
@@ -239,7 +248,7 @@ class PartialFailureGeminiInvoiceExtractor extends GeminiInvoiceExtractor
 
     private string $currentFile = '';
 
-    protected function extractViaMarkitdown(string $filePath): ?string
+    protected function extractViaPdfParser(string $filePath): ?string
     {
         $this->currentFile = basename($filePath);
 
@@ -268,7 +277,7 @@ class PartialFailureGeminiInvoiceExtractor extends GeminiInvoiceExtractor
 
 class FakeGeminiInvoiceExtractor extends GeminiInvoiceExtractor
 {
-    public ?string $markitdownText = null;
+    public bool $pdfParserThrows = false;
 
     public ?string $pdfParserText = null;
 
@@ -282,14 +291,13 @@ class FakeGeminiInvoiceExtractor extends GeminiInvoiceExtractor
 
     public int $multimodalRequests = 0;
 
-    protected function extractViaMarkitdown(string $filePath): ?string
-    {
-        return $this->markitdownText;
-    }
-
     protected function extractViaPdfParser(string $filePath): ?string
     {
         $this->pdfParserRequests++;
+
+        if ($this->pdfParserThrows) {
+            throw new RuntimeException('Unreadable PDF text layer');
+        }
 
         return $this->pdfParserText;
     }

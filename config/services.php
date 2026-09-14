@@ -38,10 +38,6 @@ return [
     'gemini' => [
         'api_key' => env('GEMINI_API_KEY'),
         'model' => env('GEMINI_API_MODEL', 'gemini-1.5-flash'),
-        'markitdown' => [
-            'enabled' => env('MARKITDOWN_ENABLED', true),
-            'python_path' => env('MARKITDOWN_PYTHON_PATH', 'python'),
-        ],
         'minimum_text_length' => env('GEMINI_MINIMUM_TEXT_LENGTH', 100),
     ],
 

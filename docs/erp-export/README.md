@@ -121,7 +121,7 @@ For every Invoice Item:
 - Account: resolved item COA
 - FD_1: Cost Center derived from Import/Export
 - FD_2: `I0500000`
-- Transaction text: deterministic text based on item name, invoice number, supplier, and available buyer
+- Transaction text: `{item} for {buyer} inv {invoice}-{supplier}`; omit the buyer segment when unavailable
 - Debit: stored item subtotal
 - Credit: blank
 - Currency: `IDR`
@@ -163,7 +163,9 @@ Create one supplier row per invoice:
 - Account type: `Supplier`
 - Account: `supplier.code`
 - FD_5: `supplier.code`
-- Transaction text: deterministic AP description
+- PPN transaction text: `{VAT Invoice No.} -{buyer} inv {invoice}-{supplier}`; when VAT Invoice No. is blank, use the invoice context without inventing a number
+- PPh transaction text: `PPh 23 {import/export} charge for {buyer} inv {invoice}-{supplier}`
+- Supplier transaction text: `AP {import/export} charge for {buyer} inv {invoice}-{supplier}`
 - Debit: blank
 - Credit: stored invoice net payable (`subtotal + PPN - PPh`)
 - Currency: `IDR`

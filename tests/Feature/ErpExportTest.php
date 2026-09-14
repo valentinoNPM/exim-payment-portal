@@ -62,8 +62,16 @@ class ErpExportTest extends TestCase
         $this->assertSame('000123', $rows[4]->account);
         $this->assertSame('000099', $rows[4]->vatInvoiceNumber);
         $this->assertNull($rows[9]->vatInvoiceNumber);
+        $this->assertSame('Handling 1 for Fixture Buyer inv 000045-Fixture Supplier', $rows[0]->description);
+        $this->assertSame('000099 -Fixture Buyer inv 000045-Fixture Supplier', $rows[2]->description);
+        $this->assertSame('PPh 23 export charge for Fixture Buyer inv 000045-Fixture Supplier', $rows[3]->description);
+        $this->assertSame('AP export charge for Fixture Buyer inv 000045-Fixture Supplier', $rows[4]->description);
+        $this->assertSame('Fixture Buyer inv 000046-Fixture Supplier', $rows[7]->description);
         $slip->transaction_type = 'import';
-        $this->assertSame('I05_190000', app(ErpJournalBuilder::class)->build($slip)[0]->costCenter);
+        $importRows = app(ErpJournalBuilder::class)->build($slip);
+        $this->assertSame('I05_190000', $importRows[0]->costCenter);
+        $this->assertSame('PPh 23 import charge for Fixture Buyer inv 000045-Fixture Supplier', $importRows[3]->description);
+        $this->assertSame('AP import charge for Fixture Buyer inv 000045-Fixture Supplier', $importRows[4]->description);
     }
 
     public function test_account_resolution_order(): void
@@ -152,6 +160,10 @@ class ErpExportTest extends TestCase
         $this->assertSame('000099', $sheet->getCell('AV7')->getValue());
         $this->assertSame('AP_OTP', $sheet->getCell('T7')->getValue());
         $this->assertSame('i2', $sheet->getCell('U5')->getValue());
+        $this->assertSame('Handling 1 for Fixture Buyer inv 000045-Fixture Supplier', $sheet->getCell('O3')->getValue());
+        $this->assertSame('000099 -Fixture Buyer inv 000045-Fixture Supplier', $sheet->getCell('O5')->getValue());
+        $this->assertSame('PPh 23 export charge for Fixture Buyer inv 000045-Fixture Supplier', $sheet->getCell('O6')->getValue());
+        $this->assertSame('AP export charge for Fixture Buyer inv 000045-Fixture Supplier', $sheet->getCell('O7')->getValue());
         foreach (['D7', 'I7', 'AL7', 'AV7'] as $cell) {
             $this->assertSame(DataType::TYPE_STRING, $sheet->getCell($cell)->getDataType());
         }
@@ -357,8 +369,9 @@ class ErpExportTest extends TestCase
         $this->assertSame('33.01', $item->invoice->tax_addition_amount);
         $this->assertSame('6.01', $item->invoice->tax_deduction_amount);
         $this->assertSame('327.00', $item->invoice->grand_total_amount);
-        $this->actingAs(User::factory()->create()->assignRole('maker'));
-        $slip->update(['status' => 'draft']);
+        $maker = User::factory()->create()->assignRole('maker');
+        $this->actingAs($maker);
+        $slip->update(['status' => 'draft', 'created_by' => $maker->id]);
         $makerPage = Livewire::test(EditPaymentSlip::class, ['record' => $slip->id]);
         $this->assertStringNotContainsString('Second account', $makerPage->html());
     }

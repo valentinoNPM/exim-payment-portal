@@ -4,6 +4,7 @@ namespace App\Filament\Resources\PaymentSlips\Tables;
 
 use App\Actions\GeneratePaymentSlipPdf;
 use App\Actions\VerifyPaymentSlip;
+use App\Filament\Resources\PaymentSlips\PaymentSlipResource;
 use App\Models\PaymentSlip;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -58,8 +59,9 @@ class PaymentSlipsTable
                     ->label('Submit')
                     ->icon('heroicon-o-paper-airplane')
                     ->color('success')
-                    ->visible(fn (PaymentSlip $record) => $record->status === 'draft' && auth()->user()->hasRole('maker'))
+                    ->visible(fn (PaymentSlip $record): bool => PaymentSlipResource::canSubmit($record))
                     ->action(function (PaymentSlip $record) {
+                        abort_unless(PaymentSlipResource::canSubmit($record), 403);
                         $record->update([
                             'status' => 'submitted',
                             'submitted_at' => now(),
@@ -92,7 +94,9 @@ class PaymentSlipsTable
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->visible(fn (): bool => PaymentSlipResource::canDeleteAny())
+                        ->authorizeIndividualRecords(fn (PaymentSlip $record): bool => PaymentSlipResource::canDelete($record)),
                 ]),
             ]);
     }

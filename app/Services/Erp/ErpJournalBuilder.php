@@ -26,28 +26,33 @@ class ErpJournalBuilder
             $this->require($invoice->items->isNotEmpty(), "{$context} has no expense items.");
             $this->require($invoice->invoice_date !== null, "{$context} has no invoice date.");
             $date = $invoice->invoice_date->format('Y-m-d');
-            $description = implode(' - ', array_filter([$invoice->invoice_number, $slip->supplier->name, $slip->buyer?->name]));
+            $descriptionContext = implode(' ', array_filter([
+                trim((string) $slip->buyer?->name),
+                'inv '.$invoice->invoice_number,
+            ])).'-'.trim((string) $slip->supplier->name);
+            $chargeType = strtolower($slip->transaction_type);
             $invoiceRows = [];
             $expense = 0;
             foreach ($invoice->items->sortBy('line_number') as $item) {
                 $amount = $this->validator->money($item->getRawOriginal('subtotal_amount') ?? $item->subtotal_amount, "{$context}, item {$item->item_name}");
                 $expense += $amount;
-                $invoiceRows[] = new ErpJournalRow($invoice->invoice_number, $date, 'Expense', 'ledger', $this->resolver->resolve($item, $invoice), $item->item_name.' - '.$description, $amount, null, $costCenter);
+                $invoiceRows[] = new ErpJournalRow($invoice->invoice_number, $date, 'Expense', 'ledger', $this->resolver->resolve($item, $invoice), $item->item_name.' for '.$descriptionContext, $amount, null, $costCenter);
             }
             $this->require($expense > 0, "{$context} has no positive expense value.");
             $ppn = $this->validator->money($invoice->getRawOriginal('tax_addition_amount') ?? $invoice->tax_addition_amount, "{$context} PPN");
             $pph = $this->validator->money($invoice->getRawOriginal('tax_deduction_amount') ?? $invoice->tax_deduction_amount, "{$context} PPh");
             $net = $this->validator->money($invoice->getRawOriginal('grand_total_amount') ?? $invoice->grand_total_amount, "{$context} net payable");
-            if ($ppn > 0) {
-                $invoiceRows[] = new ErpJournalRow($invoice->invoice_number, $date, 'PPN', 'ledger', config('erp-export.accounts.ppn'), 'PPN - '.$description, $ppn, null);
-            }
-            if ($pph > 0) {
-                $invoiceRows[] = new ErpJournalRow($invoice->invoice_number, $date, 'PPh', 'ledger', config('erp-export.accounts.pph_23'), 'PPh - '.$description, null, $pph);
-            }
             $vat = $vatNumbers[$invoice->id] ?? $invoice->vat_invoice_number ?? '';
             $this->require(is_string($vat) && mb_strlen($vat) <= 255, "{$context}: VAT Invoice No. must be text of at most 255 characters.");
             $vat = trim($vat);
-            $invoiceRows[] = new ErpJournalRow($invoice->invoice_number, $date, 'Supplier', 'Supplier', $slip->supplier->code, 'AP - '.$description, null, $net, vatInvoiceNumber: $vat === '' ? null : $vat);
+            if ($ppn > 0) {
+                $ppnDescription = $vat === '' ? $descriptionContext : $vat.' -'.$descriptionContext;
+                $invoiceRows[] = new ErpJournalRow($invoice->invoice_number, $date, 'PPN', 'ledger', config('erp-export.accounts.ppn'), $ppnDescription, $ppn, null);
+            }
+            if ($pph > 0) {
+                $invoiceRows[] = new ErpJournalRow($invoice->invoice_number, $date, 'PPh', 'ledger', config('erp-export.accounts.pph_23'), "PPh 23 {$chargeType} charge for {$descriptionContext}", null, $pph);
+            }
+            $invoiceRows[] = new ErpJournalRow($invoice->invoice_number, $date, 'Supplier', 'Supplier', $slip->supplier->code, "AP {$chargeType} charge for {$descriptionContext}", null, $net, vatInvoiceNumber: $vat === '' ? null : $vat);
             $this->validator->balance($invoiceRows, $context);
             array_push($rows, ...$invoiceRows);
         }
