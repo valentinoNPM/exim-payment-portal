@@ -109,7 +109,7 @@ class GeminiInvoiceExtractorTest extends TestCase
         $extractor->multimodalResult = [];
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('No valid invoices were found');
+        $this->expectExceptionMessage('Invoice utama belum dapat ditentukan');
 
         $extractor->extract(['invoices/test.pdf']);
     }
@@ -226,6 +226,85 @@ class GeminiInvoiceExtractorTest extends TestCase
 
         $this->assertSame('INV-001', $result[0]['invoice_number']);
     }
+
+    public function test_supplier_hint_does_not_silently_filter_multiple_results_without_rechecking_the_pdf(): void
+    {
+        $extractor = new FakeGeminiInvoiceExtractor;
+        $extractor->pdfParserText = 'INVOICE NUMBER FNS-001 and supporting INVOICE NUMBER UOL-001 with enough invoice table content';
+        $first = $this->validInvoice();
+        $first['invoice_number'] = 'FNS-001';
+        $first['issuer_supplier_name'] = 'PT. FNS TRANSBUANA';
+        $supporting = $this->validInvoice();
+        $supporting['invoice_number'] = 'UOL-001';
+        $supporting['issuer_supplier_name'] = 'PT Universe Optima Logistics';
+        $extractor->textResult = [$first, $supporting];
+        $extractor->multimodalResult = [$first];
+
+        $report = $extractor->extractWithReport([[
+            'path' => Storage::disk('local')->path('invoices/test.pdf'),
+            'original_name' => 'bundle.pdf',
+        ]], 'PT FNS Transbuana');
+
+        $this->assertCount(1, $report['successful']);
+        $this->assertSame(['FNS-001'], array_column($report['successful'][0]['invoices'], 'invoice_number'));
+        $this->assertSame(1, $extractor->textRequests);
+        $this->assertSame(1, $extractor->multimodalRequests);
+    }
+
+    public function test_supplier_name_difference_does_not_discard_a_valid_invoice_in_either_input_path(): void
+    {
+        foreach ([true, false] as $useText) {
+            $extractor = new FakeGeminiInvoiceExtractor;
+            $extractor->pdfParserText = $useText ? 'INVOICE NUMBER INV-001 with enough invoice table content' : '';
+            $invoice = $this->validInvoice();
+            $invoice['issuer_supplier_name'] = 'FNS';
+            $extractor->textResult = [$invoice];
+            $extractor->multimodalResult = [$invoice];
+
+            $report = $extractor->extractWithReport([[
+                'path' => Storage::disk('local')->path('invoices/test.pdf'),
+                'original_name' => 'INV-001.pdf',
+            ]], 'PT Fajar Nusantara Transbuana');
+
+            $this->assertCount(1, $report['successful']);
+            $this->assertSame([], $report['failed']);
+            $this->assertSame('FNS', $report['successful'][0]['invoices'][0]['issuer_supplier_name']);
+            $this->assertSame($useText ? 0 : 1, $extractor->multimodalRequests);
+        }
+    }
+
+    public function test_multiple_main_invoices_from_text_are_rechecked_with_multimodal_and_reduced_to_one(): void
+    {
+        $extractor = new FakeGeminiInvoiceExtractor;
+        $extractor->pdfParserText = 'INVOICE NUMBER FNS-001 INVOICE NUMBER FNS-002 with enough invoice table content';
+        $first = $this->validInvoice();
+        $first['invoice_number'] = 'FNS-001';
+        $second = $this->validInvoice();
+        $second['invoice_number'] = 'FNS-002';
+        $extractor->textResult = [$first, $second];
+        $extractor->multimodalResult = [$first];
+
+        $result = $extractor->extract(['invoices/test.pdf']);
+
+        $this->assertSame(['FNS-001'], array_column($result, 'invoice_number'));
+        $this->assertSame(1, $extractor->textRequests);
+        $this->assertSame(1, $extractor->multimodalRequests);
+    }
+
+    public function test_multiple_main_invoices_after_multimodal_are_rejected(): void
+    {
+        $extractor = new FakeGeminiInvoiceExtractor;
+        $extractor->pdfParserText = '';
+        $first = $this->validInvoice();
+        $second = $this->validInvoice();
+        $second['invoice_number'] = 'INV-002';
+        $extractor->multimodalResult = [$first, $second];
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Satu file PDF hanya boleh berisi satu invoice utama');
+
+        $extractor->extract(['invoices/test.pdf']);
+    }
 }
 
 class RetryingGeminiInvoiceExtractor extends GeminiInvoiceExtractor
@@ -255,7 +334,7 @@ class PartialFailureGeminiInvoiceExtractor extends GeminiInvoiceExtractor
         return 'INVOICE NUMBER INV-001 with enough invoice table content';
     }
 
-    protected function extractViaTextPrompt(string $textContent): array
+    protected function extractViaTextPrompt(string $textContent, ?string $payableSupplierName = null, ?string $originalName = null): array
     {
         $this->textRequests++;
 
@@ -302,14 +381,14 @@ class FakeGeminiInvoiceExtractor extends GeminiInvoiceExtractor
         return $this->pdfParserText;
     }
 
-    protected function extractViaTextPrompt(string $textContent): array
+    protected function extractViaTextPrompt(string $textContent, ?string $payableSupplierName = null, ?string $originalName = null): array
     {
         $this->textRequests++;
 
         return $this->textResult;
     }
 
-    protected function extractViaMultimodal(array $pdfPaths): array
+    protected function extractViaMultimodal(array $pdfPaths, ?string $payableSupplierName = null, ?string $originalName = null): array
     {
         $this->multimodalRequests++;
 

@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources\Suppliers\Schemas;
 
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
 
@@ -14,7 +14,8 @@ class SupplierForm
         return $schema
             ->components([
                 TextInput::make('code')
-                    ->required(),
+                    ->required()
+                    ->unique(ignoreRecord: true),
                 TextInput::make('name')
                     ->required(),
                 Textarea::make('address')

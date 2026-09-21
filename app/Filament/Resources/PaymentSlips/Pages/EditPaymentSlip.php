@@ -5,6 +5,7 @@ namespace App\Filament\Resources\PaymentSlips\Pages;
 use App\Actions\GeneratePaymentSlipPdf;
 use App\Actions\VerifyPaymentSlip;
 use App\Filament\Resources\PaymentSlips\PaymentSlipResource;
+use App\Filament\Resources\PaymentSlips\Schemas\PaymentSlipForm;
 use App\Models\DocumentFile;
 use App\Models\PaymentSlip;
 use Filament\Actions\Action;
@@ -15,11 +16,25 @@ use Filament\Resources\Pages\EditRecord;
 
 class EditPaymentSlip extends EditRecord
 {
+    protected ?bool $hasDatabaseTransactions = true;
+
     protected static string $resource = PaymentSlipResource::class;
 
     protected string $view = 'filament.pages.split-payment-slip';
 
     public ?string $activePdfUrl = null;
+
+    public function updated(string $property): void
+    {
+        PaymentSlipForm::recalculateLiveItemizedInvoice($this->data, $property);
+
+        // Force Livewire to detect the nested data mutation by re-assigning
+        // the top-level key. Without this, changes made by reference inside
+        // the recalculation method may not trigger a browser re-render.
+        if (isset($this->data['invoices'])) {
+            $this->data['invoices'] = $this->data['invoices'];
+        }
+    }
 
     protected function mutateFormDataBeforeFill(array $data): array
     {
@@ -50,6 +65,7 @@ class EditPaymentSlip extends EditRecord
                 ->visible(fn (): bool => PaymentSlipResource::canSubmit($this->getRecord()))
                 ->action(function () {
                     abort_unless(PaymentSlipResource::canSubmit($this->getRecord()), 403);
+                    $this->save();
                     $this->getRecord()->update([
                         'status' => 'submitted',
                         'submitted_at' => now(),

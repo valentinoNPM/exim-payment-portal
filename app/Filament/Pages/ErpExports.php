@@ -16,6 +16,7 @@ use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\View;
+use Filament\Support\Enums\Alignment;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
@@ -60,17 +61,41 @@ class ErpExports extends Page implements HasTable
         return $table
             ->query(fn (): Builder => PaymentSlip::query()
                 ->when(! static::canAccess(), fn (Builder $query) => $query->whereRaw('1 = 0'))
-                ->with(['supplier', 'erpExportItem.exportBatch.creator'])->withCount('invoices')
+                ->with(['supplier', 'buyer', 'invoices.buyer', 'erpExportItem.exportBatch.creator'])->withCount('invoices')
                 ->when($history, fn (Builder $query) => $query->whereHas('erpExportItem'), fn (Builder $query) => $query->where('status', 'approved')->whereDoesntHave('erpExportItem')))
             ->columns([
-                TextColumn::make('slip_number')->label('Slip Number')->searchable()->sortable()->url(fn (PaymentSlip $record): string => PaymentSlipResource::getUrl('view', ['record' => $record])),
-                TextColumn::make('supplier.name')->label('Supplier')->searchable()->sortable(),
-                TextColumn::make('transaction_type')->label('Import/Export')->badge()->sortable(),
-                TextColumn::make('invoices_count')->label('Invoice count')->visible(! $history),
-                TextColumn::make('grand_total_amount')->label('Amount')->money('IDR')->sortable(),
-                TextColumn::make('approved_at')->label('Verified at')->dateTime()->sortable()->visible(! $history),
+                TextColumn::make('slip_number')
+                    ->label('Slip Number')
+                    ->fontFamily('mono')
+                    ->searchable()
+                    ->sortable()
+                    ->url(fn (PaymentSlip $record): string => PaymentSlipResource::getUrl('view', ['record' => $record])),
+                TextColumn::make('supplier.name')
+                    ->label('Supplier')
+                    ->description(fn (PaymentSlip $record): string => self::buyerDescription($record))
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('transaction_type')
+                    ->label('Type')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        PaymentSlip::TYPE_IMPORT => 'info',
+                        PaymentSlip::TYPE_EXPORT => 'success',
+                        PaymentSlip::TYPE_GENERAL => 'warning',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn (string $state): string => PaymentSlip::TRANSACTION_TYPE_LABELS[$state] ?? ucfirst($state))
+                    ->sortable(),
+                TextColumn::make('invoices_count')->label('Invoice count')->badge()->color('gray')->visible(! $history),
+                TextColumn::make('grand_total_amount')
+                    ->label('Amount')
+                    ->money('IDR', locale: 'id')
+                    ->fontFamily('mono')
+                    ->alignment(Alignment::End)
+                    ->sortable(),
+                TextColumn::make('approved_at')->label('Verified at')->dateTime('d M Y H:i')->sortable()->visible(! $history),
                 TextColumn::make('erpExportItem.exportBatch.creator.name')->label('Exported by')->visible($history),
-                TextColumn::make('erpExportItem.exportBatch.exported_at')->label('Exported at')->dateTime()->sortable()->visible($history),
+                TextColumn::make('erpExportItem.exportBatch.exported_at')->label('Exported at')->dateTime('d M Y H:i')->sortable()->visible($history),
             ])
             ->defaultSort(fn (Builder $query): Builder => $history
                 ? $query->orderByDesc(ErpExportBatch::query()->select('exported_at')
@@ -78,7 +103,7 @@ class ErpExports extends Page implements HasTable
                     ->whereColumn('erp_export_items.payment_slip_id', 'payment_slips.id')->limit(1))
                 : $query->orderByDesc('approved_at'))
             ->filters([
-                SelectFilter::make('transaction_type')->label('Import/Export')->options(['import' => 'Import', 'export' => 'Export']),
+                SelectFilter::make('transaction_type')->label('Type')->options(PaymentSlip::TRANSACTION_TYPE_LABELS),
                 Filter::make('approval_date')->schema([DatePicker::make('from'), DatePicker::make('until')])
                     ->query(fn (Builder $query, array $data): Builder => $query
                         ->when($data['from'] ?? null, fn (Builder $query, $date) => $query->whereDate('approved_at', '>=', $date))
@@ -86,17 +111,20 @@ class ErpExports extends Page implements HasTable
             ])
             ->recordActions([
                 Action::make('prepare')->label('Prepare file')->visible(! $history)->authorize(fn (): bool => static::canAccess())
+                    ->icon('heroicon-o-document-arrow-down')
                     ->slideOver()->modalWidth('7xl')->modalHeading(fn (PaymentSlip $record): string => 'Prepare ERP file - '.$record->slip_number)
                     ->modalSubmitActionLabel('Export XLSX')
                     ->schema(function (PaymentSlip $record): array {
                         $record->loadMissing(['invoices.items.chartOfAccount', 'supplier', 'buyer']);
                         $fields = [View::make('filament.erp.summary')->viewData(['slip' => $record])];
-                        foreach ($record->invoices->sortBy('id') as $invoice) {
-                            $fields[] = Section::make($invoice->invoice_number.' · '.$invoice->invoice_date?->format('d M Y'))
-                                ->components([TextInput::make('vat_numbers.'.$invoice->id)->label('VAT Invoice No.')
-                                    ->helperText('Optional. Fill only when a tax invoice number is available.')
-                                    ->default($invoice->vat_invoice_number)
-                                    ->maxLength(255)->live(debounce: 400)]);
+                        if ($record->transaction_type === 'export') {
+                            foreach ($record->invoices->sortBy('id') as $invoice) {
+                                $fields[] = Section::make($invoice->invoice_number.' · '.$invoice->invoice_date?->format('d M Y'))
+                                    ->components([TextInput::make('vat_numbers.'.$invoice->id)->label('VAT Invoice No.')
+                                        ->helperText('Optional. Fill only when a tax invoice number is available.')
+                                        ->default($invoice->vat_invoice_number)
+                                        ->maxLength(255)->live(debounce: 400)]);
+                            }
                         }
                         $fields[] = View::make('filament.erp.preview')->viewData(fn (Get $get): array => $this->preview($record, $get('vat_numbers') ?? []));
 
@@ -119,11 +147,23 @@ class ErpExports extends Page implements HasTable
                         return Storage::disk('local')->download($batch->file_path, basename($batch->file_path));
                     }),
                 Action::make('download')->label('Download again')->visible(fn (PaymentSlip $record): bool => $history && filled($record->erpExportItem?->exportBatch?->file_path) && Storage::disk('local')->exists($record->erpExportItem->exportBatch->file_path))
+                    ->icon('heroicon-o-arrow-down-tray')
                     ->authorize(fn (): bool => static::canAccess())
                     ->url(fn (PaymentSlip $record): string => route('erp-exports.download', $record->erpExportItem->exportBatch)),
             ])
             ->emptyStateHeading($history ? 'No export history yet.' : 'No payment slips are ready to export.')
             ->emptyStateDescription($history ? 'Exported files will appear here for download.' : 'Verified payment slips will appear here.');
+    }
+
+    private static function buyerDescription(PaymentSlip $record): string
+    {
+        $buyers = $record->invoices
+            ->map(fn ($invoice) => $invoice->buyer?->name ?: $record->buyer?->name)
+            ->filter()
+            ->unique()
+            ->implode(', ');
+
+        return 'Buyer: '.($buyers ?: $record->buyer?->name ?: '-');
     }
 
     private function preview(PaymentSlip $slip, array $vatNumbers): array

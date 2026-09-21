@@ -44,4 +44,9 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->belongsTo(Division::class);
     }
+
+    public function isEximDivision(): bool
+    {
+        return strtoupper((string) $this->division?->code) === 'EXIM';
+    }
 }

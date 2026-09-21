@@ -205,6 +205,11 @@
         @php
             $invoiceNumbers = $slip->invoices->pluck('invoice_number')->filter()->implode(', ');
             $department = $slip->creator?->division?->name ?? strtoupper($slip->transaction_type);
+            $buyerNames = $slip->invoices
+                ->map(fn ($invoice) => $invoice->buyer?->name ?: $slip->buyer?->name)
+                ->filter()
+                ->unique()
+                ->implode(', ');
         @endphp
         <table style="width: 100%; border: none; margin-bottom: 8px;">
             <tr>
@@ -215,6 +220,13 @@
                             <td class="data-separator" style="width: 4%;">:</td>
                             <td class="data-value" style="width: 64%;">{{ $slip->slip_number }}</td>
                         </tr>
+                        @if(in_array($slip->transaction_type, [\App\Models\PaymentSlip::TYPE_IMPORT, \App\Models\PaymentSlip::TYPE_EXPORT], true) && filled($slip->invoice_receipt_number))
+                        <tr>
+                            <td class="data-label">Tanda Terima Invoice</td>
+                            <td class="data-separator">:</td>
+                            <td class="data-value">{{ $slip->invoice_receipt_number }}</td>
+                        </tr>
+                        @endif
                         <tr>
                             <td class="data-label">Date</td>
                             <td class="data-separator">:</td>
@@ -238,7 +250,7 @@
                         <tr>
                             <td class="data-label">Buyer</td>
                             <td class="data-separator">:</td>
-                            <td class="data-value">{{ $slip->buyer?->name ?? '-' }}</td>
+                            <td class="data-value">{{ $buyerNames ?: '-' }}</td>
                         </tr>
                         <tr>
                             <td class="data-label">Account Name</td>
@@ -253,7 +265,7 @@
                         <tr>
                             <td class="data-label">Transaction</td>
                             <td class="data-separator">:</td>
-                            <td class="data-value">CHARGE {{ strtoupper($slip->transaction_type) }}</td>
+                            <td class="data-value">CHARGE {{ strtoupper(\App\Models\PaymentSlip::TRANSACTION_TYPE_LABELS[$slip->transaction_type] ?? $slip->transaction_type) }}</td>
                         </tr>
                     </table>
                 </td>
@@ -286,6 +298,7 @@
                     $totalPpn = 0;
                     $totalPph = 0;
                     $totalGrand = 0;
+                    $detailRowCount = 0;
                 @endphp
                 @foreach($slip->invoices as $idx => $invoice)
                 @php
@@ -297,25 +310,54 @@
                     $totalPpn += $invPpn;
                     $totalPph += $invPph;
                     $totalGrand += $invGrand;
+                @endphp
 
-                    // Build description: REF [invoice_number] - [item names]
-                    $itemNames = $invoice->items->pluck('item_name')->implode(', ');
+                @if($slip->transaction_type === \App\Models\PaymentSlip::TYPE_GENERAL)
+                    @foreach($invoice->items as $item)
+                    @php
+                        $detailRowCount++;
+                        $quantity = rtrim(rtrim(number_format((float) $item->quantity, 4, ',', '.'), '0'), ',');
+                        $unitPrice = \App\Services\InvoiceAmountCalculator::roundRupiah((float) $item->unit_price_amount);
+                        $itemSubtotal = \App\Services\InvoiceAmountCalculator::roundRupiah((float) $item->subtotal_amount);
+                    @endphp
+                    <tr>
+                        <td>
+                            {{ $detailRowCount }}. {{ $item->item_name }}<br>
+                            <span style="font-size: 8px; color: #666;">Qty: {{ $quantity }} | Ref: {{ $invoice->invoice_number }}</span>
+                        </td>
+                        <td class="amount-cell">Rp {{ number_format($unitPrice, 0, ',', '.') }}</td>
+                        <td class="amount-cell">-</td>
+                        <td class="amount-cell">-</td>
+                        <td class="amount-cell">Rp {{ number_format($itemSubtotal, 0, ',', '.') }}</td>
+                    </tr>
+                    @endforeach
+                @else
+                @php
+                    $detailRowCount++;
+
+                    // Import slips keep reimbursement details in ERP only.
                     $description = "REF {$invoice->invoice_number}";
-                    if ($itemNames) {
+                    $invoiceBuyer = $invoice->buyer?->name ?: $slip->buyer?->name;
+                    if ($slip->transaction_type === 'import' && $invoiceBuyer) {
+                        $description .= " - {$invoiceBuyer}";
+                    }
+                    $itemNames = $invoice->items->pluck('item_name')->implode(', ');
+                    if ($slip->transaction_type !== 'import' && $itemNames) {
                         $description .= " - {$itemNames}";
                     }
                 @endphp
                 <tr>
-                    <td>{{ $idx + 1 }}. {{ $description }}</td>
+                    <td>{{ $detailRowCount }}. {{ $description }}</td>
                     <td class="amount-cell">Rp {{ number_format($invSubtotal, 0, ',', '.') }}</td>
                     <td class="amount-cell">{{ $invPpn > 0 ? 'Rp ' . number_format($invPpn, 0, ',', '.') : '-' }}</td>
                     <td class="amount-cell">{{ $invPph > 0 ? 'Rp ' . number_format($invPph, 0, ',', '.') : '-' }}</td>
                     <td class="amount-cell">Rp {{ number_format($invGrand, 0, ',', '.') }}</td>
                 </tr>
+                @endif
                 @endforeach
 
-                <!-- Empty spacer rows if few invoices -->
-                @for($i = count($slip->invoices); $i < 3; $i++)
+                <!-- Empty spacer rows if few details -->
+                @for($i = $detailRowCount; $i < 3; $i++)
                 <tr>
                     <td>&nbsp;</td>
                     <td>&nbsp;</td>
@@ -338,7 +380,9 @@
                         @php
                             $ppnLabel = $slip->invoices->first()?->ppnTax?->name;
                         @endphp
-                        {{ $ppnLabel ? "({$ppnLabel})" : '(0%)' }}
+                        @if($slip->transaction_type !== 'import')
+                            {{ $ppnLabel ? "({$ppnLabel})" : '(0%)' }}
+                        @endif
                     </td>
                     <td class="summary-value">Rp {{ number_format($totalPpn, 0, ',', '.') }}</td>
                 </tr>
@@ -348,7 +392,9 @@
                         @php
                             $pphLabel = $slip->invoices->first()?->pphTax?->name;
                         @endphp
-                        {{ $pphLabel ? "({$pphLabel})" : '(0%)' }}
+                        @if($slip->transaction_type !== 'import')
+                            {{ $pphLabel ? "({$pphLabel})" : '(0%)' }}
+                        @endif
                     </td>
                     <td class="summary-value">Rp {{ number_format($totalPph, 0, ',', '.') }}</td>
                 </tr>

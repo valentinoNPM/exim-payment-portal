@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 class PaymentSlipChart extends ChartWidget
 {
-    protected ?string $heading = 'Monthly Payment Trend (Import vs Export)';
+    protected ?string $heading = 'Monthly Payment Trend';
 
     protected ?string $maxHeight = '300px';
 
@@ -18,6 +18,7 @@ class PaymentSlipChart extends ChartWidget
         $months = [];
         $importData = [];
         $exportData = [];
+        $generalData = [];
 
         for ($i = 5; $i >= 0; $i--) {
             $date = Carbon::now()->subMonths($i);
@@ -25,6 +26,7 @@ class PaymentSlipChart extends ChartWidget
             $months[$monthKey] = $date->format('F Y');
             $importData[$monthKey] = 0;
             $exportData[$monthKey] = 0;
+            $generalData[$monthKey] = 0;
         }
 
         // Query approved payment slips grouped by month and transaction type
@@ -46,6 +48,9 @@ class PaymentSlipChart extends ChartWidget
             if (isset($exportData[$month]) && $slip->transaction_type === 'export') {
                 $exportData[$month] = (float) $slip->total;
             }
+            if (isset($generalData[$month]) && $slip->transaction_type === PaymentSlip::TYPE_GENERAL) {
+                $generalData[$month] = (float) $slip->total;
+            }
         }
 
         return [
@@ -62,6 +67,13 @@ class PaymentSlipChart extends ChartWidget
                     'data' => array_values($exportData),
                     'borderColor' => '#10b981', // green
                     'backgroundColor' => 'rgba(16, 185, 129, 0.1)',
+                    'fill' => 'start',
+                ],
+                [
+                    'label' => 'Lain-lain (Rp)',
+                    'data' => array_values($generalData),
+                    'borderColor' => '#f59e0b',
+                    'backgroundColor' => 'rgba(245, 158, 11, 0.1)',
                     'fill' => 'start',
                 ],
             ],

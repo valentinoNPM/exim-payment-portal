@@ -12,23 +12,45 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Notifications\Notification;
+use Filament\Support\Enums\Alignment;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class PaymentSlipsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['buyer', 'invoices.buyer']))
             ->columns([
                 TextColumn::make('slip_number')
                     ->label('Slip Number')
+                    ->fontFamily('mono')
                     ->sortable()
                     ->searchable(),
-                TextColumn::make('transaction_type')->badge()->sortable(),
+                TextColumn::make('transaction_type')
+                    ->label('Type')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        PaymentSlip::TYPE_IMPORT => 'info',
+                        PaymentSlip::TYPE_EXPORT => 'success',
+                        PaymentSlip::TYPE_GENERAL => 'warning',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn (string $state): string => PaymentSlip::TRANSACTION_TYPE_LABELS[$state] ?? ucfirst($state))
+                    ->sortable(),
                 TextColumn::make('supplier.name')
                     ->label('Supplier')
-                    ->description(fn (PaymentSlip $record): string => 'Buyer: '.($record->buyer?->name ?? '-'))
+                    ->description(function (PaymentSlip $record): string {
+                        $buyers = $record->invoices
+                            ->map(fn ($invoice) => $invoice->buyer?->name ?: $record->buyer?->name)
+                            ->filter()
+                            ->unique()
+                            ->implode(', ');
+
+                        return 'Buyer: '.($buyers ?: $record->buyer?->name ?: '-');
+                    })
                     ->sortable()
                     ->searchable(),
                 TextColumn::make('creator.name')
@@ -39,10 +61,19 @@ class PaymentSlipsTable
                     ->visible(fn () => auth()->user()->hasRole('checker') || auth()->user()->hasRole('approver')),
                 TextColumn::make('grand_total_amount')
                     ->label('Amount')
-                    ->formatStateUsing(fn ($state) => 'Rp '.number_format($state, 2, ',', '.'))
+                    ->money('IDR', locale: 'id')
+                    ->fontFamily('mono')
+                    ->alignment(Alignment::End)
                     ->sortable(),
                 TextColumn::make('status')
                     ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'draft' => 'gray',
+                        'submitted' => 'info',
+                        'pending_approval' => 'warning',
+                        'approved', 'exported' => 'success',
+                        default => 'gray',
+                    })
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         'approved' => 'Verified',
                         'pending_approval' => 'Pending Approval (legacy)',

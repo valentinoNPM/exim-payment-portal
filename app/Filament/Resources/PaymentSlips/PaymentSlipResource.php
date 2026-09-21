@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources\PaymentSlips;
 
+use App\Filament\Resources\PaymentSlips\Pages\CreateExportPaymentSlip;
+use App\Filament\Resources\PaymentSlips\Pages\CreateGeneralPaymentSlip;
+use App\Filament\Resources\PaymentSlips\Pages\CreateImportPaymentSlip;
 use App\Filament\Resources\PaymentSlips\Pages\CreatePaymentSlip;
 use App\Filament\Resources\PaymentSlips\Pages\EditPaymentSlip;
 use App\Filament\Resources\PaymentSlips\Pages\ListPaymentSlips;
@@ -10,6 +13,7 @@ use App\Filament\Resources\PaymentSlips\Schemas\PaymentSlipForm;
 use App\Filament\Resources\PaymentSlips\Schemas\PaymentSlipInfolist;
 use App\Filament\Resources\PaymentSlips\Tables\PaymentSlipsTable;
 use App\Models\PaymentSlip;
+use App\Models\User;
 use BackedEnum;
 use Filament\Navigation\NavigationItem;
 use Filament\Resources\Resource;
@@ -27,21 +31,36 @@ class PaymentSlipResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'Payment';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 1;
 
     public static function getNavigationItems(): array
     {
         $items = parent::getNavigationItems();
 
-        if (auth()->check() && auth()->user()->hasRole('maker')) {
-            array_unshift(
-                $items,
-                NavigationItem::make('New Payment Slip')
-                    ->url(fn (): string => static::getUrl('create'))
-                    ->icon('heroicon-o-plus-circle')
-                    ->group(static::getNavigationGroup())
-                    ->sort(1)
-            );
+        $user = auth()->user();
+        if ($user?->hasRole('maker')) {
+            $createItems = $user->isEximDivision()
+                ? [
+                    NavigationItem::make('New General Payment Slip')
+                        ->url(fn (): string => static::getUrl('create-general'))
+                        ->icon('heroicon-o-plus-circle')
+                        ->group(static::getNavigationGroup())
+                        ->sort(2),
+                    NavigationItem::make('New EXIM Payment Slip')
+                        ->url(fn (): string => static::getUrl('create'))
+                        ->icon('heroicon-o-arrow-up-tray')
+                        ->group(static::getNavigationGroup())
+                        ->sort(3),
+                ]
+                : [
+                    NavigationItem::make('New General Payment Slip')
+                        ->url(fn (): string => static::getUrl('create-general'))
+                        ->icon('heroicon-o-plus-circle')
+                        ->group(static::getNavigationGroup())
+                        ->sort(2),
+                ];
+
+            array_unshift($items, ...$createItems);
         }
 
         return $items;
@@ -99,6 +118,24 @@ class PaymentSlipResource extends Resource
         return auth()->user()?->hasRole('maker') ?? false;
     }
 
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->hasRole('maker') ?? false;
+    }
+
+    public static function canCreateType(?User $user, string $transactionType): bool
+    {
+        if (! $user?->hasRole('maker')) {
+            return false;
+        }
+
+        if (in_array($transactionType, [PaymentSlip::TYPE_IMPORT, PaymentSlip::TYPE_EXPORT], true)) {
+            return $user->isEximDivision();
+        }
+
+        return $transactionType === PaymentSlip::TYPE_GENERAL;
+    }
+
     public static function canSubmit(Model $record): bool
     {
         $user = auth()->user();
@@ -130,6 +167,9 @@ class PaymentSlipResource extends Resource
         return [
             'index' => ListPaymentSlips::route('/'),
             'create' => CreatePaymentSlip::route('/create'),
+            'create-export' => CreateExportPaymentSlip::route('/create/export'),
+            'create-import' => CreateImportPaymentSlip::route('/create/import'),
+            'create-general' => CreateGeneralPaymentSlip::route('/create/general'),
             'view' => ViewPaymentSlip::route('/{record}'),
             'edit' => EditPaymentSlip::route('/{record}/edit'),
         ];

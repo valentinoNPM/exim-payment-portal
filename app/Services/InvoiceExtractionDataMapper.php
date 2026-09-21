@@ -6,7 +6,7 @@ use InvalidArgumentException;
 
 class InvoiceExtractionDataMapper
 {
-    public function toRepeaterState(array $invoices, array $documentIds): array
+    public function toRepeaterState(array $invoices, array $documentIds, bool $preferBaseAmount = false): array
     {
         if ($invoices === [] || $documentIds === []) {
             throw new InvalidArgumentException('Invoices and document IDs are required.');
@@ -26,18 +26,26 @@ class InvoiceExtractionDataMapper
                 // Normalize to one accounting line to avoid multiplying twice or
                 // introducing rounding errors by dividing totals into unit prices.
                 $quantity = 1.0;
-                $unitPrice = (float) ($item['line_total'] ?? $item['original_price'] ?? 0);
+                $unitPrice = (float) (
+                    $preferBaseAmount && is_numeric($item['unit_price'] ?? null)
+                        ? $item['unit_price']
+                        : ($item['line_total'] ?? $item['original_price'] ?? 0)
+                );
                 $subtotal += $quantity * $unitPrice;
                 $items[(string) str()->uuid()] = [
                     'item_name' => $item['item_name'],
                     'quantity' => $quantity,
                     'unit_price_amount' => $unitPrice,
+                    'tax_addition_amount' => 0,
+                    'tax_deduction_amount' => 0,
+                    'net_amount' => $unitPrice,
                 ];
             }
 
             $state[(string) str()->uuid()] = [
                 'invoice_number' => $invoice['invoice_number'],
                 'invoice_date' => $invoice['invoice_date'],
+                'buyer_id' => null,
                 'document_file_id' => $documentId,
                 'ppn_tax_id' => null,
                 'pph_tax_id' => null,

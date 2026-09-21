@@ -93,4 +93,32 @@ class InvoiceExtractionDataMapperTest extends TestCase
         $this->assertSame(18206210.0, $invoice['subtotal_amount']);
         $this->assertSame(18206210.0, $invoice['grand_total_amount']);
     }
+
+    public function test_import_mapping_prefers_pre_tax_rate_for_every_payable_invoice(): void
+    {
+        $invoices = [
+            [
+                'invoice_number' => 'IMP/FNS/2B/015/VII/2026',
+                'invoice_date' => '2026-08-31',
+                'items' => [['item_name' => 'Custom Clearance', 'unit_price' => 400000, 'line_total' => 436000]],
+            ],
+            [
+                'invoice_number' => 'IMP/FNS/2B/016/VII/2026',
+                'invoice_date' => '2026-08-31',
+                'items' => [['item_name' => 'Agency Fee', 'unit_price' => 935000, 'line_total' => 935000]],
+            ],
+        ];
+
+        $state = array_values((new InvoiceExtractionDataMapper)->toRepeaterState(
+            $invoices,
+            [99],
+            preferBaseAmount: true,
+        ));
+
+        $this->assertCount(2, $state);
+        $this->assertSame('IMP/FNS/2B/015/VII/2026', $state[0]['invoice_number']);
+        $this->assertSame(400000.0, $state[0]['subtotal_amount']);
+        $this->assertSame(400000.0, array_values($state[0]['items'])[0]['unit_price_amount']);
+        $this->assertSame('IMP/FNS/2B/016/VII/2026', $state[1]['invoice_number']);
+    }
 }

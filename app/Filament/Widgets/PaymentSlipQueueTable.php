@@ -47,8 +47,10 @@ class PaymentSlipQueueTable extends BaseWidget
                     ->color(fn (string $state): string => match ($state) {
                         'import' => 'info',
                         'export' => 'success',
+                        'general' => 'warning',
+                        default => 'gray',
                     })
-                    ->formatStateUsing(fn (string $state): string => ucfirst($state)),
+                    ->formatStateUsing(fn (string $state): string => PaymentSlip::TRANSACTION_TYPE_LABELS[$state] ?? ucfirst($state)),
                 Tables\Columns\TextColumn::make('supplier.name')
                     ->label('Supplier')
                     ->sortable(),

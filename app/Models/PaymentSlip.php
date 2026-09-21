@@ -12,9 +12,27 @@ class PaymentSlip extends Model
 {
     use HasFactory;
 
+    public const TYPE_IMPORT = 'import';
+
+    public const TYPE_EXPORT = 'export';
+
+    public const TYPE_GENERAL = 'general';
+
+    public const TAX_MODE_INVOICE_LEGACY = 'invoice_legacy';
+
+    public const TAX_MODE_ITEMIZED = 'itemized';
+
+    public const TRANSACTION_TYPE_LABELS = [
+        self::TYPE_IMPORT => 'Import',
+        self::TYPE_EXPORT => 'Export',
+        self::TYPE_GENERAL => 'Lain-lain',
+    ];
+
     protected $fillable = [
         'slip_number',
+        'invoice_receipt_number',
         'transaction_type',
+        'tax_calculation_mode',
         'supplier_id',
         'buyer_id',
         'status',
@@ -38,6 +56,28 @@ class PaymentSlip extends Model
         'verified_at' => 'datetime',
         'approved_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::updating(function (PaymentSlip $paymentSlip): void {
+            if ($paymentSlip->isDirty('tax_calculation_mode')) {
+                $paymentSlip->tax_calculation_mode = $paymentSlip->getRawOriginal('tax_calculation_mode')
+                    ?? self::TAX_MODE_INVOICE_LEGACY;
+            }
+        });
+
+        static::saved(function (PaymentSlip $paymentSlip): void {
+            if ($paymentSlip->transaction_type === self::TYPE_EXPORT && ! $paymentSlip->usesItemizedTaxes() && $paymentSlip->buyer_id !== null && $paymentSlip->wasChanged('buyer_id')) {
+                $paymentSlip->invoices()->update(['buyer_id' => $paymentSlip->buyer_id]);
+            }
+
+            if (! $paymentSlip->wasChanged('transaction_type')) {
+                return;
+            }
+
+            $paymentSlip->invoices()->each(fn (Invoice $invoice) => $invoice->recalculateTotals());
+        });
+    }
 
     public function supplier(): BelongsTo
     {
@@ -81,5 +121,11 @@ class PaymentSlip extends Model
         $this->tax_deduction_amount = $this->invoices()->sum('tax_deduction_amount');
         $this->grand_total_amount = $this->invoices()->sum('grand_total_amount');
         $this->saveQuietly();
+    }
+
+    public function usesItemizedTaxes(): bool
+    {
+        return $this->transaction_type === self::TYPE_IMPORT
+            || $this->tax_calculation_mode === self::TAX_MODE_ITEMIZED;
     }
 }

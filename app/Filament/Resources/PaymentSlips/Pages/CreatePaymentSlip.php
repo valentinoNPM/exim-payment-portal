@@ -3,16 +3,65 @@
 namespace App\Filament\Resources\PaymentSlips\Pages;
 
 use App\Filament\Resources\PaymentSlips\PaymentSlipResource;
+use App\Filament\Resources\PaymentSlips\Schemas\PaymentSlipForm;
 use App\Models\DocumentFile;
+use App\Models\PaymentSlip;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreatePaymentSlip extends CreateRecord
 {
+    protected ?bool $hasDatabaseTransactions = true;
+
     protected static string $resource = PaymentSlipResource::class;
 
     protected string $view = 'filament.pages.split-payment-slip';
 
     public ?string $activePdfUrl = null;
+
+    protected ?string $fixedTransactionType = null;
+
+    public function getFixedTransactionType(): string
+    {
+        return $this->fixedTransactionType
+            ?? (auth()->user()?->isEximDivision() ? PaymentSlip::TYPE_EXPORT : PaymentSlip::TYPE_GENERAL);
+    }
+
+    public function getTitle(): string
+    {
+        return $this->getFixedTransactionType() === PaymentSlip::TYPE_GENERAL
+            ? 'Create General Payment Slip'
+            : 'Create EXIM Payment Slip';
+    }
+
+    protected function authorizeAccess(): void
+    {
+        parent::authorizeAccess();
+
+        abort_unless(
+            PaymentSlipResource::canCreateType(auth()->user(), $this->getFixedTransactionType()),
+            403,
+        );
+    }
+
+    protected function afterFill(): void
+    {
+        $this->data['transaction_type'] = $this->getFixedTransactionType();
+        $this->data['tax_calculation_mode'] = $this->getFixedTransactionType() === PaymentSlip::TYPE_GENERAL
+            ? PaymentSlip::TAX_MODE_INVOICE_LEGACY
+            : PaymentSlip::TAX_MODE_ITEMIZED;
+    }
+
+    public function updated(string $property): void
+    {
+        PaymentSlipForm::recalculateLiveItemizedInvoice($this->data, $property);
+
+        // Force Livewire to detect the nested data mutation by re-assigning
+        // the top-level key. Without this, changes made by reference inside
+        // the recalculation method may not trigger a browser re-render.
+        if (isset($this->data['invoices'])) {
+            $this->data['invoices'] = $this->data['invoices'];
+        }
+    }
 
     public function setActivePdf(int $documentFileId): void
     {
@@ -24,7 +73,14 @@ class CreatePaymentSlip extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $lastSlip = \App\Models\PaymentSlip::where('slip_number', 'like', 'PS-%-HANSOLL-%')
+        $data['transaction_type'] = $this->getFixedTransactionType() === PaymentSlip::TYPE_GENERAL
+            ? PaymentSlip::TYPE_GENERAL
+            : ($data['transaction_type'] ?? PaymentSlip::TYPE_EXPORT);
+        abort_unless(PaymentSlipResource::canCreateType(auth()->user(), $data['transaction_type']), 403);
+        $data['tax_calculation_mode'] = $data['transaction_type'] === PaymentSlip::TYPE_GENERAL
+            ? PaymentSlip::TAX_MODE_INVOICE_LEGACY
+            : PaymentSlip::TAX_MODE_ITEMIZED;
+        $lastSlip = PaymentSlip::where('slip_number', 'like', 'PS-%-HANSOLL-%')
             ->lockForUpdate()
             ->orderBy('id', 'desc')
             ->first();

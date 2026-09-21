@@ -25,4 +25,9 @@ class Buyer extends Model
     {
         return $this->hasMany(PaymentSlip::class);
     }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
 }
