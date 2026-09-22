@@ -320,8 +320,8 @@
                 @php
                     if ($isGeneral) {
                         $invSubtotal = (float) $invoice->subtotal_amount;
-                        $invPpn = (float) $invoice->tax_addition_amount;
-                        $invPph = (float) $invoice->tax_deduction_amount;
+                        $invPpn = (float) $invoice->items->sum('tax_addition_amount');
+                        $invPph = (float) $invoice->items->sum('tax_deduction_amount');
                     } else {
                         $invSubtotal = \App\Services\InvoiceAmountCalculator::roundRupiah((float) $invoice->subtotal_amount);
                         $invPpn = \App\Services\InvoiceAmountCalculator::roundRupiah((float) $invoice->tax_addition_amount);
@@ -345,6 +345,13 @@
                         $itemSubtotal = $currency === \App\Models\PaymentSlip::CURRENCY_USD
                             ? (float) $item->subtotal_amount
                             : \App\Services\InvoiceAmountCalculator::roundRupiah((float) $item->subtotal_amount);
+                        $itemPpn = $currency === \App\Models\PaymentSlip::CURRENCY_USD
+                            ? (float) $item->tax_addition_amount
+                            : \App\Services\InvoiceAmountCalculator::roundRupiah((float) $item->tax_addition_amount);
+                        $itemPph = $currency === \App\Models\PaymentSlip::CURRENCY_USD
+                            ? (float) $item->tax_deduction_amount
+                            : \App\Services\InvoiceAmountCalculator::roundRupiah((float) $item->tax_deduction_amount);
+                        $itemNet = $itemSubtotal + $itemPpn - $itemPph;
                     @endphp
                     <tr>
                         <td>
@@ -352,9 +359,9 @@
                             <span class="item-meta">Qty: {{ $quantity }} | Ref: {{ $invoice->invoice_number }}</span>
                         </td>
                         <td class="amount-cell">{{ \App\Support\CurrencyFormatter::format($unitPrice, $currency) }}</td>
-                        <td class="amount-cell">-</td>
-                        <td class="amount-cell">-</td>
-                        <td class="amount-cell">{{ \App\Support\CurrencyFormatter::format($itemSubtotal, $currency) }}</td>
+                        <td class="amount-cell">{{ $itemPpn > 0 ? \App\Support\CurrencyFormatter::format($itemPpn, $currency) : '-' }}</td>
+                        <td class="amount-cell">{{ $itemPph > 0 ? \App\Support\CurrencyFormatter::format($itemPph, $currency) : '-' }}</td>
+                        <td class="amount-cell">{{ \App\Support\CurrencyFormatter::format($itemNet, $currency) }}</td>
                     </tr>
                     @endforeach
                 @else
@@ -406,7 +413,7 @@
                         @php
                             $ppnLabel = $slip->invoices->first()?->ppnTax?->name;
                         @endphp
-                        @if($slip->transaction_type !== 'import')
+                        @if($slip->transaction_type !== 'import' && $slip->transaction_type !== 'general')
                             {{ $ppnLabel ? "({$ppnLabel})" : '(0%)' }}
                         @endif
                     </td>
@@ -418,7 +425,7 @@
                         @php
                             $pphLabel = $slip->invoices->first()?->pphTax?->name;
                         @endphp
-                        @if($slip->transaction_type !== 'import')
+                        @if($slip->transaction_type !== 'import' && $slip->transaction_type !== 'general')
                             {{ $pphLabel ? "({$pphLabel})" : '(0%)' }}
                         @endif
                     </td>

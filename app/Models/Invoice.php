@@ -86,7 +86,7 @@ class Invoice extends Model
         static::creating(function (Invoice $invoice): void {
             $parent = $invoice->paymentSlip ?? PaymentSlip::query()->find($invoice->payment_slip_id);
             if ($parent?->transaction_type === PaymentSlip::TYPE_GENERAL) {
-                $invoice->tax_calculation_mode = PaymentSlip::TAX_MODE_INVOICE_LEGACY;
+                $invoice->tax_calculation_mode = PaymentSlip::TAX_MODE_ITEMIZED;
 
                 return;
             }

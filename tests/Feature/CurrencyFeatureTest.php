@@ -10,6 +10,7 @@ use App\Models\Buyer;
 use App\Models\Division;
 use App\Models\PaymentSlip;
 use App\Models\Supplier;
+use App\Models\Tax;
 use App\Models\User;
 use App\Services\Erp\ErpJournalBuilder;
 use App\Support\CurrencyFormatter;
@@ -92,6 +93,42 @@ class CurrencyFeatureTest extends TestCase
         $slip = PaymentSlip::query()->where('created_by', $maker->id)->firstOrFail();
         $this->assertSame(PaymentSlip::CURRENCY_USD, $slip->currency);
         $this->assertSame('3000.50', $slip->grand_total_amount);
+    }
+
+    public function test_general_payment_slip_keeps_taxes_at_item_level(): void
+    {
+        $maker = $this->makerForDivision('HR');
+        $this->actingAs($maker);
+        $supplier = Supplier::create(['code' => 'ITEM-TAX-SUP', 'name' => 'Item Tax Supplier', 'is_active' => true]);
+        $ppn = Tax::create(['code' => 'PPN-GEN', 'name' => 'PPN 11%', 'rate' => 11, 'calculation_type' => 'addition', 'is_active' => true]);
+        $pph = Tax::create(['code' => 'PPH-GEN', 'name' => 'PPh 2%', 'rate' => 2, 'calculation_type' => 'deduction', 'is_active' => true]);
+
+        Livewire::test(CreateGeneralPaymentSlip::class)
+            ->fillForm([
+                'supplier_id' => $supplier->id,
+                'invoices' => [[
+                    'invoice_number' => 'GENERAL-ITEM-TAX',
+                    'invoice_date' => '2026-09-22',
+                    'items' => [[
+                        'item_name' => 'Taxed Item',
+                        'quantity' => 1,
+                        'unit_price_amount' => 1000,
+                        'ppn_tax_id' => $ppn->id,
+                        'pph_tax_id' => $pph->id,
+                    ]],
+                ]],
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $invoice = PaymentSlip::query()->where('created_by', $maker->id)->firstOrFail()->invoices()->firstOrFail();
+        $item = $invoice->items()->firstOrFail();
+
+        $this->assertSame(PaymentSlip::TAX_MODE_ITEMIZED, $invoice->tax_calculation_mode);
+        $this->assertSame($ppn->id, $item->ppn_tax_id);
+        $this->assertSame($pph->id, $item->pph_tax_id);
+        $this->assertSame('110.00', $item->tax_addition_amount);
+        $this->assertSame('20.00', $item->tax_deduction_amount);
     }
 
     public function test_invalid_currency_is_rejected(): void

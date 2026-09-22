@@ -262,6 +262,8 @@ class PaymentSlipForm
                             ->minItems(1)
                             ->addable(fn (?object $record) => ! $record || $record->status === 'draft')
                             ->deletable(fn (?object $record) => ! $record || $record->status === 'draft')
+                            ->mutateRelationshipDataBeforeCreateUsing(fn (array $data, Get $get): array => self::prepareInvoiceTaxMode($data, $get))
+                            ->mutateRelationshipDataBeforeSaveUsing(fn (array $data, Get $get): array => self::prepareInvoiceTaxMode($data, $get))
                             ->schema([
                                 Select::make('buyer_id')
                                     ->label('Buyer')
@@ -521,8 +523,8 @@ class PaymentSlipForm
                                         TextInput::make('vat_invoice_number')
                                             ->label('VAT Invoice No. (Item)')
                                             ->maxLength(255)
-                                            ->visible(fn (Get $get, ?InvoiceItem $record): bool => $get('../../../../transaction_type') === PaymentSlip::TYPE_IMPORT
-                                                || self::isItemizedItem($get, $record))
+                                            ->visible(fn (Get $get, ?InvoiceItem $record): bool => $get('../../../../transaction_type') !== PaymentSlip::TYPE_GENERAL
+                                                && ($get('../../../../transaction_type') === PaymentSlip::TYPE_IMPORT || self::isItemizedItem($get, $record)))
                                             ->disabled(function (Get $get, ?InvoiceItem $record): bool {
                                                 $status = $get('../../../../status');
                                                 if ($status) {
@@ -642,8 +644,8 @@ class PaymentSlipForm
     private static function recalculateInvoiceFromItem(Get $get, Set $set, ?string $changedTax = null): void
     {
         $transactionType = $get('../../../../transaction_type');
-        $itemized = $transactionType !== PaymentSlip::TYPE_GENERAL
-            && $get('../../tax_calculation_mode') !== PaymentSlip::TAX_MODE_INVOICE_LEGACY;
+        $itemized = $transactionType === PaymentSlip::TYPE_GENERAL
+            || $get('../../tax_calculation_mode') !== PaymentSlip::TAX_MODE_INVOICE_LEGACY;
         $subtotal = self::money($get('quantity')) * self::money($get('unit_price_amount'));
 
         // Compute fresh tax amounts for the *current* item so we can use them
@@ -653,10 +655,11 @@ class PaymentSlipForm
         $currency = $get('../../../../currency') ?? 'IDR';
 
         if ($itemized) {
-            $taxAmounts = InvoiceAmountCalculator::calculate(
+            $taxAmounts = InvoiceAmountCalculator::calculateForCurrency(
                 $subtotal,
                 Tax::find($get('ppn_tax_id'))?->rate,
                 Tax::find($get('pph_tax_id'))?->rate,
+                $currency,
             );
 
             $currentPpnAmount = (filled($get('ppn_tax_id')) || $changedTax === 'ppn')
@@ -701,7 +704,7 @@ class PaymentSlipForm
                 if (filled($pphId)) {
                     $pphRate = $taxCache[$pphId] ??= Tax::find($pphId)?->rate;
                 }
-                $itemTax = InvoiceAmountCalculator::calculate($itemSubtotal, $ppnRate, $pphRate);
+                $itemTax = InvoiceAmountCalculator::calculateForCurrency($itemSubtotal, $ppnRate, $pphRate, $currency);
                 $invoicePpn += $itemTax['tax_addition'];
                 $invoicePph += $itemTax['tax_deduction'];
             }
@@ -745,7 +748,7 @@ class PaymentSlipForm
             return;
         }
 
-        if (! in_array($data['transaction_type'] ?? null, [PaymentSlip::TYPE_IMPORT, PaymentSlip::TYPE_EXPORT], true)) {
+        if (! in_array($data['transaction_type'] ?? null, [PaymentSlip::TYPE_IMPORT, PaymentSlip::TYPE_EXPORT, PaymentSlip::TYPE_GENERAL], true)) {
             return;
         }
 
@@ -757,7 +760,7 @@ class PaymentSlipForm
         $currency = $data['currency'] ?? 'IDR';
 
         $taxMode = $data['invoices'][$invoiceKey]['tax_calculation_mode'] ?? PaymentSlip::TAX_MODE_ITEMIZED;
-        if ($taxMode === PaymentSlip::TAX_MODE_INVOICE_LEGACY) {
+        if (($data['transaction_type'] ?? null) !== PaymentSlip::TYPE_GENERAL && $taxMode === PaymentSlip::TAX_MODE_INVOICE_LEGACY) {
             self::recalculateInvoiceTaxState($data['invoices'][$invoiceKey], $currency);
 
             return;
@@ -903,10 +906,11 @@ class PaymentSlipForm
             $subtotal = self::money($item['quantity'] ?? 0) * self::money($item['unit_price_amount'] ?? 0);
             $ppn = $taxes->get($item['ppn_tax_id'] ?? null);
             $pph = $taxes->get($item['pph_tax_id'] ?? null);
-            $calculated = InvoiceAmountCalculator::calculate(
+            $calculated = InvoiceAmountCalculator::calculateForCurrency(
                 $subtotal,
                 $ppn?->calculation_type === 'addition' ? (float) $ppn->rate : null,
                 $pph?->calculation_type === 'deduction' ? (float) $pph->rate : null,
+                $currency,
             );
 
             $addition = $ppn ? $calculated['tax_addition'] : self::money($item['tax_addition_amount'] ?? 0);
@@ -935,13 +939,33 @@ class PaymentSlipForm
 
     private static function isItemizedExim(Get $get, ?Invoice $record): bool
     {
+        if ($get('../../transaction_type') === PaymentSlip::TYPE_GENERAL) {
+            return true;
+        }
+
         return self::isEximInvoice($get, $record)
             && ($get('tax_calculation_mode') ?? ($record?->exists ? ($record->usesItemizedTaxes() ? PaymentSlip::TAX_MODE_ITEMIZED : PaymentSlip::TAX_MODE_INVOICE_LEGACY) : PaymentSlip::TAX_MODE_ITEMIZED)) === PaymentSlip::TAX_MODE_ITEMIZED;
+    }
+
+    /** @param array<string, mixed> $data */
+    private static function prepareInvoiceTaxMode(array $data, Get $get): array
+    {
+        if ($get('../../transaction_type') === PaymentSlip::TYPE_GENERAL) {
+            $data['tax_calculation_mode'] = PaymentSlip::TAX_MODE_ITEMIZED;
+            $data['ppn_tax_id'] = null;
+            $data['pph_tax_id'] = null;
+        }
+
+        return $data;
     }
 
     private static function isItemizedItem(Get $get, ?InvoiceItem $record): bool
     {
         $type = $get('../../../../transaction_type');
+
+        if ($type === PaymentSlip::TYPE_GENERAL) {
+            return true;
+        }
 
         return in_array($type, [PaymentSlip::TYPE_IMPORT, PaymentSlip::TYPE_EXPORT], true)
             && ($get('../../tax_calculation_mode') ?? ($record?->exists ? ($record->invoice?->usesItemizedTaxes() ? PaymentSlip::TAX_MODE_ITEMIZED : PaymentSlip::TAX_MODE_INVOICE_LEGACY) : PaymentSlip::TAX_MODE_ITEMIZED)) === PaymentSlip::TAX_MODE_ITEMIZED;
