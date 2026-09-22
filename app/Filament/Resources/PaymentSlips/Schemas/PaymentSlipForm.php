@@ -406,6 +406,7 @@ class PaymentSlipForm
                                     ])
                                     ->columns(['default' => 1, '2xl' => 2])
                                     ->visible(fn (Get $get, ?Invoice $record, string $operation): bool => $operation !== 'view'
+                                        && $get('../../transaction_type') !== PaymentSlip::TYPE_GENERAL
                                         && self::isItemizedExim($get, $record)
                                         && (! $record || $record->paymentSlip?->status === 'draft')),
 

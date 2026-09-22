@@ -21,7 +21,7 @@
             margin-bottom: 0;
         }
         th, td {
-            border: 1px solid #4F758B;
+            border: 1px solid #003f97;
             padding: 5px 7px;
             text-align: left;
             vertical-align: top;
@@ -49,7 +49,7 @@
         .document-title {
             font-size: 22px;
             font-weight: bold;
-            color: #4F758B;
+            color: #003f97;
             text-align: center;
             margin: 10px 0;
             letter-spacing: 0.5px;
@@ -61,7 +61,7 @@
         }
         .approval-grid th {
             background-color: #EDF1F3;
-            color: #4F758B;
+            color: #003f97;
             font-size: 9px;
             font-weight: bold;
             text-align: center;
@@ -75,7 +75,7 @@
         }
         .approval-grid .label-cell {
             background-color: #EDF1F3;
-            color: #4F758B;
+            color: #003f97;
             font-weight: bold;
             width: 15%;
         }
@@ -106,7 +106,7 @@
         }
         .detail-table th {
             background-color: #EDF1F3;
-            color: #4F758B;
+            color: #003f97;
             font-weight: bold;
             font-size: 11px;
             text-align: center;
@@ -124,7 +124,7 @@
         .summary-label {
             text-align: right;
             font-weight: bold;
-            color: #4F758B;
+            color: #003f97;
             padding-right: 10px;
         }
         .summary-value {
@@ -146,7 +146,7 @@
         }
         .payment-table th {
             background-color: #EDF1F3;
-            color: #4F758B;
+            color: #003f97;
             font-weight: bold;
             font-size: 9px;
             text-align: center;
@@ -160,7 +160,7 @@
         }
         .payment-label {
             background-color: #EDF1F3;
-            color: #4F758B;
+            color: #003f97;
             font-weight: bold;
             text-align: center;
             vertical-align: middle;
@@ -172,7 +172,7 @@
         }
         .footer-table th {
             background-color: #EDF1F3;
-            color: #4F758B;
+            color: #003f97;
             font-weight: bold;
             font-size: 10px;
             text-align: center;
@@ -208,7 +208,7 @@
             </tr>
         </table>
 
-        <hr style="border: none; border-top: 1.5px solid #4F758B; margin: 5px 0 10px 0;" />
+        <hr style="border: none; border-top: 1.5px solid #003f97; margin: 5px 0 10px 0;" />
 
         <!-- Title: Payment Slip -->
         <div class="document-title">
