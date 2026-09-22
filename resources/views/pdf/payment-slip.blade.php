@@ -21,7 +21,7 @@
             margin-bottom: 0;
         }
         th, td {
-            border: 1px solid #5b2d8e;
+            border: 1px solid #4F758B;
             padding: 5px 7px;
             text-align: left;
             vertical-align: top;
@@ -49,7 +49,7 @@
         .document-title {
             font-size: 22px;
             font-weight: bold;
-            color: #5b2d8e;
+            color: #4F758B;
             text-align: center;
             margin: 10px 0;
             letter-spacing: 0.5px;
@@ -60,8 +60,8 @@
             margin-top: 10px;
         }
         .approval-grid th {
-            background-color: #f3eef9;
-            color: #5b2d8e;
+            background-color: #EDF1F3;
+            color: #4F758B;
             font-size: 9px;
             font-weight: bold;
             text-align: center;
@@ -74,8 +74,8 @@
             font-size: 9px;
         }
         .approval-grid .label-cell {
-            background-color: #f3eef9;
-            color: #5b2d8e;
+            background-color: #EDF1F3;
+            color: #4F758B;
             font-weight: bold;
             width: 15%;
         }
@@ -105,8 +105,8 @@
             margin-top: 8px;
         }
         .detail-table th {
-            background-color: #f3eef9;
-            color: #5b2d8e;
+            background-color: #EDF1F3;
+            color: #4F758B;
             font-weight: bold;
             font-size: 11px;
             text-align: center;
@@ -124,7 +124,7 @@
         .summary-label {
             text-align: right;
             font-weight: bold;
-            color: #5b2d8e;
+            color: #4F758B;
             padding-right: 10px;
         }
         .summary-value {
@@ -145,8 +145,8 @@
             margin-top: 10px;
         }
         .payment-table th {
-            background-color: #f3eef9;
-            color: #5b2d8e;
+            background-color: #EDF1F3;
+            color: #4F758B;
             font-weight: bold;
             font-size: 9px;
             text-align: center;
@@ -159,8 +159,8 @@
             font-size: 9px;
         }
         .payment-label {
-            background-color: #f3eef9;
-            color: #5b2d8e;
+            background-color: #EDF1F3;
+            color: #4F758B;
             font-weight: bold;
             text-align: center;
             vertical-align: middle;
@@ -171,8 +171,8 @@
             margin-top: 8px;
         }
         .footer-table th {
-            background-color: #f3eef9;
-            color: #5b2d8e;
+            background-color: #EDF1F3;
+            color: #4F758B;
             font-weight: bold;
             font-size: 10px;
             text-align: center;
@@ -204,7 +204,7 @@
             </tr>
         </table>
 
-        <hr style="border: none; border-top: 1.5px solid #5b2d8e; margin: 5px 0 10px 0;" />
+        <hr style="border: none; border-top: 1.5px solid #4F758B; margin: 5px 0 10px 0;" />
 
         <!-- Title: Payment Slip -->
         <div class="document-title">
