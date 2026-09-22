@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Validation\ValidationException;
 
 class PaymentSlip extends Model
 {
@@ -22,6 +23,15 @@ class PaymentSlip extends Model
 
     public const TAX_MODE_ITEMIZED = 'itemized';
 
+    public const CURRENCY_IDR = 'IDR';
+
+    public const CURRENCY_USD = 'USD';
+
+    public const CURRENCIES = [
+        self::CURRENCY_IDR,
+        self::CURRENCY_USD,
+    ];
+
     public const TRANSACTION_TYPE_LABELS = [
         self::TYPE_IMPORT => 'Import',
         self::TYPE_EXPORT => 'Export',
@@ -32,6 +42,7 @@ class PaymentSlip extends Model
         'slip_number',
         'invoice_receipt_number',
         'transaction_type',
+        'currency',
         'tax_calculation_mode',
         'supplier_id',
         'buyer_id',
@@ -59,6 +70,20 @@ class PaymentSlip extends Model
 
     protected static function booted(): void
     {
+        static::saving(function (PaymentSlip $paymentSlip): void {
+            $currency = $paymentSlip->transaction_type === self::TYPE_GENERAL
+                ? ($paymentSlip->currency ?? self::CURRENCY_IDR)
+                : self::CURRENCY_IDR;
+
+            if (! in_array($currency, self::CURRENCIES, true)) {
+                throw ValidationException::withMessages([
+                    'currency' => "Invalid currency: {$currency}. Allowed: ".implode(', ', self::CURRENCIES),
+                ]);
+            }
+
+            $paymentSlip->currency = $currency;
+        });
+
         static::updating(function (PaymentSlip $paymentSlip): void {
             if ($paymentSlip->isDirty('tax_calculation_mode')) {
                 $paymentSlip->tax_calculation_mode = $paymentSlip->getRawOriginal('tax_calculation_mode')

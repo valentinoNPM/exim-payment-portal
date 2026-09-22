@@ -309,12 +309,20 @@
                     $totalPph = 0;
                     $totalGrand = 0;
                     $detailRowCount = 0;
+                    $currency = $slip->currency ?? 'IDR';
+                    $isGeneral = $slip->transaction_type === \App\Models\PaymentSlip::TYPE_GENERAL;
                 @endphp
                 @foreach($slip->invoices as $idx => $invoice)
                 @php
-                    $invSubtotal = \App\Services\InvoiceAmountCalculator::roundRupiah((float) $invoice->subtotal_amount);
-                    $invPpn = \App\Services\InvoiceAmountCalculator::roundRupiah((float) $invoice->tax_addition_amount);
-                    $invPph = \App\Services\InvoiceAmountCalculator::roundRupiah((float) $invoice->tax_deduction_amount);
+                    if ($isGeneral) {
+                        $invSubtotal = (float) $invoice->subtotal_amount;
+                        $invPpn = (float) $invoice->tax_addition_amount;
+                        $invPph = (float) $invoice->tax_deduction_amount;
+                    } else {
+                        $invSubtotal = \App\Services\InvoiceAmountCalculator::roundRupiah((float) $invoice->subtotal_amount);
+                        $invPpn = \App\Services\InvoiceAmountCalculator::roundRupiah((float) $invoice->tax_addition_amount);
+                        $invPph = \App\Services\InvoiceAmountCalculator::roundRupiah((float) $invoice->tax_deduction_amount);
+                    }
                     $invGrand = $invSubtotal + $invPpn - $invPph;
                     $totalSubtotal += $invSubtotal;
                     $totalPpn += $invPpn;
@@ -322,23 +330,27 @@
                     $totalGrand += $invGrand;
                 @endphp
 
-                @if($slip->transaction_type === \App\Models\PaymentSlip::TYPE_GENERAL)
+                @if($isGeneral)
                     @foreach($invoice->items as $item)
                     @php
                         $detailRowCount++;
                         $quantity = rtrim(rtrim(number_format((float) $item->quantity, 4, ',', '.'), '0'), ',');
-                        $unitPrice = \App\Services\InvoiceAmountCalculator::roundRupiah((float) $item->unit_price_amount);
-                        $itemSubtotal = \App\Services\InvoiceAmountCalculator::roundRupiah((float) $item->subtotal_amount);
+                        $unitPrice = $currency === \App\Models\PaymentSlip::CURRENCY_USD
+                            ? (float) $item->unit_price_amount
+                            : \App\Services\InvoiceAmountCalculator::roundRupiah((float) $item->unit_price_amount);
+                        $itemSubtotal = $currency === \App\Models\PaymentSlip::CURRENCY_USD
+                            ? (float) $item->subtotal_amount
+                            : \App\Services\InvoiceAmountCalculator::roundRupiah((float) $item->subtotal_amount);
                     @endphp
                     <tr>
                         <td>
                             {{ $detailRowCount }}. {{ $item->item_name }}<br>
                             <span class="item-meta">Qty: {{ $quantity }} | Ref: {{ $invoice->invoice_number }}</span>
                         </td>
-                        <td class="amount-cell">Rp {{ number_format($unitPrice, 0, ',', '.') }}</td>
+                        <td class="amount-cell">{{ \App\Support\CurrencyFormatter::format($unitPrice, $currency) }}</td>
                         <td class="amount-cell">-</td>
                         <td class="amount-cell">-</td>
-                        <td class="amount-cell">Rp {{ number_format($itemSubtotal, 0, ',', '.') }}</td>
+                        <td class="amount-cell">{{ \App\Support\CurrencyFormatter::format($itemSubtotal, $currency) }}</td>
                     </tr>
                     @endforeach
                 @else
@@ -382,7 +394,7 @@
             <tfoot>
                 <tr>
                     <td class="summary-label" colspan="4">SUB TOTAL</td>
-                    <td class="summary-value">Rp {{ number_format($totalSubtotal, 0, ',', '.') }}</td>
+                    <td class="summary-value">{{ $isGeneral ? \App\Support\CurrencyFormatter::format($totalSubtotal, $currency) : 'Rp ' . number_format($totalSubtotal, 0, ',', '.') }}</td>
                 </tr>
                 <tr>
                     <td class="summary-label" colspan="4">
@@ -394,7 +406,7 @@
                             {{ $ppnLabel ? "({$ppnLabel})" : '(0%)' }}
                         @endif
                     </td>
-                    <td class="summary-value">Rp {{ number_format($totalPpn, 0, ',', '.') }}</td>
+                    <td class="summary-value">{{ $isGeneral ? \App\Support\CurrencyFormatter::format($totalPpn, $currency) : 'Rp ' . number_format($totalPpn, 0, ',', '.') }}</td>
                 </tr>
                 <tr>
                     <td class="summary-label" colspan="4">
@@ -406,11 +418,11 @@
                             {{ $pphLabel ? "({$pphLabel})" : '(0%)' }}
                         @endif
                     </td>
-                    <td class="summary-value">Rp {{ number_format($totalPph, 0, ',', '.') }}</td>
+                    <td class="summary-value">{{ $isGeneral ? \App\Support\CurrencyFormatter::format($totalPph, $currency) : 'Rp ' . number_format($totalPph, 0, ',', '.') }}</td>
                 </tr>
                 <tr>
                     <td class="summary-label grand-total" colspan="4">GRAND TOTAL</td>
-                    <td class="summary-value grand-total">Rp {{ number_format($totalGrand, 0, ',', '.') }}</td>
+                    <td class="summary-value grand-total">{{ $isGeneral ? \App\Support\CurrencyFormatter::format($totalGrand, $currency) : 'Rp ' . number_format($totalGrand, 0, ',', '.') }}</td>
                 </tr>
             </tfoot>
         </table>

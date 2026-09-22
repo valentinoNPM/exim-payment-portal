@@ -12,6 +12,7 @@ use App\Services\DocumentFileRegistrar;
 use App\Services\GeminiInvoiceExtractor;
 use App\Services\InvoiceAmountCalculator;
 use App\Services\InvoiceExtractionDataMapper;
+use App\Support\CurrencyFormatter;
 use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
@@ -53,9 +54,15 @@ class PaymentSlipForm
                         ->disabled()
                         ->visible(fn (string $operation) => $operation !== 'create'),
                     Select::make('transaction_type')
-                        ->options(fn ($livewire): array => method_exists($livewire, 'getFixedTransactionType') && $livewire->getFixedTransactionType() === PaymentSlip::TYPE_GENERAL
-                            ? [PaymentSlip::TYPE_GENERAL => 'Lain-lain']
-                            : [PaymentSlip::TYPE_EXPORT => 'Export', PaymentSlip::TYPE_IMPORT => 'Import'])
+                        ->options(function ($livewire, ?object $record): array {
+                            if ($record) {
+                                return PaymentSlip::TRANSACTION_TYPE_LABELS;
+                            }
+
+                            return method_exists($livewire, 'getFixedTransactionType') && $livewire->getFixedTransactionType() === PaymentSlip::TYPE_GENERAL
+                                ? [PaymentSlip::TYPE_GENERAL => 'Lain-lain']
+                                : [PaymentSlip::TYPE_EXPORT => 'Export', PaymentSlip::TYPE_IMPORT => 'Import'];
+                        })
                         ->required()
                         ->live()
                         ->disabled(fn (?object $record, $livewire): bool => $record !== null
@@ -63,6 +70,20 @@ class PaymentSlipForm
                         ->dehydrated(),
                     Hidden::make('tax_calculation_mode')
                         ->default(PaymentSlip::TAX_MODE_ITEMIZED),
+                    Select::make('currency')
+                        ->label('Currency')
+                        ->options([
+                            PaymentSlip::CURRENCY_IDR => 'IDR - Rupiah',
+                            PaymentSlip::CURRENCY_USD => 'USD - US Dollar',
+                        ])
+                        ->default(PaymentSlip::CURRENCY_IDR)
+                        ->required()
+                        ->live()
+                        ->visible(fn (Get $get): bool => $get('transaction_type') === PaymentSlip::TYPE_GENERAL)
+                        ->disabled(fn (?object $record): bool => $record !== null
+                            && $record->status !== 'draft'
+                            && ! ($record->status === 'submitted' && auth()->user()?->hasRole('checker')))
+                        ->dehydrated(),
                     TextInput::make('invoice_receipt_number')
                         ->label('Nomor Tanda Terima Invoice')
                         ->placeholder('HIJ / 001 / VIII / 2026')
@@ -409,14 +430,14 @@ class PaymentSlipForm
 
                                 TextInput::make('subtotal_amount')
                                     ->label('Subtotal')
-                                    ->prefix('Rp')
-                                    ->formatStateUsing(fn ($state) => number_format((float) $state, 2, ',', '.'))
+                                    ->prefix(fn (Get $get): string => CurrencyFormatter::prefix($get('../../currency') ?? 'IDR'))
+                                    ->formatStateUsing(fn ($state, Get $get) => CurrencyFormatter::formatFormState($state, $get('../../currency') ?? 'IDR'))
                                     ->dehydrateStateUsing(fn ($state) => self::money($state))
                                     ->readOnly()
                                     ->live(debounce: 500)
                                     ->afterStateUpdated(function (Get $get, Set $set, $state) {
                                         $subtotal = self::money($state);
-                                        self::setCalculatedAmounts($set, $subtotal, $get('ppn_tax_id'), $get('pph_tax_id'));
+                                        self::setCalculatedAmounts($set, $subtotal, $get('ppn_tax_id'), $get('pph_tax_id'), $get('../../currency') ?? PaymentSlip::CURRENCY_IDR);
                                     }),
 
                                 Select::make('ppn_tax_id')
@@ -428,7 +449,7 @@ class PaymentSlipForm
                                     ->live()
                                     ->afterStateUpdated(function (Get $get, Set $set, $state) {
                                         $subtotal = self::money($get('subtotal_amount'));
-                                        self::setCalculatedAmounts($set, $subtotal, $state, $get('pph_tax_id'));
+                                        self::setCalculatedAmounts($set, $subtotal, $state, $get('pph_tax_id'), $get('../../currency') ?? PaymentSlip::CURRENCY_IDR);
                                     }),
 
                                 Select::make('pph_tax_id')
@@ -440,28 +461,28 @@ class PaymentSlipForm
                                     ->live()
                                     ->afterStateUpdated(function (Get $get, Set $set, $state) {
                                         $subtotal = self::money($get('subtotal_amount'));
-                                        self::setCalculatedAmounts($set, $subtotal, $get('ppn_tax_id'), $state);
+                                        self::setCalculatedAmounts($set, $subtotal, $get('ppn_tax_id'), $state, $get('../../currency') ?? PaymentSlip::CURRENCY_IDR);
                                     }),
 
                                 TextInput::make('tax_addition_amount')
                                     ->label('Penambahan Pajak (PPN)')
-                                    ->prefix('Rp')
-                                    ->formatStateUsing(fn ($state) => number_format((float) $state, 0, ',', '.'))
+                                    ->prefix(fn (Get $get): string => CurrencyFormatter::prefix($get('../../currency') ?? 'IDR'))
+                                    ->formatStateUsing(fn ($state, Get $get) => CurrencyFormatter::formatFormStateNoDecimals($state, $get('../../currency') ?? 'IDR'))
                                     ->dehydrateStateUsing(fn ($state) => self::money($state))
                                     ->readOnly()->dehydrated(false),
 
                                 TextInput::make('tax_deduction_amount')
                                     ->label(fn (Get $get, ?Invoice $record): string => self::isItemizedExim($get, $record) ? 'Total PPh' : 'Pengurangan Pajak (PPh)')
-                                    ->prefix('Rp')
-                                    ->formatStateUsing(fn ($state) => number_format((float) $state, 0, ',', '.'))
+                                    ->prefix(fn (Get $get): string => CurrencyFormatter::prefix($get('../../currency') ?? 'IDR'))
+                                    ->formatStateUsing(fn ($state, Get $get) => CurrencyFormatter::formatFormStateNoDecimals($state, $get('../../currency') ?? 'IDR'))
                                     ->dehydrateStateUsing(fn ($state) => self::money($state))
                                     ->readOnly()
                                     ->dehydrated(false),
 
                                 TextInput::make('grand_total_amount')
                                     ->label('Amount Dibayar')
-                                    ->prefix('Rp')
-                                    ->formatStateUsing(fn ($state) => number_format((float) $state, 0, ',', '.'))
+                                    ->prefix(fn (Get $get): string => CurrencyFormatter::prefix($get('../../currency') ?? 'IDR'))
+                                    ->formatStateUsing(fn ($state, Get $get) => CurrencyFormatter::formatFormStateNoDecimals($state, $get('../../currency') ?? 'IDR'))
                                     ->dehydrateStateUsing(fn ($state) => self::money($state))
                                     ->readOnly()->dehydrated(false),
 
@@ -485,7 +506,7 @@ class PaymentSlipForm
                                             ->disabled(fn (?InvoiceItem $record) => $record && $record->invoice?->paymentSlip?->status !== 'draft'),
                                         TextInput::make('unit_price_amount')
                                             ->numeric()
-                                            ->prefix('Rp')
+                                            ->prefix(fn (Get $get): string => CurrencyFormatter::prefix($get('../../../../currency') ?? 'IDR'))
                                             ->required()
                                             ->live(onBlur: true)
                                             ->afterStateUpdated(fn (Get $get, Set $set) => self::recalculateInvoiceFromItem($get, $set))
@@ -501,8 +522,7 @@ class PaymentSlipForm
                                             ->label('VAT Invoice No. (Item)')
                                             ->maxLength(255)
                                             ->visible(fn (Get $get, ?InvoiceItem $record): bool => $get('../../../../transaction_type') === PaymentSlip::TYPE_IMPORT
-                                                || self::isItemizedItem($get, $record)
-                                            )
+                                                || self::isItemizedItem($get, $record))
                                             ->disabled(function (Get $get, ?InvoiceItem $record): bool {
                                                 $status = $get('../../../../status');
                                                 if ($status) {
@@ -536,7 +556,7 @@ class PaymentSlipForm
                                             ->dehydrated(false),
                                         Placeholder::make('ppn_amount_preview')
                                             ->label('PPN Nominal')
-                                            ->content(fn (Get $get): string => 'Rp '.number_format(self::money($get('tax_addition_amount')), 0, ',', '.'))
+                                            ->content(fn (Get $get): string => CurrencyFormatter::format(self::money($get('tax_addition_amount')), $get('../../../../currency') ?? 'IDR'))
                                             ->visible(fn (Get $get, ?InvoiceItem $record): bool => self::isItemizedItem($get, $record)),
                                         Select::make('pph_tax_id')
                                             ->label('PPh')
@@ -557,11 +577,11 @@ class PaymentSlipForm
                                             ->dehydrated(false),
                                         Placeholder::make('pph_amount_preview')
                                             ->label('PPh Nominal')
-                                            ->content(fn (Get $get): string => 'Rp '.number_format(self::money($get('tax_deduction_amount')), 0, ',', '.'))
+                                            ->content(fn (Get $get): string => CurrencyFormatter::format(self::money($get('tax_deduction_amount')), $get('../../../../currency') ?? 'IDR'))
                                             ->visible(fn (Get $get, ?InvoiceItem $record): bool => self::isItemizedItem($get, $record)),
                                         Placeholder::make('net_amount_preview')
                                             ->label('Amount Dibayar')
-                                            ->content(fn (Get $get): string => 'Rp '.number_format(self::money($get('net_amount')), 0, ',', '.'))
+                                            ->content(fn (Get $get): string => CurrencyFormatter::format(self::money($get('net_amount')), $get('../../../../currency') ?? 'IDR'))
                                             ->visible(fn (Get $get, ?InvoiceItem $record): bool => self::isItemizedItem($get, $record)),
                                         Select::make('coa_id')
                                             ->label('COA')
@@ -587,11 +607,10 @@ class PaymentSlipForm
                                 $invoices = $get('invoices') ?? [];
                                 $total = 0;
                                 foreach ($invoices as $inv) {
-                                    $invTotal = str_replace(['.', ','], ['', '.'], $inv['grand_total_amount'] ?? '0');
-                                    $total += (float) $invTotal;
+                                    $total += self::money($inv['grand_total_amount'] ?? '0');
                                 }
 
-                                return 'Rp '.number_format($total, 0, ',', '.');
+                                return CurrencyFormatter::format($total, $get('currency') ?? 'IDR');
                             }),
                         Select::make('status')
                             ->options([
@@ -606,17 +625,18 @@ class PaymentSlipForm
             ]);
     }
 
-    private static function setCalculatedAmounts(Set $set, float $subtotal, mixed $ppnTaxId, mixed $pphTaxId): void
+    private static function setCalculatedAmounts(Set $set, float $subtotal, mixed $ppnTaxId, mixed $pphTaxId, string $currency = PaymentSlip::CURRENCY_IDR): void
     {
-        $amounts = InvoiceAmountCalculator::calculate(
+        $amounts = InvoiceAmountCalculator::calculateForCurrency(
             $subtotal,
             Tax::find($ppnTaxId)?->rate,
             Tax::find($pphTaxId)?->rate,
+            $currency,
         );
 
-        $set('tax_addition_amount', number_format($amounts['tax_addition'], 0, ',', '.'));
-        $set('tax_deduction_amount', number_format($amounts['tax_deduction'], 0, ',', '.'));
-        $set('grand_total_amount', number_format($amounts['grand_total'], 0, ',', '.'));
+        $set('tax_addition_amount', CurrencyFormatter::formatFormStateNoDecimals($amounts['tax_addition'], $currency));
+        $set('tax_deduction_amount', CurrencyFormatter::formatFormStateNoDecimals($amounts['tax_deduction'], $currency));
+        $set('grand_total_amount', CurrencyFormatter::formatFormStateNoDecimals($amounts['grand_total'], $currency));
     }
 
     private static function recalculateInvoiceFromItem(Get $get, Set $set, ?string $changedTax = null): void
@@ -630,6 +650,7 @@ class PaymentSlipForm
         // both for setting the item fields and for the net_amount calculation.
         $currentPpnAmount = 0.0;
         $currentPphAmount = 0.0;
+        $currency = $get('../../../../currency') ?? 'IDR';
 
         if ($itemized) {
             $taxAmounts = InvoiceAmountCalculator::calculate(
@@ -646,17 +667,17 @@ class PaymentSlipForm
                 : self::money($get('tax_deduction_amount'));
 
             if (filled($get('ppn_tax_id')) || $changedTax === 'ppn') {
-                $set('tax_addition_amount', number_format($taxAmounts['tax_addition'], 0, ',', '.'));
+                $set('tax_addition_amount', CurrencyFormatter::formatFormStateNoDecimals($taxAmounts['tax_addition'], $currency));
             }
             if (filled($get('pph_tax_id')) || $changedTax === 'pph') {
-                $set('tax_deduction_amount', number_format($taxAmounts['tax_deduction'], 0, ',', '.'));
+                $set('tax_deduction_amount', CurrencyFormatter::formatFormStateNoDecimals($taxAmounts['tax_deduction'], $currency));
             }
         }
 
         $net = $itemized
             ? $subtotal + $currentPpnAmount - $currentPphAmount
             : $subtotal;
-        $set('net_amount', number_format($net, 2, ',', '.'));
+        $set('net_amount', CurrencyFormatter::formatFormState($net, $currency));
 
         // Aggregate invoice totals from all items.  Instead of reading
         // tax_addition_amount / tax_deduction_amount hidden fields (which may
@@ -687,19 +708,20 @@ class PaymentSlipForm
         }
 
         if (! $itemized) {
-            $amounts = InvoiceAmountCalculator::calculate(
+            $amounts = InvoiceAmountCalculator::calculateForCurrency(
                 $invoiceSubtotal,
                 Tax::find($get('../../ppn_tax_id'))?->rate,
                 Tax::find($get('../../pph_tax_id'))?->rate,
+                $currency,
             );
             $invoicePpn = $amounts['tax_addition'];
             $invoicePph = $amounts['tax_deduction'];
         }
 
-        $set('../../subtotal_amount', number_format($invoiceSubtotal, 2, ',', '.'));
-        $set('../../tax_addition_amount', number_format($invoicePpn, 0, ',', '.'));
-        $set('../../tax_deduction_amount', number_format($invoicePph, 0, ',', '.'));
-        $set('../../grand_total_amount', number_format($invoiceSubtotal + $invoicePpn - $invoicePph, 0, ',', '.'));
+        $set('../../subtotal_amount', CurrencyFormatter::formatFormState($invoiceSubtotal, $currency));
+        $set('../../tax_addition_amount', CurrencyFormatter::formatFormStateNoDecimals($invoicePpn, $currency));
+        $set('../../tax_deduction_amount', CurrencyFormatter::formatFormStateNoDecimals($invoicePph, $currency));
+        $set('../../grand_total_amount', CurrencyFormatter::formatFormStateNoDecimals($invoiceSubtotal + $invoicePpn - $invoicePph, $currency));
     }
 
     /**
@@ -732,13 +754,16 @@ class PaymentSlipForm
             return;
         }
 
-        if (($data['invoices'][$invoiceKey]['tax_calculation_mode'] ?? PaymentSlip::TAX_MODE_ITEMIZED) === PaymentSlip::TAX_MODE_INVOICE_LEGACY) {
-            self::recalculateInvoiceTaxState($data['invoices'][$invoiceKey]);
+        $currency = $data['currency'] ?? 'IDR';
+
+        $taxMode = $data['invoices'][$invoiceKey]['tax_calculation_mode'] ?? PaymentSlip::TAX_MODE_ITEMIZED;
+        if ($taxMode === PaymentSlip::TAX_MODE_INVOICE_LEGACY) {
+            self::recalculateInvoiceTaxState($data['invoices'][$invoiceKey], $currency);
 
             return;
         }
 
-        self::recalculateItemizedInvoiceState($data['invoices'][$invoiceKey], $itemKey, $changedField);
+        self::recalculateItemizedInvoiceState($data['invoices'][$invoiceKey], $itemKey, $changedField, $currency);
     }
 
     private static function hasItemTaxConflict(Get $get): bool
@@ -821,7 +846,8 @@ class PaymentSlipForm
         }
         unset($item);
 
-        self::recalculateInvoiceTaxState($invoice);
+        $currency = $get('../../currency') ?? 'IDR';
+        self::recalculateInvoiceTaxState($invoice, $currency);
         $invoice['tax_calculation_mode'] = PaymentSlip::TAX_MODE_INVOICE_LEGACY;
         foreach (['items', 'tax_calculation_mode', 'ppn_tax_id', 'pph_tax_id', 'subtotal_amount', 'tax_addition_amount', 'tax_deduction_amount', 'grand_total_amount'] as $field) {
             $set($field, $invoice[$field]);
@@ -838,29 +864,30 @@ class PaymentSlipForm
     }
 
     /** @param array<string, mixed> $invoice */
-    private static function recalculateInvoiceTaxState(array &$invoice): void
+    private static function recalculateInvoiceTaxState(array &$invoice, string $currency = 'IDR'): void
     {
         $subtotal = 0.0;
         foreach ($invoice['items'] ?? [] as &$item) {
             $itemSubtotal = self::money($item['quantity'] ?? 0) * self::money($item['unit_price_amount'] ?? 0);
-            $item['net_amount'] = number_format($itemSubtotal, 2, ',', '.');
+            $item['net_amount'] = CurrencyFormatter::formatFormState($itemSubtotal, $currency);
             $subtotal += $itemSubtotal;
         }
         unset($item);
 
-        $amounts = InvoiceAmountCalculator::calculate(
+        $amounts = InvoiceAmountCalculator::calculateForCurrency(
             $subtotal,
             Tax::find($invoice['ppn_tax_id'] ?? null)?->rate,
             Tax::find($invoice['pph_tax_id'] ?? null)?->rate,
+            $currency,
         );
-        $invoice['subtotal_amount'] = number_format($subtotal, 2, ',', '.');
-        $invoice['tax_addition_amount'] = number_format($amounts['tax_addition'], 0, ',', '.');
-        $invoice['tax_deduction_amount'] = number_format($amounts['tax_deduction'], 0, ',', '.');
-        $invoice['grand_total_amount'] = number_format($amounts['grand_total'], 0, ',', '.');
+        $invoice['subtotal_amount'] = CurrencyFormatter::formatFormState($subtotal, $currency);
+        $invoice['tax_addition_amount'] = CurrencyFormatter::formatFormStateNoDecimals($amounts['tax_addition'], $currency);
+        $invoice['tax_deduction_amount'] = CurrencyFormatter::formatFormStateNoDecimals($amounts['tax_deduction'], $currency);
+        $invoice['grand_total_amount'] = CurrencyFormatter::formatFormStateNoDecimals($amounts['grand_total'], $currency);
     }
 
     /** @param array<string, mixed> $invoice */
-    private static function recalculateItemizedInvoiceState(array &$invoice, ?string $changedItemKey = null, ?string $changedField = null): void
+    private static function recalculateItemizedInvoiceState(array &$invoice, ?string $changedItemKey = null, ?string $changedField = null, string $currency = 'IDR'): void
     {
         $taxIds = collect($invoice['items'])
             ->flatMap(fn (array $item): array => [$item['ppn_tax_id'] ?? null, $item['pph_tax_id'] ?? null])
@@ -891,19 +918,19 @@ class PaymentSlipForm
                 $deduction = 0.0;
             }
 
-            $item['tax_addition_amount'] = number_format($addition, 0, ',', '.');
-            $item['tax_deduction_amount'] = number_format($deduction, 0, ',', '.');
-            $item['net_amount'] = number_format($subtotal + $addition - $deduction, 2, ',', '.');
+            $item['tax_addition_amount'] = CurrencyFormatter::formatFormStateNoDecimals($addition, $currency);
+            $item['tax_deduction_amount'] = CurrencyFormatter::formatFormStateNoDecimals($deduction, $currency);
+            $item['net_amount'] = CurrencyFormatter::formatFormState($subtotal + $addition - $deduction, $currency);
             $invoiceSubtotal += $subtotal;
             $invoicePpn += $addition;
             $invoicePph += $deduction;
         }
         unset($item);
 
-        $invoice['subtotal_amount'] = number_format($invoiceSubtotal, 2, ',', '.');
-        $invoice['tax_addition_amount'] = number_format($invoicePpn, 0, ',', '.');
-        $invoice['tax_deduction_amount'] = number_format($invoicePph, 0, ',', '.');
-        $invoice['grand_total_amount'] = number_format($invoiceSubtotal + $invoicePpn - $invoicePph, 0, ',', '.');
+        $invoice['subtotal_amount'] = CurrencyFormatter::formatFormState($invoiceSubtotal, $currency);
+        $invoice['tax_addition_amount'] = CurrencyFormatter::formatFormStateNoDecimals($invoicePpn, $currency);
+        $invoice['tax_deduction_amount'] = CurrencyFormatter::formatFormStateNoDecimals($invoicePph, $currency);
+        $invoice['grand_total_amount'] = CurrencyFormatter::formatFormStateNoDecimals($invoiceSubtotal + $invoicePpn - $invoicePph, $currency);
     }
 
     private static function isItemizedExim(Get $get, ?Invoice $record): bool
@@ -932,12 +959,48 @@ class PaymentSlipForm
 
     private static function money(mixed $value): float
     {
-        if (is_string($value) && str_contains($value, ',')) {
-            return (float) str_replace(['.', ','], ['', '.'], $value);
+        if (is_int($value) || is_float($value)) {
+            return (float) $value;
         }
 
-        if (is_string($value) && preg_match('/^\d{1,3}(?:\.\d{3})+$/', $value)) {
-            return (float) str_replace('.', '', $value);
+        if (is_string($value)) {
+            $value = trim($value);
+
+            $hasComma = str_contains($value, ',');
+            $hasDot = str_contains($value, '.');
+
+            if ($hasDot && ! $hasComma) {
+                // E.g. "11.000" or "1.500.000"
+                if (preg_match('/^-?\d{1,3}(?:\.\d{3})+$/', $value)) {
+                    return (float) str_replace('.', '', $value);
+                }
+
+                return (float) $value;
+            }
+
+            if ($hasComma && ! $hasDot) {
+                // E.g. "11,000" or "1,500,000"
+                if (preg_match('/^-?\d{1,3}(?:,\d{3})+$/', $value)) {
+                    return (float) str_replace(',', '', $value);
+                }
+
+                return (float) str_replace(',', '.', $value);
+            }
+
+            if ($hasComma && $hasDot) {
+                $lastComma = strrpos($value, ',');
+                $lastDot = strrpos($value, '.');
+
+                if ($lastDot > $lastComma) {
+                    // USD style: 1,500.50
+                    return (float) str_replace(',', '', $value);
+                } else {
+                    // IDR style: 1.500,50
+                    return (float) str_replace(['.', ','], ['', '.'], $value);
+                }
+            }
+
+            return (float) $value;
         }
 
         return (float) ($value ?? 0);

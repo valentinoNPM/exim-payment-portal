@@ -7,6 +7,16 @@ use PHPUnit\Framework\TestCase;
 
 class InvoiceAmountCalculatorTest extends TestCase
 {
+    public function test_usd_calculation_preserves_two_decimal_minor_units(): void
+    {
+        $amounts = InvoiceAmountCalculator::calculateForCurrency(1500.25, 11, 2, 'USD');
+
+        $this->assertSame(1500.25, $amounts['subtotal']);
+        $this->assertSame(165.03, $amounts['tax_addition']);
+        $this->assertSame(30.01, $amounts['tax_deduction']);
+        $this->assertSame(1635.27, $amounts['grand_total']);
+    }
+
     public function test_it_rounds_each_component_before_calculating_amount_paid(): void
     {
         $amounts = InvoiceAmountCalculator::calculate(11067476, 11, 2);

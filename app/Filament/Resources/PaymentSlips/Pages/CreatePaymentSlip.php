@@ -49,6 +49,7 @@ class CreatePaymentSlip extends CreateRecord
         $this->data['tax_calculation_mode'] = $this->getFixedTransactionType() === PaymentSlip::TYPE_GENERAL
             ? PaymentSlip::TAX_MODE_INVOICE_LEGACY
             : PaymentSlip::TAX_MODE_ITEMIZED;
+        $this->data['currency'] = PaymentSlip::CURRENCY_IDR;
     }
 
     public function updated(string $property): void
@@ -80,6 +81,9 @@ class CreatePaymentSlip extends CreateRecord
         $data['tax_calculation_mode'] = $data['transaction_type'] === PaymentSlip::TYPE_GENERAL
             ? PaymentSlip::TAX_MODE_INVOICE_LEGACY
             : PaymentSlip::TAX_MODE_ITEMIZED;
+        $data['currency'] = $data['transaction_type'] === PaymentSlip::TYPE_GENERAL
+            ? ($data['currency'] ?? PaymentSlip::CURRENCY_IDR)
+            : PaymentSlip::CURRENCY_IDR;
         $lastSlip = PaymentSlip::where('slip_number', 'like', 'PS-%-HANSOLL-%')
             ->lockForUpdate()
             ->orderBy('id', 'desc')

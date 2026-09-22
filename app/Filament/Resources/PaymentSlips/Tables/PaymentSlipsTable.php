@@ -6,6 +6,7 @@ use App\Actions\GeneratePaymentSlipPdf;
 use App\Actions\VerifyPaymentSlip;
 use App\Filament\Resources\PaymentSlips\PaymentSlipResource;
 use App\Models\PaymentSlip;
+use App\Support\CurrencyFormatter;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -61,7 +62,7 @@ class PaymentSlipsTable
                     ->visible(fn () => auth()->user()->hasRole('checker') || auth()->user()->hasRole('approver')),
                 TextColumn::make('grand_total_amount')
                     ->label('Amount')
-                    ->money('IDR', locale: 'id')
+                    ->formatStateUsing(fn ($state, PaymentSlip $record): string => CurrencyFormatter::format($state, $record->currency ?? 'IDR'))
                     ->fontFamily('mono')
                     ->alignment(Alignment::End)
                     ->sortable(),

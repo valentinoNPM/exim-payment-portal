@@ -118,10 +118,11 @@ class Invoice extends Model
             if ($invoice->isDirty(['ppn_tax_id', 'pph_tax_id', 'subtotal_amount'])) {
                 $subtotal = (float) $invoice->subtotal_amount;
 
-                $amounts = InvoiceAmountCalculator::calculate(
+                $amounts = InvoiceAmountCalculator::calculateForCurrency(
                     $subtotal,
                     Tax::find($invoice->ppn_tax_id)?->rate,
                     Tax::find($invoice->pph_tax_id)?->rate,
+                    $invoice->calculationCurrency(),
                 );
 
                 $invoice->tax_addition_amount = $amounts['tax_addition'];
@@ -170,10 +171,11 @@ class Invoice extends Model
             return;
         }
 
-        $amounts = InvoiceAmountCalculator::calculate(
+        $amounts = InvoiceAmountCalculator::calculateForCurrency(
             (float) $this->subtotal_amount,
             Tax::find($this->ppn_tax_id)?->rate,
             Tax::find($this->pph_tax_id)?->rate,
+            $this->calculationCurrency(),
         );
 
         $this->tax_addition_amount = $amounts['tax_addition'];
@@ -193,5 +195,14 @@ class Invoice extends Model
         }
 
         return $this->paymentSlip?->usesItemizedTaxes() ?? false;
+    }
+
+    private function calculationCurrency(): string
+    {
+        $paymentSlip = $this->paymentSlip ?? PaymentSlip::query()->find($this->payment_slip_id);
+
+        return $paymentSlip?->transaction_type === PaymentSlip::TYPE_GENERAL
+            ? ($paymentSlip->currency ?? PaymentSlip::CURRENCY_IDR)
+            : PaymentSlip::CURRENCY_IDR;
     }
 }
