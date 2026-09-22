@@ -133,9 +133,12 @@ class ErpJournalBuilder
                 ? (trim((string) $item->source_supplier_name) ?: trim((string) $slip->supplier->name))
                 : trim((string) $slip->supplier->name);
             $descriptionContext = $buyerInvoice.'-'.$sourceSupplier;
-            $vat = $slip->transaction_type === PaymentSlip::TYPE_IMPORT
-                ? trim((string) ($item->vat_invoice_number ?? ''))
-                : $mainVat;
+            $itemVat = trim((string) ($item->vat_invoice_number ?? ''));
+            if ($slip->transaction_type === PaymentSlip::TYPE_IMPORT) {
+                $vat = $itemVat;
+            } else {
+                $vat = $itemVat !== '' ? $itemVat : $mainVat;
+            }
             $this->require(mb_strlen($vat) <= 255, "{$itemContext}: VAT Invoice No. must be text of at most 255 characters.");
 
             $invoiceRows[] = new ErpJournalRow($invoice->invoice_number, $date, 'Expense', 'ledger', $this->resolver->resolve($item, $invoice), $item->item_name.' for '.$descriptionContext, $amount, null, $costCenter);

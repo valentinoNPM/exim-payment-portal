@@ -567,9 +567,9 @@ class ErpExportTest extends TestCase
                         'buyer_id' => $firstBuyer->id,
                         'invoice_number' => 'EXP-ITEM-001',
                         'invoice_date' => '2026-09-17',
-                        'vat_invoice_number' => 'VAT-EXP-001',
+                        'vat_invoice_number' => 'VAT-EXP-MAIN',
                         'items' => [
-                            ['item_name' => 'Taxable handling', 'quantity' => 1, 'unit_price_amount' => 100, 'ppn_tax_id' => $ppn->id, 'pph_tax_id' => $pph->id],
+                            ['item_name' => 'Taxable handling', 'quantity' => 1, 'unit_price_amount' => 100, 'ppn_tax_id' => $ppn->id, 'pph_tax_id' => $pph->id, 'vat_invoice_number' => 'VAT-EXP-ITEM-1'],
                             ['item_name' => 'Untaxed handling', 'quantity' => 1, 'unit_price_amount' => 50],
                         ],
                     ],
@@ -625,7 +625,9 @@ class ErpExportTest extends TestCase
         $slip->update(['status' => 'approved']);
         $rows = app(ErpJournalBuilder::class)->build($slip->fresh());
         $this->assertSame(['Expense', 'PPN', 'PPh', 'Expense', 'Supplier', 'Expense', 'PPh', 'Supplier'], array_column($rows, 'rowType'));
-        $this->assertSame('VAT-EXP-001 -Walmart inv EXP-ITEM-001-Export Supplier', $rows[1]->description);
+        $this->assertSame('VAT-EXP-ITEM-1 -Walmart inv EXP-ITEM-001-Export Supplier', $rows[1]->description);
+        $this->assertSame('AP export charge for Walmart inv EXP-ITEM-001-Export Supplier', $rows[4]->description);
+        $this->assertSame('VAT-EXP-MAIN', $rows[4]->vatInvoiceNumber);
         $this->assertSame('AP export charge for Carter inv EXP-ITEM-002-Export Supplier', $rows[7]->description);
         $this->assertSame('I05_902020', $rows[0]->costCenter);
     }
@@ -1317,5 +1319,221 @@ class ErpExportTest extends TestCase
         Storage::disk('local')->delete($batch->file_path);
         $this->get(route('erp-exports.download', $batch))->assertNotFound();
         $this->assertDatabaseCount('erp_export_batches', 1);
+    }
+
+    public function test_vat_item_is_visible_on_export_itemized_and_hidden_on_general(): void
+    {
+        $eximMaker = $this->makerForDivision('EXIM');
+        $this->actingAs($eximMaker);
+
+        $exportPage = Livewire::test(CreateExportPaymentSlip::class)
+            ->fillForm([
+                'transaction_type' => PaymentSlip::TYPE_EXPORT,
+                'tax_calculation_mode' => PaymentSlip::TAX_MODE_ITEMIZED,
+                'invoices' => [[
+                    'invoice_number' => 'EXP-001',
+                    'invoice_date' => '2026-09-16',
+                    'tax_calculation_mode' => PaymentSlip::TAX_MODE_ITEMIZED,
+                    'items' => [['item_name' => 'Handling', 'quantity' => 1, 'unit_price_amount' => 1000]],
+                ]],
+            ]);
+        $exportPage->assertSeeHtml('VAT Invoice No. (Item)');
+
+        $generalMaker = $this->makerForDivision('HR');
+        $this->actingAs($generalMaker);
+        $generalPage = Livewire::test(CreateGeneralPaymentSlip::class)
+            ->fillForm([
+                'transaction_type' => PaymentSlip::TYPE_GENERAL,
+                'tax_calculation_mode' => PaymentSlip::TAX_MODE_INVOICE_LEGACY,
+                'invoices' => [[
+                    'invoice_number' => 'NOTA-001',
+                    'invoice_date' => '2026-09-16',
+                    'items' => [['item_name' => 'Kertas A4', 'quantity' => 1, 'unit_price_amount' => 1000]],
+                ]],
+            ]);
+        $generalPage->assertDontSeeHtml('VAT Invoice No. (Item)');
+    }
+
+    public function test_maker_can_save_vat_item_export_on_draft(): void
+    {
+        $maker = $this->makerForDivision('EXIM');
+        $this->actingAs($maker);
+        $slip = ErpPaymentSlip::create($this->checker);
+        $slip->update(['transaction_type' => PaymentSlip::TYPE_EXPORT, 'status' => 'draft', 'created_by' => $maker->id, 'tax_calculation_mode' => PaymentSlip::TAX_MODE_ITEMIZED]);
+        $slip->invoices()->update(['tax_calculation_mode' => PaymentSlip::TAX_MODE_ITEMIZED]);
+
+        $page = Livewire::test(EditPaymentSlip::class, ['record' => $slip->id]);
+        $data = $page->get('data');
+        $invoiceKey = array_key_first($data['invoices']);
+        $itemKey = array_key_first($data['invoices'][$invoiceKey]['items']);
+
+        $page->set("data.invoices.{$invoiceKey}.items.{$itemKey}.vat_invoice_number", 'VAT-ITEM-123')
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('VAT-ITEM-123', $slip->invoices()->first()->items()->first()->vat_invoice_number);
+    }
+
+    public function test_checker_can_save_vat_item_export_on_submitted(): void
+    {
+        $slip = ErpPaymentSlip::create($this->checker);
+        $slip->update(['transaction_type' => PaymentSlip::TYPE_EXPORT, 'status' => 'submitted', 'tax_calculation_mode' => PaymentSlip::TAX_MODE_ITEMIZED]);
+        $slip->invoices()->update(['tax_calculation_mode' => PaymentSlip::TAX_MODE_ITEMIZED]);
+
+        $page = Livewire::test(EditPaymentSlip::class, ['record' => $slip->id]);
+        $data = $page->get('data');
+        $invoiceKey = array_key_first($data['invoices']);
+        $itemKey = array_key_first($data['invoices'][$invoiceKey]['items']);
+
+        $page->set("data.invoices.{$invoiceKey}.items.{$itemKey}.vat_invoice_number", 'VAT-ITEM-456')
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('VAT-ITEM-456', $slip->invoices()->first()->items()->first()->vat_invoice_number);
+    }
+
+    public function test_export_item_vat_blocks_switch_to_invoice_tax_mode(): void
+    {
+        $this->actingAs($this->makerForDivision('EXIM'));
+        $supplier = Supplier::create(['code' => 'VAT-GUARD-SUP', 'name' => 'VAT Guard Supplier', 'is_active' => true]);
+        $buyer = Buyer::create(['code' => 'VAT-GUARD-BUY', 'name' => 'VAT Guard Buyer', 'is_active' => true]);
+        $ppn = Tax::create(['code' => 'VAT-GUARD-PPN', 'name' => 'PPN 11%', 'rate' => 11, 'calculation_type' => 'addition', 'is_active' => true]);
+
+        $page = Livewire::test(CreateExportPaymentSlip::class)->fillForm([
+            'supplier_id' => $supplier->id,
+            'invoices' => [[
+                'buyer_id' => $buyer->id,
+                'invoice_number' => 'EXP-VAT-GUARD',
+                'invoice_date' => '2026-09-22',
+                'tax_calculation_mode' => PaymentSlip::TAX_MODE_ITEMIZED,
+                'items' => [[
+                    'item_name' => 'Handling',
+                    'quantity' => 1,
+                    'unit_price_amount' => 1000,
+                    'vat_invoice_number' => 'VAT-ITEM-GUARD',
+                ]],
+            ]],
+        ]);
+
+        $state = $page->get('data');
+        $invoiceKey = array_key_first($state['invoices']);
+        $page->set("data.invoices.{$invoiceKey}.bulk_ppn_tax_id", $ppn->id)
+            ->callAction(TestAction::make('apply_ppn_to_items')->schemaComponent("invoices.{$invoiceKey}.bulk_ppn_actions"))
+            ->assertHasErrors();
+
+        $invoiceState = $page->get('data')['invoices'][$invoiceKey];
+        $this->assertSame(PaymentSlip::TAX_MODE_ITEMIZED, $invoiceState['tax_calculation_mode']);
+        $this->assertSame('VAT-ITEM-GUARD', array_values($invoiceState['items'])[0]['vat_invoice_number']);
+    }
+
+    public function test_export_journal_descriptions_use_correct_item_vat_and_fallback_to_invoice_vat(): void
+    {
+        $slip = ErpPaymentSlip::create($this->checker);
+        $slip->update(['transaction_type' => PaymentSlip::TYPE_EXPORT, 'status' => 'approved', 'tax_calculation_mode' => PaymentSlip::TAX_MODE_ITEMIZED]);
+        $slip->invoices()->update(['tax_calculation_mode' => PaymentSlip::TAX_MODE_ITEMIZED]);
+
+        $invoice = $slip->invoices()->first();
+        $slip->invoices()->where('id', '!=', $invoice->id)->delete();
+        $invoice->updateQuietly(['vat_invoice_number' => 'VAT-MAIN-INV']);
+
+        $item1 = $invoice->items()->first();
+        $invoice->items()->where('id', '!=', $item1->id)->delete();
+
+        $item1->updateQuietly(['vat_invoice_number' => 'VAT-ITM-1', 'tax_addition_amount' => 11, 'item_name' => 'Handling 1', 'line_number' => 1]);
+
+        $item2 = $item1->replicate();
+        $item2->vat_invoice_number = 'VAT-ITM-2';
+        $item2->item_name = 'Handling 2';
+        $item2->line_number = 2;
+        $item2->saveQuietly();
+
+        $item3 = $item1->replicate();
+        $item3->vat_invoice_number = null; // Should fallback to VAT-MAIN-INV
+        $item3->item_name = 'Handling 3';
+        $item3->line_number = 3;
+        $item3->saveQuietly();
+
+        $item4 = $item1->replicate();
+        $item4->vat_invoice_number = null;
+        $item4->item_name = 'Handling 4';
+        $item4->line_number = 4;
+        $item4->saveQuietly();
+
+        $invoice2 = $invoice->replicate();
+        $invoice2->vat_invoice_number = null;
+        $invoice2->invoice_number = '000046';
+        $invoice2->saveQuietly();
+
+        $item5 = $item1->replicate();
+        $item5->invoice_id = $invoice2->id;
+        $item5->vat_invoice_number = null; // Both item and invoice are empty, no prefix
+        $item5->item_name = 'Handling 5';
+        $item5->line_number = 1;
+        $item5->saveQuietly();
+
+        // Re-calculate totals to pass the guard
+        foreach ([$invoice, $invoice2] as $inv) {
+            $expense = $inv->items()->sum('subtotal_amount');
+            $ppnTotal = $inv->items()->sum('tax_addition_amount');
+            $pphTotal = $inv->items()->sum('tax_deduction_amount');
+            $inv->updateQuietly([
+                'subtotal_amount' => $expense,
+                'tax_addition_amount' => $ppnTotal,
+                'tax_deduction_amount' => $pphTotal,
+                'grand_total_amount' => $expense + $ppnTotal - $pphTotal,
+            ]);
+            foreach ($inv->items as $itm) {
+                $itm->updateQuietly(['net_amount' => $itm->subtotal_amount + $itm->tax_addition_amount - $itm->tax_deduction_amount]);
+            }
+        }
+
+        $rows = app(ErpJournalBuilder::class)->build($slip->fresh());
+
+        // Find PPN rows for each item to check description and VAT number
+        $ppnRows = collect($rows)->filter(fn ($row) => $row->rowType === 'PPN')->values();
+
+        $this->assertCount(5, $ppnRows);
+        $this->assertNull($ppnRows[0]->vatInvoiceNumber);
+        $this->assertSame('VAT-ITM-1 -Fixture Buyer inv 000045-Fixture Supplier', $ppnRows[0]->description);
+
+        $this->assertNull($ppnRows[1]->vatInvoiceNumber);
+        $this->assertSame('VAT-ITM-2 -Fixture Buyer inv 000045-Fixture Supplier', $ppnRows[1]->description);
+
+        $this->assertNull($ppnRows[2]->vatInvoiceNumber);
+        $this->assertSame('VAT-MAIN-INV -Fixture Buyer inv 000045-Fixture Supplier', $ppnRows[2]->description);
+
+        $this->assertNull($ppnRows[3]->vatInvoiceNumber);
+        $this->assertSame('VAT-MAIN-INV -Fixture Buyer inv 000045-Fixture Supplier', $ppnRows[3]->description);
+
+        $this->assertNull($ppnRows[4]->vatInvoiceNumber);
+        $this->assertSame('Fixture Buyer inv 000046-Fixture Supplier', $ppnRows[4]->description);
+    }
+
+    public function test_import_journal_does_not_fallback_to_invoice_vat(): void
+    {
+        $slip = ErpPaymentSlip::create($this->checker);
+        $slip->update(['transaction_type' => PaymentSlip::TYPE_IMPORT, 'status' => 'approved', 'tax_calculation_mode' => PaymentSlip::TAX_MODE_ITEMIZED]);
+        $slip->invoices()->update(['tax_calculation_mode' => PaymentSlip::TAX_MODE_ITEMIZED]);
+        $invoice = $slip->invoices()->first();
+        $invoice->updateQuietly(['buyer_id' => $slip->buyer_id, 'vat_invoice_number' => 'SHOULD-NOT-FALLBACK']);
+
+        $item = $invoice->items()->first();
+        $item->updateQuietly([
+            'tax_addition_amount' => 11,
+            'vat_invoice_number' => null,
+            'net_amount' => $item->subtotal_amount + 11 - $item->tax_deduction_amount,
+        ]);
+
+        $invoice->updateQuietly([
+            'tax_addition_amount' => 11,
+            'grand_total_amount' => $invoice->subtotal_amount + 11 - $invoice->tax_deduction_amount,
+        ]);
+
+        $rows = app(ErpJournalBuilder::class)->build($slip->fresh());
+
+        $ppnRow = collect($rows)->firstWhere('rowType', 'PPN');
+        $this->assertNotNull($ppnRow);
+        $this->assertNull($ppnRow->vatInvoiceNumber); // No fallback for import
+        $this->assertSame('Fixture Buyer inv 000045-Fixture Supplier', $ppnRow->description);
     }
 }

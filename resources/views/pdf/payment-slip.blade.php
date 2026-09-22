@@ -6,7 +6,7 @@
     <style>
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            font-size: 10px;
+            font-size: 11px;
             color: #333;
             margin: 0;
             padding: 0;
@@ -22,7 +22,7 @@
         }
         th, td {
             border: 1px solid #5b2d8e;
-            padding: 4px 6px;
+            padding: 5px 7px;
             text-align: left;
             vertical-align: top;
         }
@@ -42,12 +42,12 @@
             color: #333;
         }
         .company-address {
-            font-size: 10px;
+            font-size: 11px;
             color: #555;
-            line-height: 1.3;
+            line-height: 1.35;
         }
         .document-title {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: bold;
             color: #5b2d8e;
             text-align: center;
@@ -62,7 +62,7 @@
         .approval-grid th {
             background-color: #f3eef9;
             color: #5b2d8e;
-            font-size: 8px;
+            font-size: 9px;
             font-weight: bold;
             text-align: center;
             padding: 3px 4px;
@@ -71,7 +71,7 @@
             text-align: center;
             height: 22px;
             vertical-align: middle;
-            font-size: 8px;
+            font-size: 9px;
         }
         .approval-grid .label-cell {
             background-color: #f3eef9;
@@ -83,8 +83,9 @@
         /* Data Section */
         .data-table td {
             border: none;
-            padding: 2px 6px;
-            font-size: 10px;
+            padding: 3px 6px;
+            font-size: 12px;
+            line-height: 1.25;
         }
         .data-label {
             font-weight: bold;
@@ -107,13 +108,14 @@
             background-color: #f3eef9;
             color: #5b2d8e;
             font-weight: bold;
-            font-size: 9px;
+            font-size: 11px;
             text-align: center;
             padding: 5px 4px;
         }
         .detail-table td {
-            padding: 4px 6px;
-            font-size: 9px;
+            padding: 5px 7px;
+            font-size: 11px;
+            line-height: 1.25;
         }
         .detail-table .amount-cell {
             text-align: right;
@@ -128,6 +130,14 @@
         .summary-value {
             text-align: right;
             font-weight: bold;
+            white-space: nowrap;
+        }
+        .detail-table .item-meta {
+            font-size: 10px;
+            color: #666;
+        }
+        .detail-table .grand-total {
+            font-size: 13px;
         }
 
         /* Payment Box */
@@ -138,7 +148,7 @@
             background-color: #f3eef9;
             color: #5b2d8e;
             font-weight: bold;
-            font-size: 8px;
+            font-size: 9px;
             text-align: center;
             padding: 4px;
         }
@@ -146,7 +156,7 @@
             height: 30px;
             text-align: center;
             vertical-align: middle;
-            font-size: 8px;
+            font-size: 9px;
         }
         .payment-label {
             background-color: #f3eef9;
@@ -164,7 +174,7 @@
             background-color: #f3eef9;
             color: #5b2d8e;
             font-weight: bold;
-            font-size: 9px;
+            font-size: 10px;
             text-align: center;
             padding: 5px;
         }
@@ -213,7 +223,7 @@
         @endphp
         <table style="width: 100%; border: none; margin-bottom: 8px;">
             <tr>
-                <td style="width: 60%; vertical-align: top; border: none; padding: 0;">
+                <td style="width: 62%; vertical-align: top; border: none; padding: 0;">
                     <table class="data-table" style="width: 100%;">
                         <tr>
                             <td class="data-label" style="width: 32%;">Payment Slip Number</td>
@@ -269,7 +279,7 @@
                         </tr>
                     </table>
                 </td>
-                <td style="width: 40%; vertical-align: top; border: none; padding: 0;">
+                <td style="width: 38%; vertical-align: top; border: none; padding: 0;">
                     <table class="data-table" style="width: 100%;">
                         <tr>
                             <td class="data-label" style="width: 25%;">No. Invoice</td>
@@ -285,11 +295,11 @@
         <table class="detail-table">
             <thead>
                 <tr>
-                    <th style="width: 45%;">Detail</th>
-                    <th style="width: 14%;">Amount</th>
-                    <th style="width: 14%;">PPN</th>
-                    <th style="width: 14%;">PPH</th>
-                    <th style="width: 13%;">Amount Dibayar</th>
+                    <th style="width: 37%;">Detail</th>
+                    <th style="width: 15%;">Amount</th>
+                    <th style="width: 15%;">PPN</th>
+                    <th style="width: 15%;">PPH</th>
+                    <th style="width: 18%;">Amount Dibayar</th>
                 </tr>
             </thead>
             <tbody>
@@ -323,7 +333,7 @@
                     <tr>
                         <td>
                             {{ $detailRowCount }}. {{ $item->item_name }}<br>
-                            <span style="font-size: 8px; color: #666;">Qty: {{ $quantity }} | Ref: {{ $invoice->invoice_number }}</span>
+                            <span class="item-meta">Qty: {{ $quantity }} | Ref: {{ $invoice->invoice_number }}</span>
                         </td>
                         <td class="amount-cell">Rp {{ number_format($unitPrice, 0, ',', '.') }}</td>
                         <td class="amount-cell">-</td>
@@ -399,8 +409,8 @@
                     <td class="summary-value">Rp {{ number_format($totalPph, 0, ',', '.') }}</td>
                 </tr>
                 <tr>
-                    <td class="summary-label" colspan="4" style="font-size: 11px;">GRAND TOTAL</td>
-                    <td class="summary-value" style="font-size: 11px;">Rp {{ number_format($totalGrand, 0, ',', '.') }}</td>
+                    <td class="summary-label grand-total" colspan="4">GRAND TOTAL</td>
+                    <td class="summary-value grand-total">Rp {{ number_format($totalGrand, 0, ',', '.') }}</td>
                 </tr>
             </tfoot>
         </table>

@@ -498,16 +498,25 @@ class PaymentSlipForm
                                             ->visible(fn (Get $get): bool => $get('../../../../transaction_type') === PaymentSlip::TYPE_IMPORT)
                                             ->disabled(fn (?InvoiceItem $record) => $record && $record->invoice?->paymentSlip?->status !== 'draft'),
                                         TextInput::make('vat_invoice_number')
-                                            ->label('VAT Invoice No.')
+                                            ->label('VAT Invoice No. (Item)')
                                             ->maxLength(255)
-                                            ->visible(fn (Get $get): bool => $get('../../../../transaction_type') === PaymentSlip::TYPE_IMPORT)
-                                            ->disabled(fn (?InvoiceItem $record): bool => $record && ! (
-                                                $record->invoice?->paymentSlip?->status === 'draft'
-                                                || (
-                                                    $record->invoice?->paymentSlip?->status === 'submitted'
-                                                    && auth()->user()?->hasRole('checker')
-                                                )
-                                            )),
+                                            ->visible(fn (Get $get, ?InvoiceItem $record): bool => $get('../../../../transaction_type') === PaymentSlip::TYPE_IMPORT
+                                                || self::isItemizedItem($get, $record)
+                                            )
+                                            ->disabled(function (Get $get, ?InvoiceItem $record): bool {
+                                                $status = $get('../../../../status');
+                                                if ($status) {
+                                                    return ! ($status === 'draft' || ($status === 'submitted' && auth()->user()?->hasRole('checker')));
+                                                }
+
+                                                return $record && ! (
+                                                    $record->invoice?->paymentSlip?->status === 'draft'
+                                                    || (
+                                                        $record->invoice?->paymentSlip?->status === 'submitted'
+                                                        && auth()->user()?->hasRole('checker')
+                                                    )
+                                                );
+                                            }),
                                         Select::make('ppn_tax_id')
                                             ->label('PPN')
                                             ->options(fn (): array => Tax::query()
@@ -780,8 +789,11 @@ class PaymentSlipForm
             return;
         }
 
-        if ($get('../../transaction_type') === PaymentSlip::TYPE_IMPORT
-            && collect($items)->contains(fn (array $item): bool => filled($item['source_supplier_name'] ?? null) || filled($item['vat_invoice_number'] ?? null))) {
+        $type = $get('../../transaction_type');
+        $hasImportDetails = $type === PaymentSlip::TYPE_IMPORT && collect($items)->contains(fn (array $item): bool => filled($item['source_supplier_name'] ?? null));
+        $hasVatDetails = in_array($type, [PaymentSlip::TYPE_IMPORT, PaymentSlip::TYPE_EXPORT], true) && collect($items)->contains(fn (array $item): bool => filled($item['vat_invoice_number'] ?? null));
+
+        if ($hasImportDetails || $hasVatDetails) {
             throw ValidationException::withMessages([$selectionField => 'Invoice dengan supplier pendukung atau VAT per item harus memakai pajak per item agar detail ERP tidak hilang.']);
         }
 

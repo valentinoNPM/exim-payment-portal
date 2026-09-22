@@ -3,6 +3,10 @@
 namespace Tests\Unit;
 
 use App\Services\GeminiInvoiceExtractor;
+use Illuminate\Contracts\Cache\Lock;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -148,33 +152,118 @@ class GeminiInvoiceExtractorTest extends TestCase
         $this->assertSame(2, $extractor->textRequests);
     }
 
-    public function test_transient_gemini_errors_are_retried(): void
+    public function test_two_consecutive_requests_get_slots_at_least_4200ms_apart(): void
     {
-        config()->set('services.gemini.api_key', 'test-key');
-        config()->set('services.gemini.model', 'gemini-3.5-flash-lite');
-        Http::fakeSequence()
-            ->push(['error' => ['message' => 'High demand']], 503)
-            ->push(['error' => ['message' => 'High demand']], 503)
-            ->push($this->successfulGeminiResponse(), 200);
+        $extractor = new ThrottleTestingGeminiInvoiceExtractor;
 
-        $result = (new RetryingGeminiInvoiceExtractor)->extract(['invoices/test.pdf']);
+        $slot1 = $extractor->publicReserveThrottleSlot();
+        $slot2 = $extractor->publicReserveThrottleSlot();
 
-        $this->assertCount(1, $result);
-        Http::assertSentCount(3);
+        $this->assertGreaterThanOrEqual(4200, $slot2 - $slot1);
     }
 
-    public function test_permanent_gemini_errors_are_not_retried(): void
+    public function test_twenty_simultaneous_reservations_get_distinct_slots_without_expiry_issues(): void
+    {
+        $extractor = new ThrottleTestingGeminiInvoiceExtractor;
+        $slots = [];
+
+        for ($i = 0; $i < 20; $i++) {
+            $slots[] = $extractor->publicReserveThrottleSlot();
+        }
+
+        for ($i = 1; $i < 20; $i++) {
+            $this->assertGreaterThanOrEqual(4200, $slots[$i] - $slots[$i - 1]);
+        }
+    }
+
+    public function test_lock_timeout_yields_clear_runtime_exception(): void
+    {
+        $mockLock = \Mockery::mock(Lock::class);
+        $mockLock->shouldReceive('block')->with(30)->andThrow(new LockTimeoutException);
+
+        Cache::shouldReceive('lock')->with('gemini_api_throttle_lock', 10)->andReturn($mockLock);
+        Cache::makePartial();
+
+        $extractor = new ThrottleTestingGeminiInvoiceExtractor;
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Sistem sedang sibuk memproses antrean AI. Silakan coba beberapa saat lagi.');
+
+        $extractor->publicReserveThrottleSlot();
+    }
+
+    public function test_400_is_not_retried_and_returns_immediately(): void
     {
         config()->set('services.gemini.api_key', 'test-key');
-        config()->set('services.gemini.model', 'gemini-3.5-flash-lite');
         Http::fake(['*' => Http::response(['error' => ['message' => 'Bad request']], 400)]);
 
-        $report = (new RetryingGeminiInvoiceExtractor)->extractWithReport([
+        $extractor = new ThrottleTestingGeminiInvoiceExtractor;
+        $report = $extractor->extractWithReport([
             ['path' => Storage::disk('local')->path('invoices/test.pdf'), 'original_name' => 'test.pdf'],
         ]);
 
         $this->assertCount(1, $report['failed']);
         Http::assertSentCount(1);
+        $this->assertSame(0, $extractor->sleepCalls); // No retries = no sleep
+    }
+
+    public function test_transient_gemini_errors_are_retried_and_acquire_new_slots(): void
+    {
+        config()->set('services.gemini.api_key', 'test-key');
+        Http::fakeSequence()
+            ->push(['error' => ['message' => 'High demand']], 503)
+            ->push(['error' => ['message' => 'Too many requests']], 429)
+            ->push($this->successfulGeminiResponse(), 200);
+
+        $extractor = new ThrottleTestingGeminiInvoiceExtractor;
+        $result = $extractor->extract(['invoices/test.pdf']);
+
+        $this->assertCount(1, $result);
+        Http::assertSentCount(3);
+        $this->assertSame(3, $extractor->reserveCalls);
+    }
+
+    public function test_connection_error_is_retried_and_throws_connection_exception_when_all_attempts_fail(): void
+    {
+        config()->set('services.gemini.api_key', 'test-key');
+
+        // Fake throwing a ConnectionException for all 4 attempts
+        Http::fake(function () {
+            throw new ConnectionException('Connection timed out');
+        });
+
+        $extractor = new ThrottleTestingGeminiInvoiceExtractor;
+
+        $this->expectException(ConnectionException::class);
+        $this->expectExceptionMessage('Connection timed out');
+
+        $extractor->extract(['invoices/test.pdf']);
+    }
+
+    public function test_mixed_sequence_returns_connection_exception_and_attempts_exactly_four_times(): void
+    {
+        config()->set('services.gemini.api_key', 'test-key');
+
+        $attempts = 0;
+        Http::fake(function () use (&$attempts) {
+            $attempts++;
+            if ($attempts === 1) {
+                return Http::response(['error' => ['message' => 'High demand']], 503);
+            }
+            throw new ConnectionException('Connection timed out');
+        });
+
+        $extractor = new ThrottleTestingGeminiInvoiceExtractor;
+
+        try {
+            $extractor->extract(['invoices/test.pdf']);
+            $this->fail('Expected ConnectionException');
+        } catch (ConnectionException $e) {
+            $this->assertSame('Connection timed out', $e->getMessage());
+        }
+
+        $this->assertSame(4, $attempts);
+        $this->assertSame(4, $extractor->reserveCalls);
     }
 
     private function successfulGeminiResponse(): array
@@ -205,15 +294,34 @@ class GeminiInvoiceExtractorTest extends TestCase
 
     public function test_expeditors_interleaved_tax_label_does_not_replace_billing_number(): void
     {
-        $extractor = new FakeGeminiInvoiceExtractor;
-        $extractor->pdfParserText = "PT. Expeditors Indonesia INVOICE\nTAX No: NUMBER E832794415\n018826347015000";
-        $invoice = $this->validInvoice();
-        $invoice['invoice_number'] = '018826347015000';
-        $extractor->textResult = [$invoice];
+        $cases = [
+            ['E832772154', 'R831194965'],
+            ['E832772368', '6831245447'],
+            ['E832772363', '6831245436'],
+        ];
 
-        $result = $extractor->extract(['invoices/test.pdf']);
+        foreach ($cases as [$expectedInvoiceNumber, $signatureReference]) {
+            $extractor = new FakeGeminiInvoiceExtractor;
+            $extractor->pdfParserText = implode("\n", [
+                'INVOICE',
+                'PT. Expeditors Indonesia',
+                'INVOICE DATE',
+                'INVOICE NUMBER',
+                'YOUR REFERENCE',
+                'CLIENT NO: G3042819 04/08/26',
+                "PT. HANSOLL INDO JAVA TAX No: {$expectedInvoiceNumber}",
+                '018826347015000',
+                "FZ 01 {$signatureReference}",
+                'AUTHORISED SIGNATURE',
+            ]);
+            $invoice = $this->validInvoice();
+            $invoice['invoice_number'] = $signatureReference;
+            $extractor->textResult = [$invoice];
 
-        $this->assertSame('E832794415', $result[0]['invoice_number']);
+            $result = $extractor->extract(['invoices/test.pdf']);
+
+            $this->assertSame($expectedInvoiceNumber, $result[0]['invoice_number']);
+        }
     }
 
     public function test_multiple_expeditors_numbers_are_not_reconciled_by_guessing(): void
@@ -307,17 +415,33 @@ class GeminiInvoiceExtractorTest extends TestCase
     }
 }
 
-class RetryingGeminiInvoiceExtractor extends GeminiInvoiceExtractor
+class ThrottleTestingGeminiInvoiceExtractor extends GeminiInvoiceExtractor
 {
+    public int $sleepCalls = 0;
+
+    public int $reserveCalls = 0;
+
     protected function extractViaPdfParser(string $filePath): ?string
     {
         return 'INVOICE NUMBER INV-001 with enough invoice table content';
     }
 
-    /** @return list<int> */
-    protected function retryDelays(): array
+    protected function sleepMilliseconds(int $milliseconds): void
     {
-        return [0, 0, 0];
+        $this->sleepCalls++;
+        // Don't actually sleep in tests to keep them fast
+    }
+
+    protected function reserveThrottleSlot(): int
+    {
+        $this->reserveCalls++;
+
+        return parent::reserveThrottleSlot();
+    }
+
+    public function publicReserveThrottleSlot(): int
+    {
+        return parent::reserveThrottleSlot();
     }
 }
 
