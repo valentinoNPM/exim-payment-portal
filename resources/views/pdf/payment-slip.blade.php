@@ -191,10 +191,14 @@
         <table class="header-table">
             <tr>
                 <td class="logo-box">
-                    @if(file_exists(public_path('images/logo.svg')))
-                        <img src="{{ public_path('images/logo.svg') }}" style="height: 14px; width: auto; margin-bottom: 3px;" /><br/>
+                    @if(file_exists(public_path('images/logo.png')))
+                        <img src="{{ public_path('images/logo.png') }}" style="height: 70px; width: auto; margin-bottom: 5px;" /><br/>
+                    @else
+                        @if(file_exists(public_path('images/logo.svg')))
+                            <img src="{{ public_path('images/logo.svg') }}" style="height: 14px; width: auto; margin-bottom: 3px;" /><br/>
+                        @endif
+                        <span class="company-name">PT. HANSOLL INDO JAVA</span><br/>
                     @endif
-                    <span class="company-name">PT. HANSOLL INDO JAVA</span><br/>
                     <span class="company-address">
                         Dukuh Ngemplak, RT.006/RW.002, Dusun III, Randusari<br/>
                         Randusari, Kec. Teras, Kabupaten Boyolali, Jawa Tengah 57372, Jawa Tengah - Indonesia<br/>

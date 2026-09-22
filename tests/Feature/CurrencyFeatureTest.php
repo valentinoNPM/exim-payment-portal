@@ -213,6 +213,7 @@ class CurrencyFeatureTest extends TestCase
 
         $this->assertStringContainsString('Rp 500.000', $html);
         $this->assertStringContainsString('Rp 1.500.000', $html);
+        $this->assertStringContainsString(public_path('images/logo.png'), $html);
         $this->assertStringContainsString('#4F758B', $html);
         $this->assertStringContainsString('#EDF1F3', $html);
         // Must NOT contain USD formatting
