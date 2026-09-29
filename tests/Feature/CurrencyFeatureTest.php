@@ -49,6 +49,7 @@ class CurrencyFeatureTest extends TestCase
 
         Livewire::test(CreateGeneralPaymentSlip::class)
             ->fillForm([
+                'transaction_description' => 'Biaya pengujian IDR',
                 'supplier_id' => $supplier->id,
                 'invoices' => [[
                     'invoice_number' => 'NOTA-CUR-001',
@@ -75,6 +76,7 @@ class CurrencyFeatureTest extends TestCase
 
         Livewire::test(CreateGeneralPaymentSlip::class)
             ->fillForm([
+                'transaction_description' => 'Biaya pengujian USD',
                 'currency' => PaymentSlip::CURRENCY_USD,
                 'supplier_id' => $supplier->id,
                 'invoices' => [[
@@ -105,6 +107,7 @@ class CurrencyFeatureTest extends TestCase
 
         Livewire::test(CreateGeneralPaymentSlip::class)
             ->fillForm([
+                'transaction_description' => 'Biaya pengujian pajak',
                 'supplier_id' => $supplier->id,
                 'invoices' => [[
                     'invoice_number' => 'GENERAL-ITEM-TAX',
@@ -155,6 +158,7 @@ class CurrencyFeatureTest extends TestCase
         // Create a USD General slip
         Livewire::test(CreateGeneralPaymentSlip::class)
             ->fillForm([
+                'transaction_description' => 'Biaya pengujian edit',
                 'currency' => PaymentSlip::CURRENCY_USD,
                 'supplier_id' => $supplier->id,
                 'invoices' => [[

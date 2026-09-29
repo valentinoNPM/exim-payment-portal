@@ -251,11 +251,12 @@ class ErpExportTest extends TestCase
         $html = view('pdf.payment-slip', ['slip' => $slip])->render();
 
         $this->assertStringContainsString('1. Kertas A4', $html);
-        $this->assertStringContainsString('Qty: 3', $html);
+        $this->assertStringContainsString('>Quantity</th>', $html);
+        $this->assertStringContainsString('>3</td>', $html);
         $this->assertStringContainsString('Rp 53.210', $html);
         $this->assertStringContainsString('Rp 159.630', $html);
         $this->assertStringContainsString('2. Jasa Fotokopi', $html);
-        $this->assertStringContainsString('Qty: 4', $html);
+        $this->assertStringContainsString('>4</td>', $html);
         $this->assertStringContainsString('Rp 1.250', $html);
         $this->assertStringContainsString('Rp 5.000', $html);
         $this->assertStringNotContainsString('Tanda Terima Invoice', $html);
@@ -862,6 +863,7 @@ class ErpExportTest extends TestCase
 
         Livewire::test(CreateGeneralPaymentSlip::class)
             ->fillForm([
+                'transaction_description' => 'Biaya alat tulis kantor',
                 'supplier_id' => $supplier->id,
                 'invoices' => [[
                     'invoice_number' => 'NOTA-ATK-001',

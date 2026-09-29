@@ -1,0 +1,103 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Filament\Resources\PaymentSlips\Pages\CreateGeneralPaymentSlip;
+use App\Models\Division;
+use App\Models\PaymentSlip;
+use App\Models\Supplier;
+use App\Models\User;
+use Filament\Facades\Filament;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+use Spatie\Permission\Models\Role;
+use Tests\Fixtures\ErpPaymentSlip;
+use Tests\TestCase;
+
+class GeneralPaymentSlipPdfRevisionTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Role::create(['name' => 'maker']);
+        Role::create(['name' => 'checker']);
+        Filament::setCurrentPanel(Filament::getPanel('admin'));
+    }
+
+    public function test_general_form_requires_and_stores_transaction_description(): void
+    {
+        $division = Division::create(['code' => 'HR', 'name' => 'Human Resources', 'is_active' => true]);
+        $maker = User::factory()->create(['division_id' => $division->id])->assignRole('maker');
+        $supplier = Supplier::create(['code' => 'GEN-DESC', 'name' => 'General Supplier', 'is_active' => true]);
+        $this->actingAs($maker);
+
+        $formData = [
+            'supplier_id' => $supplier->id,
+            'invoices' => [[
+                'invoice_number' => 'NOTA-GEN-001',
+                'invoice_date' => '2026-09-29',
+                'items' => [[
+                    'item_name' => 'Biaya operasional',
+                    'quantity' => 2,
+                    'unit_price_amount' => 50000,
+                ]],
+            ]],
+        ];
+
+        Livewire::test(CreateGeneralPaymentSlip::class)
+            ->fillForm($formData)
+            ->call('create')
+            ->assertHasFormErrors(['transaction_description' => 'required']);
+
+        Livewire::test(CreateGeneralPaymentSlip::class)
+            ->fillForm([...$formData, 'transaction_description' => 'Biaya operasional kantor'])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('payment_slips', [
+            'transaction_type' => PaymentSlip::TYPE_GENERAL,
+            'transaction_description' => 'Biaya operasional kantor',
+        ]);
+    }
+
+    public function test_general_pdf_uses_description_and_separate_quantity_column(): void
+    {
+        $checker = User::factory()->create()->assignRole('checker');
+        $slip = ErpPaymentSlip::create($checker);
+        $slip->update([
+            'transaction_type' => PaymentSlip::TYPE_GENERAL,
+            'transaction_description' => 'Biaya operasional kantor',
+            'buyer_id' => null,
+        ]);
+        $invoice = $slip->invoices()->firstOrFail();
+        $invoice->items()->delete();
+        $invoice->items()->create([
+            'item_name' => 'Kertas A4',
+            'quantity' => 3,
+            'unit_price_amount' => 53210,
+        ]);
+        $slip->load(['supplier', 'buyer', 'invoices.buyer', 'invoices.items', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
+
+        $html = view('pdf.payment-slip', ['slip' => $slip])->render();
+
+        $this->assertStringContainsString('CHARGE BIAYA OPERASIONAL KANTOR', $html);
+        $this->assertStringContainsString('>Quantity</th>', $html);
+        $this->assertMatchesRegularExpression('/<td style="text-align: center;">3<\/td>/', $html);
+        $this->assertStringNotContainsString('Qty: 3', $html);
+    }
+
+    public function test_legacy_general_pdf_keeps_charge_lain_lain_fallback(): void
+    {
+        $checker = User::factory()->create()->assignRole('checker');
+        $slip = ErpPaymentSlip::create($checker);
+        $slip->update(['transaction_type' => PaymentSlip::TYPE_GENERAL, 'buyer_id' => null]);
+        $slip->load(['supplier', 'buyer', 'invoices.buyer', 'invoices.items', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
+
+        $html = view('pdf.payment-slip', ['slip' => $slip])->render();
+
+        $this->assertStringContainsString('CHARGE LAIN-LAIN', $html);
+    }
+}

@@ -42,6 +42,7 @@ class PaymentSlip extends Model
         'slip_number',
         'invoice_receipt_number',
         'transaction_type',
+        'transaction_description',
         'currency',
         'tax_calculation_mode',
         'supplier_id',

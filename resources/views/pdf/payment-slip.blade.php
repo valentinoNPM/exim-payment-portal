@@ -224,6 +224,10 @@
                 ->filter()
                 ->unique()
                 ->implode(', ');
+            $isGeneral = $slip->transaction_type === \App\Models\PaymentSlip::TYPE_GENERAL;
+            $transactionDescription = $isGeneral && filled($slip->transaction_description)
+                ? $slip->transaction_description
+                : (\App\Models\PaymentSlip::TRANSACTION_TYPE_LABELS[$slip->transaction_type] ?? $slip->transaction_type);
         @endphp
         <table style="width: 100%; border: none; margin-bottom: 8px;">
             <tr>
@@ -279,7 +283,7 @@
                         <tr>
                             <td class="data-label">Transaction</td>
                             <td class="data-separator">:</td>
-                            <td class="data-value">CHARGE {{ strtoupper(\App\Models\PaymentSlip::TRANSACTION_TYPE_LABELS[$slip->transaction_type] ?? $slip->transaction_type) }}</td>
+                            <td class="data-value">CHARGE {{ strtoupper($transactionDescription) }}</td>
                         </tr>
                     </table>
                 </td>
@@ -299,11 +303,14 @@
         <table class="detail-table">
             <thead>
                 <tr>
-                    <th style="width: 37%;">Detail</th>
-                    <th style="width: 15%;">Amount</th>
-                    <th style="width: 15%;">PPN</th>
-                    <th style="width: 15%;">PPH</th>
-                    <th style="width: 18%;">Amount Dibayar</th>
+                    <th style="width: {{ $isGeneral ? '30%' : '37%' }};">Detail</th>
+                    @if($isGeneral)
+                        <th style="width: 8%;">Quantity</th>
+                    @endif
+                    <th style="width: {{ $isGeneral ? '14%' : '15%' }};">Amount</th>
+                    <th style="width: {{ $isGeneral ? '14%' : '15%' }};">PPN</th>
+                    <th style="width: {{ $isGeneral ? '14%' : '15%' }};">PPH</th>
+                    <th style="width: {{ $isGeneral ? '20%' : '18%' }};">Amount Dibayar</th>
                 </tr>
             </thead>
             <tbody>
@@ -314,7 +321,6 @@
                     $totalGrand = 0;
                     $detailRowCount = 0;
                     $currency = $slip->currency ?? 'IDR';
-                    $isGeneral = $slip->transaction_type === \App\Models\PaymentSlip::TYPE_GENERAL;
                 @endphp
                 @foreach($slip->invoices as $idx => $invoice)
                 @php
@@ -356,8 +362,9 @@
                     <tr>
                         <td>
                             {{ $detailRowCount }}. {{ $item->item_name }}<br>
-                            <span class="item-meta">Qty: {{ $quantity }} | Ref: {{ $invoice->invoice_number }}</span>
+                            <span class="item-meta">Ref: {{ $invoice->invoice_number }}</span>
                         </td>
+                        <td style="text-align: center;">{{ $quantity }}</td>
                         <td class="amount-cell">{{ \App\Support\CurrencyFormatter::format($unitPrice, $currency) }}</td>
                         <td class="amount-cell">{{ $itemPpn > 0 ? \App\Support\CurrencyFormatter::format($itemPpn, $currency) : '-' }}</td>
                         <td class="amount-cell">{{ $itemPph > 0 ? \App\Support\CurrencyFormatter::format($itemPph, $currency) : '-' }}</td>
@@ -393,6 +400,9 @@
                 @for($i = $detailRowCount; $i < 3; $i++)
                 <tr>
                     <td>&nbsp;</td>
+                    @if($isGeneral)
+                        <td>&nbsp;</td>
+                    @endif
                     <td>&nbsp;</td>
                     <td>&nbsp;</td>
                     <td>&nbsp;</td>
@@ -404,11 +414,11 @@
             <!-- Summary Rows -->
             <tfoot>
                 <tr>
-                    <td class="summary-label" colspan="4">SUB TOTAL</td>
+                    <td class="summary-label" colspan="{{ $isGeneral ? 5 : 4 }}">SUB TOTAL</td>
                     <td class="summary-value">{{ $isGeneral ? \App\Support\CurrencyFormatter::format($totalSubtotal, $currency) : 'Rp ' . number_format($totalSubtotal, 0, ',', '.') }}</td>
                 </tr>
                 <tr>
-                    <td class="summary-label" colspan="4">
+                    <td class="summary-label" colspan="{{ $isGeneral ? 5 : 4 }}">
                         PPN
                         @php
                             $ppnLabel = $slip->invoices->first()?->ppnTax?->name;
@@ -420,7 +430,7 @@
                     <td class="summary-value">{{ $isGeneral ? \App\Support\CurrencyFormatter::format($totalPpn, $currency) : 'Rp ' . number_format($totalPpn, 0, ',', '.') }}</td>
                 </tr>
                 <tr>
-                    <td class="summary-label" colspan="4">
+                    <td class="summary-label" colspan="{{ $isGeneral ? 5 : 4 }}">
                         PPH
                         @php
                             $pphLabel = $slip->invoices->first()?->pphTax?->name;
@@ -432,7 +442,7 @@
                     <td class="summary-value">{{ $isGeneral ? \App\Support\CurrencyFormatter::format($totalPph, $currency) : 'Rp ' . number_format($totalPph, 0, ',', '.') }}</td>
                 </tr>
                 <tr>
-                    <td class="summary-label grand-total" colspan="4">GRAND TOTAL</td>
+                    <td class="summary-label grand-total" colspan="{{ $isGeneral ? 5 : 4 }}">GRAND TOTAL</td>
                     <td class="summary-value grand-total">{{ $isGeneral ? \App\Support\CurrencyFormatter::format($totalGrand, $currency) : 'Rp ' . number_format($totalGrand, 0, ',', '.') }}</td>
                 </tr>
             </tfoot>

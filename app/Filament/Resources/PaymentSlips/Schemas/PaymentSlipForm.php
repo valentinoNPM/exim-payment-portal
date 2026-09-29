@@ -92,6 +92,14 @@ class PaymentSlipForm
                         ->disabled(fn (?object $record): bool => $record !== null
                             && $record->status !== 'draft'
                             && ! ($record->status === 'submitted' && auth()->user()?->hasRole('checker'))),
+                    TextInput::make('transaction_description')
+                        ->label('Keterangan Transaksi')
+                        ->placeholder('Contoh: biaya operasional kantor')
+                        ->helperText('Tampil pada PDF sebagai “CHARGE [KETERANGAN]”.')
+                        ->maxLength(255)
+                        ->required(fn (Get $get): bool => $get('transaction_type') === PaymentSlip::TYPE_GENERAL)
+                        ->visible(fn (Get $get): bool => $get('transaction_type') === PaymentSlip::TYPE_GENERAL)
+                        ->disabled(fn (?object $record): bool => $record !== null && $record->status !== 'draft'),
                     Select::make('supplier_id')
                         ->relationship('supplier', 'name')
                         ->searchable()
