@@ -4,6 +4,9 @@
     <meta charset="utf-8">
     <title>Payment/Income Slip - {{ $slip->slip_number }}</title>
     <style>
+        @page {
+            margin: 14px 28px 18px;
+        }
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             font-size: 11px;
@@ -13,7 +16,7 @@
         }
         .container {
             width: 100%;
-            padding: 10px;
+            padding: 0;
         }
         table {
             width: 100%;
@@ -30,28 +33,28 @@
         /* Header */
         .header-table td {
             border: none;
-            padding: 5px 8px;
+            padding: 0 4px 2px;
         }
         .logo-box {
             width: 100%;
             vertical-align: top;
         }
         .company-name {
-            font-size: 28px;
+            font-size: 24px;
             font-weight: bold;
             color: #333;
         }
         .company-address {
-            font-size: 11px;
+            font-size: 10px;
             color: #555;
-            line-height: 1.35;
+            line-height: 1.2;
         }
         .document-title {
             font-size: 22px;
             font-weight: bold;
             color: #003f97;
             text-align: center;
-            margin: 10px 0;
+            margin: 4px 0 6px;
             letter-spacing: 0.5px;
         }
 
@@ -192,7 +195,7 @@
             <tr>
                 <td class="logo-box">
                     @if(file_exists(public_path('images/logo.png')))
-                        <img src="{{ public_path('images/logo.png') }}" style="height: 70px; width: auto; margin-bottom: 5px;" /><br/>
+                        <img src="{{ public_path('images/logo.png') }}" style="height: 54px; width: auto; margin-bottom: 1px;" /><br/>
                     @else
                         @if(file_exists(public_path('images/logo.svg')))
                             <img src="{{ public_path('images/logo.svg') }}" style="height: 14px; width: auto; margin-bottom: 3px;" /><br/>
@@ -208,7 +211,7 @@
             </tr>
         </table>
 
-        <hr style="border: none; border-top: 1.5px solid #003f97; margin: 5px 0 10px 0;" />
+        <hr style="border: none; border-top: 1.5px solid #003f97; margin: 2px 0 5px;" />
 
         <!-- Title: Payment/Income Slip -->
         <div class="document-title">
