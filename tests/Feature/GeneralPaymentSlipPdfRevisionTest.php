@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Filament\Resources\PaymentSlips\Pages\CreateGeneralPaymentSlip;
+use App\Filament\Resources\PaymentSlips\Pages\EditPaymentSlip;
+use App\Filament\Resources\PaymentSlips\Pages\ViewPaymentSlip;
+use App\Models\Customer;
 use App\Models\Division;
 use App\Models\PaymentSlip;
 use App\Models\Supplier;
@@ -32,6 +35,7 @@ class GeneralPaymentSlipPdfRevisionTest extends TestCase
         $division = Division::create(['code' => 'HR', 'name' => 'Human Resources', 'is_active' => true]);
         $maker = User::factory()->create(['division_id' => $division->id])->assignRole('maker');
         $supplier = Supplier::create(['code' => 'GEN-DESC', 'name' => 'General Supplier', 'is_active' => true]);
+        $customer = Customer::create(['code' => 'CUST-GEN', 'name' => 'General Customer', 'is_active' => true]);
         $this->actingAs($maker);
 
         $formData = [
@@ -53,23 +57,43 @@ class GeneralPaymentSlipPdfRevisionTest extends TestCase
             ->assertHasFormErrors(['transaction_description' => 'required']);
 
         Livewire::test(CreateGeneralPaymentSlip::class)
-            ->fillForm([...$formData, 'transaction_description' => 'Biaya operasional kantor'])
+            ->fillForm([
+                ...$formData,
+                'transaction_description' => 'Biaya operasional kantor',
+                'customer_id' => $customer->id,
+            ])
             ->call('create')
             ->assertHasNoFormErrors();
 
         $this->assertDatabaseHas('payment_slips', [
             'transaction_type' => PaymentSlip::TYPE_GENERAL,
             'transaction_description' => 'Biaya operasional kantor',
+            'customer_id' => $customer->id,
         ]);
+
+        $slip = PaymentSlip::query()->where('customer_id', $customer->id)->firstOrFail();
+
+        Livewire::test(ViewPaymentSlip::class, ['record' => $slip->getRouteKey()])
+            ->assertFormSet(['customer_id' => $customer->id]);
+
+        Livewire::test(EditPaymentSlip::class, ['record' => $slip->getRouteKey()])
+            ->assertFormSet(['customer_id' => $customer->id])
+            ->fillForm(['customer_id' => null])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertNull($slip->fresh()->customer_id);
     }
 
     public function test_general_pdf_uses_description_and_separate_quantity_column(): void
     {
         $checker = User::factory()->create()->assignRole('checker');
+        $customer = Customer::create(['code' => 'PDF-CUST', 'name' => 'PT Customer PDF', 'is_active' => true]);
         $slip = ErpPaymentSlip::create($checker);
         $slip->update([
             'transaction_type' => PaymentSlip::TYPE_GENERAL,
             'transaction_description' => 'Biaya operasional kantor',
+            'customer_id' => $customer->id,
             'buyer_id' => null,
         ]);
         $invoice = $slip->invoices()->firstOrFail();
@@ -79,12 +103,13 @@ class GeneralPaymentSlipPdfRevisionTest extends TestCase
             'quantity' => 3,
             'unit_price_amount' => 53210,
         ]);
-        $slip->load(['supplier', 'buyer', 'invoices.buyer', 'invoices.items', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
+        $slip->load(['supplier', 'customer', 'buyer', 'invoices.buyer', 'invoices.items', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
 
         $html = view('pdf.payment-slip', ['slip' => $slip])->render();
 
         $this->assertStringContainsString('PAYMENT/INCOME SLIP', $html);
         $this->assertStringContainsString('CHARGE BIAYA OPERASIONAL KANTOR', $html);
+        $this->assertStringContainsString('PT Customer PDF', $html);
         $this->assertStringContainsString('>Quantity</th>', $html);
         $this->assertMatchesRegularExpression('/<td style="text-align: center;">3<\/td>/', $html);
         $this->assertStringNotContainsString('Qty: 3', $html);
@@ -95,10 +120,11 @@ class GeneralPaymentSlipPdfRevisionTest extends TestCase
         $checker = User::factory()->create()->assignRole('checker');
         $slip = ErpPaymentSlip::create($checker);
         $slip->update(['transaction_type' => PaymentSlip::TYPE_GENERAL, 'buyer_id' => null]);
-        $slip->load(['supplier', 'buyer', 'invoices.buyer', 'invoices.items', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
+        $slip->load(['supplier', 'customer', 'buyer', 'invoices.buyer', 'invoices.items', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
 
         $html = view('pdf.payment-slip', ['slip' => $slip])->render();
 
         $this->assertStringContainsString('CHARGE LAIN-LAIN', $html);
+        $this->assertStringNotContainsString('<td class="data-label">Customer</td>', $html);
     }
 }

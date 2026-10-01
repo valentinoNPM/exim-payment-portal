@@ -46,6 +46,7 @@ class PaymentSlip extends Model
         'currency',
         'tax_calculation_mode',
         'supplier_id',
+        'customer_id',
         'buyer_id',
         'status',
         'subtotal_amount',
@@ -108,6 +109,11 @@ class PaymentSlip extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     public function buyer(): BelongsTo

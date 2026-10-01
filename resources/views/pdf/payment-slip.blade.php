@@ -268,6 +268,13 @@
                             <td class="data-separator">:</td>
                             <td class="data-value">{{ $slip->supplier?->name ?? '-' }}</td>
                         </tr>
+                        @if($isGeneral && $slip->customer)
+                        <tr>
+                            <td class="data-label">Customer</td>
+                            <td class="data-separator">:</td>
+                            <td class="data-value">{{ $slip->customer->name }}</td>
+                        </tr>
+                        @endif
                         <tr>
                             <td class="data-label">Buyer</td>
                             <td class="data-separator">:</td>

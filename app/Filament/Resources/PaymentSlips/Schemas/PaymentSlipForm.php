@@ -121,6 +121,28 @@ class PaymentSlipForm
                                 ->columnSpanFull()
                                 ->placeholder('Alamat Lengkap'),
                         ]),
+                    Select::make('customer_id')
+                        ->label('Customer')
+                        ->relationship('customer', 'name')
+                        ->searchable()
+                        ->placeholder('Pilih Customer (opsional)')
+                        ->visible(fn (Get $get): bool => $get('transaction_type') === PaymentSlip::TYPE_GENERAL)
+                        ->disabled(fn (?object $record): bool => $record !== null && $record->status !== 'draft')
+                        ->createOptionForm([
+                            TextInput::make('code')
+                                ->label('Customer Code')
+                                ->required()
+                                ->unique('customers', 'code')
+                                ->placeholder('Contoh: CUST-001'),
+                            TextInput::make('name')
+                                ->label('Customer Name')
+                                ->required()
+                                ->placeholder('Nama Customer'),
+                            Textarea::make('address')
+                                ->label('Address')
+                                ->columnSpanFull()
+                                ->placeholder('Alamat Lengkap'),
+                        ]),
                     Select::make('buyer_id')
                         ->relationship('buyer', 'name')
                         ->searchable()
