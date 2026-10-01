@@ -83,6 +83,7 @@ class GeneralPaymentSlipPdfRevisionTest extends TestCase
 
         $html = view('pdf.payment-slip', ['slip' => $slip])->render();
 
+        $this->assertStringContainsString('PAYMENT/INCOME SLIP', $html);
         $this->assertStringContainsString('CHARGE BIAYA OPERASIONAL KANTOR', $html);
         $this->assertStringContainsString('>Quantity</th>', $html);
         $this->assertMatchesRegularExpression('/<td style="text-align: center;">3<\/td>/', $html);

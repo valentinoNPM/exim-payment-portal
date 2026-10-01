@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Payment Slip - {{ $slip->slip_number }}</title>
+    <title>Payment/Income Slip - {{ $slip->slip_number }}</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -210,9 +210,9 @@
 
         <hr style="border: none; border-top: 1.5px solid #003f97; margin: 5px 0 10px 0;" />
 
-        <!-- Title: Payment Slip -->
+        <!-- Title: Payment/Income Slip -->
         <div class="document-title">
-            PAYMENT SLIP
+            PAYMENT/INCOME SLIP
         </div>
 
         <!-- Data Section -->
