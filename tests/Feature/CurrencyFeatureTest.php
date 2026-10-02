@@ -11,6 +11,7 @@ use App\Models\Division;
 use App\Models\PaymentSlip;
 use App\Models\Supplier;
 use App\Models\Tax;
+use App\Models\Unit;
 use App\Models\User;
 use App\Services\Erp\ErpJournalBuilder;
 use App\Support\CurrencyFormatter;
@@ -29,6 +30,8 @@ class CurrencyFeatureTest extends TestCase
 
     private User $checker;
 
+    private Unit $unit;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -39,6 +42,7 @@ class CurrencyFeatureTest extends TestCase
         $this->actingAs($this->checker);
         Filament::setCurrentPanel(Filament::getPanel('admin'));
         Storage::fake('local');
+        $this->unit = Unit::create(['code' => 'PCS', 'name' => 'Pieces', 'is_active' => true]);
     }
 
     public function test_general_payment_slip_defaults_to_idr(): void
@@ -57,6 +61,7 @@ class CurrencyFeatureTest extends TestCase
                     'items' => [[
                         'item_name' => 'Test Item',
                         'quantity' => 1,
+                        'unit_id' => $this->unit->id,
                         'unit_price_amount' => 100000,
                     ]],
                 ]],
@@ -85,6 +90,7 @@ class CurrencyFeatureTest extends TestCase
                     'items' => [[
                         'item_name' => 'USD Item',
                         'quantity' => 2,
+                        'unit_id' => $this->unit->id,
                         'unit_price_amount' => 1500.25,
                     ]],
                 ]],
@@ -115,6 +121,7 @@ class CurrencyFeatureTest extends TestCase
                     'items' => [[
                         'item_name' => 'Taxed Item',
                         'quantity' => 1,
+                        'unit_id' => $this->unit->id,
                         'unit_price_amount' => 1000,
                         'ppn_tax_id' => $ppn->id,
                         'pph_tax_id' => $pph->id,
@@ -167,6 +174,7 @@ class CurrencyFeatureTest extends TestCase
                     'items' => [[
                         'item_name' => 'Edit Item',
                         'quantity' => 1,
+                        'unit_id' => $this->unit->id,
                         'unit_price_amount' => 500,
                     ]],
                 ]],

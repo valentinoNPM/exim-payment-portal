@@ -537,6 +537,26 @@ class PaymentSlipForm
                                             ->live(onBlur: true)
                                             ->afterStateUpdated(fn (Get $get, Set $set) => self::recalculateInvoiceFromItem($get, $set))
                                             ->disabled(fn (?InvoiceItem $record) => $record && $record->invoice?->paymentSlip?->status !== 'draft'),
+                                        Select::make('unit_id')
+                                            ->label('Satuan')
+                                            ->relationship('unit', 'name')
+                                            ->searchable()
+                                            ->preload()
+                                            ->placeholder('Pilih Satuan')
+                                            ->required(fn (Get $get, ?InvoiceItem $record): bool => $get('../../../../transaction_type') === PaymentSlip::TYPE_GENERAL && $record === null)
+                                            ->visible(fn (Get $get): bool => $get('../../../../transaction_type') === PaymentSlip::TYPE_GENERAL)
+                                            ->disabled(fn (?InvoiceItem $record): bool => $record && $record->invoice?->paymentSlip?->status !== 'draft')
+                                            ->createOptionForm([
+                                                TextInput::make('code')
+                                                    ->label('Kode Satuan')
+                                                    ->placeholder('Contoh: PCS')
+                                                    ->required()
+                                                    ->unique('units', 'code'),
+                                                TextInput::make('name')
+                                                    ->label('Nama Satuan')
+                                                    ->placeholder('Contoh: Pieces')
+                                                    ->required(),
+                                            ]),
                                         TextInput::make('unit_price_amount')
                                             ->numeric()
                                             ->prefix(fn (Get $get): string => CurrencyFormatter::prefix($get('../../../../currency') ?? 'IDR'))

@@ -21,6 +21,7 @@ use App\Models\PaymentSlip;
 use App\Models\PaymentSlipAudit;
 use App\Models\Supplier;
 use App\Models\Tax;
+use App\Models\Unit;
 use App\Models\User;
 use App\Services\Erp\AccountResolver;
 use App\Services\Erp\ErpJournalBuilder;
@@ -860,6 +861,7 @@ class ErpExportTest extends TestCase
         $maker = $this->makerForDivision('HR');
         $this->actingAs($maker);
         $supplier = Supplier::create(['code' => 'ATK-STORE', 'name' => 'Toko ATK', 'is_active' => true]);
+        $unit = Unit::create(['code' => 'RIM', 'name' => 'Rim', 'is_active' => true]);
 
         Livewire::test(CreateGeneralPaymentSlip::class)
             ->fillForm([
@@ -871,6 +873,7 @@ class ErpExportTest extends TestCase
                     'items' => [[
                         'item_name' => 'Kertas A4',
                         'quantity' => 2,
+                        'unit_id' => $unit->id,
                         'unit_price_amount' => 50000,
                     ]],
                 ]],
@@ -885,6 +888,7 @@ class ErpExportTest extends TestCase
         $this->assertSame('100000.00', $invoice->subtotal_amount);
         $this->assertSame('100000.00', $invoice->grand_total_amount);
         $this->assertSame('Kertas A4', $invoice->items->first()->item_name);
+        $this->assertSame($unit->id, $invoice->items->first()->unit_id);
     }
 
     private function formMoney(mixed $value): float

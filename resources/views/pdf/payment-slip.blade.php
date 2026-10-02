@@ -313,14 +313,15 @@
         <table class="detail-table">
             <thead>
                 <tr>
-                    <th style="width: {{ $isGeneral ? '30%' : '37%' }};">Detail</th>
+                    <th style="width: {{ $isGeneral ? '27%' : '37%' }};">Detail</th>
                     @if($isGeneral)
-                        <th style="width: 8%;">Quantity</th>
+                        <th style="width: 7%;">Quantity</th>
+                        <th style="width: 9%;">Satuan</th>
                     @endif
-                    <th style="width: {{ $isGeneral ? '14%' : '15%' }};">Amount</th>
-                    <th style="width: {{ $isGeneral ? '14%' : '15%' }};">PPN</th>
-                    <th style="width: {{ $isGeneral ? '14%' : '15%' }};">PPH</th>
-                    <th style="width: {{ $isGeneral ? '20%' : '18%' }};">Amount Dibayar</th>
+                    <th style="width: {{ $isGeneral ? '13%' : '15%' }};">Amount</th>
+                    <th style="width: {{ $isGeneral ? '13%' : '15%' }};">PPN</th>
+                    <th style="width: {{ $isGeneral ? '13%' : '15%' }};">PPH</th>
+                    <th style="width: 18%;">Amount Dibayar</th>
                 </tr>
             </thead>
             <tbody>
@@ -375,6 +376,7 @@
                             <span class="item-meta">Ref: {{ $invoice->invoice_number }}</span>
                         </td>
                         <td style="text-align: center;">{{ $quantity }}</td>
+                        <td style="text-align: center;">{{ $item->unit?->name ?? '-' }}</td>
                         <td class="amount-cell">{{ \App\Support\CurrencyFormatter::format($unitPrice, $currency) }}</td>
                         <td class="amount-cell">{{ $itemPpn > 0 ? \App\Support\CurrencyFormatter::format($itemPpn, $currency) : '-' }}</td>
                         <td class="amount-cell">{{ $itemPph > 0 ? \App\Support\CurrencyFormatter::format($itemPph, $currency) : '-' }}</td>
@@ -412,6 +414,7 @@
                     <td>&nbsp;</td>
                     @if($isGeneral)
                         <td>&nbsp;</td>
+                        <td>&nbsp;</td>
                     @endif
                     <td>&nbsp;</td>
                     <td>&nbsp;</td>
@@ -424,11 +427,11 @@
             <!-- Summary Rows -->
             <tfoot>
                 <tr>
-                    <td class="summary-label" colspan="{{ $isGeneral ? 5 : 4 }}">SUB TOTAL</td>
+                    <td class="summary-label" colspan="{{ $isGeneral ? 6 : 4 }}">SUB TOTAL</td>
                     <td class="summary-value">{{ $isGeneral ? \App\Support\CurrencyFormatter::format($totalSubtotal, $currency) : 'Rp ' . number_format($totalSubtotal, 0, ',', '.') }}</td>
                 </tr>
                 <tr>
-                    <td class="summary-label" colspan="{{ $isGeneral ? 5 : 4 }}">
+                    <td class="summary-label" colspan="{{ $isGeneral ? 6 : 4 }}">
                         PPN
                         @php
                             $ppnLabel = $slip->invoices->first()?->ppnTax?->name;
@@ -440,7 +443,7 @@
                     <td class="summary-value">{{ $isGeneral ? \App\Support\CurrencyFormatter::format($totalPpn, $currency) : 'Rp ' . number_format($totalPpn, 0, ',', '.') }}</td>
                 </tr>
                 <tr>
-                    <td class="summary-label" colspan="{{ $isGeneral ? 5 : 4 }}">
+                    <td class="summary-label" colspan="{{ $isGeneral ? 6 : 4 }}">
                         PPH
                         @php
                             $pphLabel = $slip->invoices->first()?->pphTax?->name;
@@ -452,7 +455,7 @@
                     <td class="summary-value">{{ $isGeneral ? \App\Support\CurrencyFormatter::format($totalPph, $currency) : 'Rp ' . number_format($totalPph, 0, ',', '.') }}</td>
                 </tr>
                 <tr>
-                    <td class="summary-label grand-total" colspan="{{ $isGeneral ? 5 : 4 }}">GRAND TOTAL</td>
+                    <td class="summary-label grand-total" colspan="{{ $isGeneral ? 6 : 4 }}">GRAND TOTAL</td>
                     <td class="summary-value grand-total">{{ $isGeneral ? \App\Support\CurrencyFormatter::format($totalGrand, $currency) : 'Rp ' . number_format($totalGrand, 0, ',', '.') }}</td>
                 </tr>
             </tfoot>

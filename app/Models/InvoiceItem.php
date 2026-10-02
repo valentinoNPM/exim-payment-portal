@@ -22,6 +22,7 @@ class InvoiceItem extends Model
         'source_supplier_name',
         'vat_invoice_number',
         'quantity',
+        'unit_id',
         'unit_price_amount',
         'subtotal_amount',
         'coa_id',
@@ -97,6 +98,11 @@ class InvoiceItem extends Model
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class);
     }
 
     public function chartOfAccount(): BelongsTo
