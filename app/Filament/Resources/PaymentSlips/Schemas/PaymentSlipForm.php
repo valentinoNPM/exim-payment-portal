@@ -287,7 +287,7 @@ class PaymentSlipForm
                     ->schema([
                         Repeater::make('invoices')
                             ->relationship('invoices')
-                            ->live()
+                            ->live(condition: fn (string $operation): bool => $operation !== 'edit')
                             ->required()
                             ->minItems(1)
                             ->addable(fn (?object $record) => ! $record || $record->status === 'draft')

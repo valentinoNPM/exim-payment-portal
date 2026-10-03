@@ -1,0 +1,93 @@
+:root {
+    color-scheme: light;
+    font-family: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif;
+    color: #172033;
+    background: #f3f6fb;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: #f3f6fb; }
+a { color: inherit; }
+button, input, select { font: inherit; }
+
+.checker-page { width: min(1600px, 100%); margin: 0 auto; padding: 24px; }
+.checker-nav, .checker-header, .checker-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.checker-nav { margin-bottom: 16px; }
+.checker-back, .checker-document-link { color: #075985; font-size: 14px; font-weight: 700; text-decoration: none; }
+.checker-back:hover, .checker-document-link:hover { text-decoration: underline; }
+.checker-header, .checker-summary, .checker-invoice, .checker-footer, .checker-alert {
+    border: 1px solid #dce4ef;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgb(15 23 42 / .06);
+}
+.checker-header { padding: 22px 24px; }
+.checker-header h1, .checker-invoice h2 { margin: 2px 0 4px; color: #0f172a; }
+.checker-header h1 { font-size: 28px; }
+.checker-header p, .checker-invoice__header p, .checker-footer p { margin: 0; color: #64748b; font-size: 14px; }
+.checker-eyebrow { color: #b45309 !important; font-size: 11px !important; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.checker-status { padding: 7px 12px; border-radius: 999px; background: #e0f2fe; color: #075985; font-size: 12px; font-weight: 800; }
+.checker-alert { margin-top: 16px; padding: 14px 16px; font-size: 14px; }
+.checker-alert ul { margin: 8px 0 0; padding-left: 20px; }
+.checker-alert--success { border-color: #a7f3d0; background: #ecfdf5; color: #065f46; }
+.checker-alert--error { border-color: #fecdd3; background: #fff1f2; color: #9f1239; }
+.checker-summary { margin-top: 16px; padding: 18px 20px; }
+.checker-summary dl { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 18px; margin: 0; }
+.checker-summary dt { margin-bottom: 4px; color: #64748b; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.checker-summary dd { margin: 0; color: #0f172a; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.checker-money { font-variant-numeric: tabular-nums; }
+.checker-invoices { display: grid; gap: 18px; margin-top: 18px; }
+.checker-invoice { overflow: hidden; }
+.checker-invoice__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid #e2e8f0; }
+.checker-invoice h2 { font-size: 18px; }
+.checker-invoice__totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: #e2e8f0; border-bottom: 1px solid #e2e8f0; }
+.checker-invoice__totals div { display: flex; justify-content: space-between; gap: 12px; padding: 11px 16px; background: #f8fafc; font-size: 12px; }
+.checker-invoice__totals span { color: #64748b; }
+.checker-invoice__totals strong { color: #0f172a; font-variant-numeric: tabular-nums; }
+.checker-field { display: grid; gap: 6px; }
+.checker-field--invoice { width: min(460px, 100%); padding: 16px 20px; }
+.checker-field label { color: #334155; font-size: 12px; font-weight: 800; }
+input, select { width: 100%; min-height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a; padding: 8px 10px; font-size: 13px; }
+input:focus, select:focus { outline: 2px solid #f59e0b; outline-offset: 1px; border-color: #d97706; }
+.checker-table-wrap { overflow-x: auto; border-top: 1px solid #e2e8f0; }
+.checker-table { width: 100%; min-width: 1280px; border-collapse: collapse; font-size: 12px; }
+.checker-table th { padding: 10px 9px; background: #f8fafc; color: #475569; font-size: 10px; letter-spacing: .05em; text-align: left; text-transform: uppercase; white-space: nowrap; }
+.checker-table td { padding: 9px; border-top: 1px solid #eef2f7; vertical-align: top; }
+.checker-table tbody tr:hover { background: #fffbeb; }
+.checker-table td strong { display: block; max-width: 280px; }
+.checker-table td small { display: block; margin-top: 3px; color: #64748b; }
+.checker-table input { min-width: 190px; }
+.checker-table select { min-width: 240px; }
+.checker-number { text-align: right !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.checker-footer { position: sticky; bottom: 0; margin-top: 18px; padding: 14px 18px; border-color: #cbd5e1; }
+.checker-button { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 9px; padding: 9px 14px; font-size: 13px; font-weight: 800; text-decoration: none; cursor: pointer; }
+.checker-button--primary { background: #d97706; color: #fff; }
+.checker-button--primary:hover { background: #b45309; }
+.checker-button--secondary { border-color: #cbd5e1; background: #fff; color: #334155; }
+.checker-button--secondary:hover { background: #f8fafc; }
+.checker-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+@media (max-width: 1100px) {
+    .checker-summary dl { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .checker-invoice__totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+    .checker-page { padding: 12px; }
+    .checker-nav, .checker-header, .checker-footer, .checker-invoice__header { align-items: stretch; flex-direction: column; }
+    .checker-summary dl, .checker-invoice__totals { grid-template-columns: 1fr; }
+    .checker-button { width: 100%; }
+}
+
+@media (prefers-color-scheme: dark) {
+    :root { color-scheme: dark; color: #e2e8f0; background: #0f172a; }
+    body { background: #0f172a; }
+    .checker-header, .checker-summary, .checker-invoice, .checker-footer, .checker-alert { border-color: #334155; background: #111827; }
+    .checker-header h1, .checker-invoice h2, .checker-summary dd, .checker-invoice__totals strong { color: #f8fafc; }
+    .checker-invoice__header, .checker-table td { border-color: #334155; }
+    .checker-invoice__totals { background: #334155; border-color: #334155; }
+    .checker-invoice__totals div, .checker-table th { background: #1e293b; }
+    input, select { border-color: #475569; background: #0f172a; color: #f8fafc; }
+    .checker-table tbody tr:hover { background: #292524; }
+    .checker-button--secondary { border-color: #475569; background: #1e293b; color: #e2e8f0; }
+}

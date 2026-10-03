@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\PaymentSlips\Tables;
 
-use App\Actions\GeneratePaymentSlipPdf;
 use App\Actions\VerifyPaymentSlip;
 use App\Filament\Resources\PaymentSlips\PaymentSlipResource;
 use App\Models\PaymentSlip;
@@ -94,6 +93,12 @@ class PaymentSlipsTable
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
+                Action::make('checker_edit')
+                    ->label('Check')
+                    ->icon('heroicon-o-clipboard-document-check')
+                    ->color('warning')
+                    ->visible(fn (PaymentSlip $record): bool => $record->status === 'submitted' && auth()->user()->hasRole('checker'))
+                    ->url(fn (PaymentSlip $record): string => route('payment-slips.checker-edit', $record)),
                 Action::make('submit_slip')
                     ->label('Submit')
                     ->icon('heroicon-o-paper-airplane')
@@ -122,14 +127,12 @@ class PaymentSlipsTable
                             ->success()
                             ->send();
                     }),
-                Action::make('download_pdf')
-                    ->label('PDF')
-                    ->icon('heroicon-o-document-arrow-down')
+                Action::make('preview_pdf')
+                    ->label('Preview PDF')
+                    ->icon('heroicon-o-eye')
                     ->color('info')
-                    ->action(fn (PaymentSlip $record) => response()->streamDownload(
-                        fn () => print (app(GeneratePaymentSlipPdf::class)->execute($record)->output()),
-                        "payment-slip-{$record->slip_number}.pdf"
-                    )),
+                    ->url(fn (PaymentSlip $record): string => route('payment-slips.pdf.preview', $record))
+                    ->openUrlInNewTab(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

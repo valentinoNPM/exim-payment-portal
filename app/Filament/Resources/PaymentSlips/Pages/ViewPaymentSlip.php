@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\PaymentSlips\Pages;
 
-use App\Actions\GeneratePaymentSlipPdf;
 use App\Actions\VerifyPaymentSlip;
 use App\Filament\Resources\PaymentSlips\PaymentSlipResource;
 use App\Models\DocumentFile;
@@ -70,13 +69,11 @@ class ViewPaymentSlip extends ViewRecord
                         ->success()
                         ->send();
                 }),
-            Action::make('download_pdf')
-                ->label('Download PDF')
-                ->icon('heroicon-o-document-arrow-down')
-                ->action(fn () => response()->streamDownload(
-                    fn () => print (app(GeneratePaymentSlipPdf::class)->execute($this->getRecord())->output()),
-                    "payment-slip-{$this->getRecord()->slip_number}.pdf"
-                )),
+            Action::make('preview_pdf')
+                ->label('Preview PDF')
+                ->icon('heroicon-o-eye')
+                ->url(fn (): string => route('payment-slips.pdf.preview', $this->getRecord()))
+                ->openUrlInNewTab(),
             EditAction::make(),
             DeleteAction::make()
                 ->visible(fn (): bool => PaymentSlipResource::canDelete($this->getRecord())),

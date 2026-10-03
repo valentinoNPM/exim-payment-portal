@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\PaymentSlips\Pages;
 
-use App\Actions\GeneratePaymentSlipPdf;
 use App\Actions\VerifyPaymentSlip;
 use App\Filament\Resources\PaymentSlips\PaymentSlipResource;
 use App\Filament\Resources\PaymentSlips\Schemas\PaymentSlipForm;
@@ -26,6 +25,10 @@ class EditPaymentSlip extends EditRecord
 
     public function updated(string $property): void
     {
+        if (! preg_match('/^data\.invoices\.[^.]+\.items\.[^.]+(?:\.(?:quantity|unit_price_amount|ppn_tax_id|pph_tax_id))?$/', $property)) {
+            return;
+        }
+
         PaymentSlipForm::recalculateLiveItemizedInvoice($this->data, $property);
 
         // Force Livewire to detect the nested data mutation by re-assigning
@@ -34,17 +37,6 @@ class EditPaymentSlip extends EditRecord
         if (isset($this->data['invoices'])) {
             $this->data['invoices'] = $this->data['invoices'];
         }
-    }
-
-    protected function mutateFormDataBeforeFill(array $data): array
-    {
-        $slip = $this->getRecord();
-        $firstInvoice = $slip->invoices()->first();
-        if ($firstInvoice && $firstInvoice->documentFile) {
-            $this->activePdfUrl = route('document-files.view', $firstInvoice->documentFile);
-        }
-
-        return $data;
     }
 
     public function setActivePdf(int $documentFileId): void
@@ -88,13 +80,11 @@ class EditPaymentSlip extends EditRecord
                         ->success()
                         ->send();
                 }),
-            Action::make('download_pdf')
-                ->label('Download PDF')
-                ->icon('heroicon-o-document-arrow-down')
-                ->action(fn () => response()->streamDownload(
-                    fn () => print (app(GeneratePaymentSlipPdf::class)->execute($this->getRecord())->output()),
-                    "payment-slip-{$this->getRecord()->slip_number}.pdf"
-                )),
+            Action::make('preview_pdf')
+                ->label('Preview PDF')
+                ->icon('heroicon-o-eye')
+                ->url(fn (): string => route('payment-slips.pdf.preview', $this->getRecord()))
+                ->openUrlInNewTab(),
             ViewAction::make(),
             DeleteAction::make()
                 ->visible(fn (PaymentSlip $record): bool => PaymentSlipResource::canDelete($record)),
