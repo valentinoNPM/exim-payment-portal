@@ -22,7 +22,9 @@ Dokumen pendamping: `docs/ecount-po-reference.md` (hasil penelusuran modul PO EC
 5. Cakupan pengguna awal adalah **divisi GA**. GA membuat PO dan, untuk fase awal, GA juga membuat
    payment slip yang terkait. Perluasan ke divisi lain dibahas kemudian.
 6. Mata uang PO fase awal mendukung **IDR dan USD**, mengikuti kemampuan Payment Slip General.
-7. Dokumen ini adalah keputusan utama. Jika `docs/ecount-po-reference.md` masih menyebut approval atau
+7. Segmen **`HIJ`** pada nomor PO adalah kode perusahaan **Hansoll Indo Java**. Contoh yang terlihat:
+   `PO/HIJ/24092026-000006`. Kode disimpan sebagai konfigurasi perusahaan, bukan nilai tersebar di kode.
+8. Dokumen ini adalah keputusan utama. Jika `docs/ecount-po-reference.md` masih menyebut approval atau
    master barang sebagai kebutuhan baru, keputusan di sini yang berlaku: **approval PO tidak dibangun**
    dan **master barang ditunda**; item versi pertama tetap berupa teks nama + spesifikasi.
 
@@ -133,8 +135,9 @@ tetap cocok. Simpan berkas aslinya sebagai lampiran batch untuk jejak audit.
 
 ## 5. Yang belum pasti / perlu diverifikasi
 
-1. **Pola nomor PO.** Klien: `PO/HJ/24092026-00005`. **Arti `HJ` belum diketahui** — mungkin kode
-   perusahaan/cabang. Perlu ditanya; kalau harus dipertahankan, penomoran exim menyesuaikan.
+1. **Aturan urutan nomor PO.** Format yang terlihat adalah `PO/HIJ/DDMMYYYY-NNNNNN`, dan `HIJ` sudah
+   dikonfirmasi sebagai kode perusahaan Hansoll Indo Java. Yang belum diketahui: kapan urutan enam digit
+   di-reset (harian/bulanan/tahunan/tidak pernah) dan apakah nomor dapat diubah manual.
 2. **Tanggal pengiriman per baris item** — di ECOUNT ada; perlu diketahui apakah GA memakainya.
 3. **Field tambahan HANSOLL** — nama aslinya hanya ada di akun mereka.
 4. Apakah **divisi lain** akan memakai modul ini nanti (mempengaruhi desain izin per divisi).

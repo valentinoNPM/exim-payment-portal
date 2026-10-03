@@ -104,8 +104,8 @@ terbaca `Cari (F3)`).
 
 1. **Daftar nilai status** dan transisinya (mis. Baru → Proses → Selesai/Batal) beserta siapa yang
    berhak mengubah. Di demo, status hanya terlihat sebagai kolom, bukan daftar pilihannya.
-2. **Aturan penomoran PO** (mis. `PO/HJ/24092026-000005`) — di mana diatur, apa arti `HJ`,
-   dan apakah bisa diubah.
+2. **Aturan penomoran PO** (mis. `PO/HIJ/24092026-000006`) — `HIJ` sudah dikonfirmasi sebagai kode
+   perusahaan Hansoll Indo Java; yang belum diketahui adalah aturan reset urutan dan apakah bisa diubah.
 3. **Tata letak cetak/PDF PO** untuk vendor (dokumen yang dipegang vendor).
 4. **Aturan pajak** yang berlaku untuk PO (PPN/PPh) dan apakah tercermin di baris atau header.
 5. **e-Approval**: jumlah level, syarat, dan notifikasi.
@@ -140,7 +140,7 @@ ini tetap sah, tapi label, kolom, dan tata letak **harus diambil dari akun HANSO
 | Judul halaman | `Daftar Pesanan Pembelian` | `Daftar Pesanan Pembelian` (sama) |
 | Kolom daftar | NO. PO(tgl) / Vendor / **kode divisi (mis. GA)** / Barang / **Tanggal Selesai** / Total / **Status (Proses)** | Tanggal-No. / Nomor Pendaftaran / Vendor / PIC / Nama Barang [Spesifikasi] / **Tanggal Pengiriman** / Total / **Status Perkembangan** / Slip yang Dibuat / Cetak |
 | Filter | Panel inline: Tanggal Dasar (manual 01/01/2024~01/11/2026), No PO, Domestik/Asing (Semua/Domestik/Asing), Lokasi, Pelanggan/Vendor, Barang, **Status Pengiriman (Semua/Belum Dikirim/…)** + tombol periode cepat (Hari Ini, Hari Sebelumnya, Hari Terakhir, Minggu ini/sebelumnya, Bulan ini/sebelumnya) + `Cari (F8)` | Filter setara (Lokasi, Proyek, Pelanggan/Vendor, Barang, domestik/asing) lewat dialog pencarian |
-| Nomor PO | `PO/HJ/24092026-00005` — pola `PO/<kode>/DDMMYYYY-NNNNN` | data sampel (nomor berbeda) |
+| Nomor PO | `PO/HIJ/24092026-000006` — pola `PO/<kode perusahaan>/DDMMYYYY-NNNNNN`; `HIJ` = Hansoll Indo Java | data sampel (nomor berbeda) |
 | Tombol aksi | Baru (F2), Email, Ubah Status, Kirim, Cetak, Barcode (Barang), Buat Slip Lanjutan, e-Approval, Excel, Lihat Semua, Riwayat | tombol setara; baris contoh menampilkan `e-Approval`, `Lihat`, `Cetak` |
 
 Catatan penting dari perbandingan ini:
@@ -201,5 +201,4 @@ bisa dibaca dari akun mereka sendiri.
 - Saat mereka berhenti berlangganan, yang wajib diminta ekspornya bukan cuma data, tapi juga **definisi**:
   daftar field tambahan beserta namanya, template layar/daftar, template cetak, dan susunan menu — karena
   ekspor data biasa hanya membawa isinya, bukan definisinya.
-
 
