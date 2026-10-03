@@ -263,7 +263,7 @@ class CurrencyFeatureTest extends TestCase
         $this->assertStringContainsString('Rp 500.000', $html);
         $this->assertStringContainsString('Rp 1.500.000', $html);
         $this->assertStringContainsString(public_path('images/logo.png'), $html);
-        $this->assertStringContainsString('#4F758B', $html);
+        $this->assertStringContainsString('#003f97', $html);
         $this->assertStringContainsString('#EDF1F3', $html);
         // Must NOT contain USD formatting
         $this->assertStringNotContainsString('USD ', $html);
@@ -285,7 +285,7 @@ class CurrencyFeatureTest extends TestCase
         $html = view('pdf.payment-slip', ['slip' => $slip])->render();
 
         $this->assertStringContainsString('USD 1,500.75', $html);
-        $this->assertStringContainsString('#4F758B', $html);
+        $this->assertStringContainsString('#003f97', $html);
         $this->assertStringContainsString('#EDF1F3', $html);
         // Must NOT contain Rp formatting
         $this->assertStringNotContainsString('Rp ', $html);
@@ -302,7 +302,7 @@ class CurrencyFeatureTest extends TestCase
         // Export PDF must use Rp format
         $this->assertStringContainsString('Rp ', $html);
         $this->assertStringNotContainsString('USD ', $html);
-        $this->assertStringContainsString('#4F758B', $html);
+        $this->assertStringContainsString('#003f97', $html);
         $this->assertStringContainsString('#EDF1F3', $html);
     }
 

@@ -211,7 +211,7 @@ class ErpExportTest extends TestCase
 
         $html = view('pdf.payment-slip', ['slip' => $slip])->render();
 
-        $this->assertStringContainsString('#4F758B', $html);
+        $this->assertStringContainsString('#003f97', $html);
         $this->assertStringContainsString('#EDF1F3', $html);
         $this->assertStringContainsString('REF 000045 - PDF Carter', $html);
         $this->assertStringContainsString('Tanda Terima Invoice', $html);
