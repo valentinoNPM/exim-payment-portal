@@ -119,7 +119,7 @@ class ErpExportTest extends TestCase
         $this->assertSame('0400042606998436 -Carter inv 000045-PT Pelindo Indonesia', $firstInvoiceRows->where('rowType', 'PPN')->first()->description);
         $this->assertNull($firstInvoiceRows->where('rowType', 'PPN')->first()->vatInvoiceNumber);
         $this->assertSame('PPh 23 import charge for Carter inv 000045-PT Pelindo Indonesia', $firstInvoiceRows->where('rowType', 'PPh')->first()->description);
-        $this->assertSame('AP import charge for Carter inv 000045-Fixture Supplier | Handling 1: PT Pelindo Indonesia; Handling 2: PT Interlink Indonesia', $firstInvoiceRows->where('rowType', 'Supplier')->first()->description);
+        $this->assertSame('AP import charge for Carter inv 000045-Fixture Supplier', $firstInvoiceRows->where('rowType', 'Supplier')->first()->description);
         $this->assertSame('04002600305357263', $firstInvoiceRows->where('rowType', 'Supplier')->first()->vatInvoiceNumber);
         $this->assertSame('33.00', $firstInvoice->fresh()->tax_addition_amount);
         $this->assertSame('6.00', $firstInvoice->fresh()->tax_deduction_amount);
@@ -133,7 +133,7 @@ class ErpExportTest extends TestCase
         $this->assertNull($sheet->getCell('AV4')->getValue());
         $this->assertSame('0400042606998436 -Carter inv 000045-PT Pelindo Indonesia', $sheet->getCell('O4')->getValue());
         $this->assertSame('000123', $sheet->getCell('D8')->getValue());
-        $this->assertSame('AP import charge for Carter inv 000045-Fixture Supplier | Handling 1: PT Pelindo Indonesia; Handling 2: PT Interlink Indonesia', $sheet->getCell('O8')->getValue());
+        $this->assertSame('AP import charge for Carter inv 000045-Fixture Supplier', $sheet->getCell('O8')->getValue());
         $this->assertSame('04002600305357263', $sheet->getCell('AV8')->getValue());
         $this->assertNull($sheet->getCell('O14')->getValue());
         $book->disconnectWorksheets();

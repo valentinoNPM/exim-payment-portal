@@ -172,16 +172,7 @@ class ErpJournalBuilder
         $this->require($storedSubtotal === $expense && $storedPpn === $ppnTotal && $storedPph === $pph && $storedNet === $net, "{$context}: invoice totals are inconsistent with its items.");
 
         $mainContext = $buyerInvoice.'-'.trim((string) $slip->supplier->name);
-        $supportingSupplierDetails = $invoice->items
-            ->sortBy('line_number')
-            ->filter(fn ($item): bool => filled($item->source_supplier_name))
-            ->map(fn ($item): string => trim((string) $item->item_name).': '.trim((string) $item->source_supplier_name))
-            ->unique()
-            ->implode('; ');
         $supplierDescription = 'AP '.$chargeType.' charge for '.$mainContext;
-        if ($supportingSupplierDetails !== '') {
-            $supplierDescription .= ' | '.$supportingSupplierDetails;
-        }
         $invoiceRows[] = new ErpJournalRow(
             $invoice->invoice_number,
             $date,
