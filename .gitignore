@@ -2,6 +2,8 @@
 /docs/*
 !/docs/erp-export/
 !/docs/erp-export/*.md
+!/docs/po-ga-flow.md
+!/docs/ecount-po-reference.md
 !/docs/vmc 5 -expeditor-.xlsx
 .DS_Store
 .env
