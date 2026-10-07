@@ -200,7 +200,7 @@ class PurchaseOrderForm
                             ->relationship()
                             ->collapsed(fn (?PurchaseOrder $record): bool => ($record?->items()->count() ?? 0) > 20)
                             ->table([
-                                TableColumn::make('Nama Barang')->width('330px')->markAsRequired(),
+                                TableColumn::make('Nama Barang')->width('480px')->markAsRequired(),
                                 TableColumn::make('Spesifikasi')->width('170px'),
                                 TableColumn::make('Kuantitas')->width('90px')->markAsRequired(),
                                 TableColumn::make('Satuan')->width('110px'),
