@@ -59,7 +59,12 @@ class PurchaseOrderItem extends Model
                     $item->specification_snapshot = $masterItem->specification;
                     $item->item_code = $masterItem->code;
                     $item->item_name = $masterItem->name;
-                    $item->specification = $masterItem->specification;
+                    // Spesifikasi yang sudah diketik user tidak boleh ditimpa nilai master.
+                    // Satu barang sering dipakai dengan ukuran berbeda tiap pembelian
+                    // (mis. POLYBAG), jadi nilai master hanya dipakai untuk mengisi kolom kosong.
+                    if (blank($item->specification)) {
+                        $item->specification = $masterItem->specification;
+                    }
                     $item->unit_id ??= $masterItem->unit_id;
                 }
             }

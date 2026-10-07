@@ -1,64 +1,133 @@
-/* Custom styling to match the dark, floating, rounded sidebar design */
+/* ==========================================================================
+   Bilah sisi — standar tampilan proyek (lihat docs/ui-guidelines.md)
+   Rata tepi atas–bawah, sudut siku, tanpa bayangan, pemisah garis rambut.
+   Mengikuti konvensi bawaan Filament agar sejalan dengan header merek dan
+   area isi yang juga rata tepi. Aturan pink lama (#d81b60) dihapus: sudah
+   tidak berpengaruh dan bertabrakan dengan aksen emas panel (#F59E0B).
+   ========================================================================== */
 
-/* 1. Floating & Rounded Dark Sidebar */
+/* 1. Wadah: gelap, menempel tepi, tanpa lengkung / jarak / bayangan */
 .fi-sidebar {
-    background-color: #27272a !important; /* zinc-800 */
-    border-radius: 1rem !important;        /* rounded-xl */
-    margin: 1rem 0 1rem 1rem !important;   /* Floating spacing */
-    height: calc(100vh - 2rem) !important; /* Fit within margins */
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
-    border: none !important;
+    background-color: #27272a !important;                                  /* zinc-800 */
+    border-radius: 0 !important;
+    margin: 0 !important;
+    height: 100dvh !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    border-inline-end: 1px solid rgba(255, 255, 255, .12) !important;      /* pemisah garis rambut */
 }
 
-/* 2. White Brand Logo */
-.fi-sidebar-header .fi-logo {
+/* 2. Header merek menyatu dengan bilah (bukan strip putih terpisah) */
+.fi-sidebar-header {
+    background-color: #27272a !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, .12) !important;
+}
+
+.fi-sidebar-header .fi-logo,
+.fi-sidebar-header .fi-sidebar-brand-name {
     color: #ffffff !important;
 }
 
-/* 3. Navigation Group Label Color */
+/* 3. Label grup menu */
 .fi-sidebar-group-label {
-    color: #a1a1aa !important; /* zinc-400 */
+    color: #a1a1aa !important;                                             /* zinc-400 */
 }
 
-/* 4. Default Sidebar Items (Text & Icon styling) */
+/* 4. Butir menu. Warna wajib dipasang pada labelnya, bukan hanya pada <a>:
+   bawaan Filament mewarnai .fi-sidebar-item-label dengan --gray-700, yang
+   terlalu gelap di atas #27272a — itu sebab menu tampak samar, terutama di
+   layar kecil atau yang kontrasnya sudah menurun.
+   Kontras terhadap #27272a -> zinc-200 (#e4e4e7) = 10.9 : 1
+                              zinc-300 (#d4d4d8) = 9.4 : 1 */
+.fi-sidebar-item .fi-sidebar-item-label,
 .fi-sidebar-item a {
-    color: #d4d4d8 !important; /* zinc-300 */
-    transition: all 0.2s ease-in-out;
+    color: #e4e4e7 !important;
 }
 
-.fi-sidebar-item a .fi-sidebar-item-icon {
-    color: #a1a1aa !important; /* zinc-400 */
-    transition: all 0.2s ease-in-out;
+.fi-sidebar-item .fi-sidebar-item-icon {
+    color: #a1a1aa !important;
 }
 
-/* Hover State */
+/* Butir bertingkat (mis. Payment Slip, New General Payment Slip) — satu nada
+   lebih redup tetapi tetap jauh di atas ambang 4.5:1 */
+.fi-sidebar-group-items .fi-sidebar-item .fi-sidebar-item-label {
+    color: #d4d4d8 !important;
+}
+
+/* 5. Sorotan saat kursor (bentuk sorotan tidak diubah dari sebelumnya) */
 .fi-sidebar-item a:hover {
     background-color: rgba(255, 255, 255, 0.08) !important;
-    color: #ffffff !important;
 }
 
+.fi-sidebar-item a:hover .fi-sidebar-item-label,
 .fi-sidebar-item a:hover .fi-sidebar-item-icon {
     color: #ffffff !important;
 }
 
-/* 5. Active Sidebar Item (Pink theme background) */
-.fi-sidebar-item-active a {
-    background-color: #d81b60 !important; /* Pink-600 */
-    color: #ffffff !important;
-    border-radius: 0.5rem !important;
+/* 6. Butir aktif: pill-nya terang (--gray-100), jadi tulisan dan ikonnya wajib
+   GELAP. Tanpa aturan ini, warna label di nomor 4 (zinc-200) ikut terbawa ke
+   butir aktif: terukur 1.35:1 — praktis tidak terbaca.
+   Catatan: kelas aslinya fi-active (bukan fi-sidebar-item-active; aturan pink
+   lama memakai nama yang salah sehingga tidak pernah berefek).
+   #92400e (amber-800) di atas pill #f1f5f9 -> 6.47 : 1 */
+.fi-sidebar-item a {
+    border-radius: 0.5rem;
 }
 
-.fi-sidebar-item-active a .fi-sidebar-item-icon {
-    color: #ffffff !important;
+.fi-sidebar-item.fi-active .fi-sidebar-item-label,
+.fi-sidebar-item.fi-active .fi-sidebar-item-icon {
+    color: #92400e !important;
 }
 
-/* 6. Collapse Button Adjustment */
+/* 7. Tombol lipat */
 .fi-sidebar-collapse-button {
     color: #a1a1aa !important;
 }
 
 .fi-sidebar-collapse-button:hover {
     color: #ffffff !important;
+}
+
+/* ==========================================================================
+   Layar 17 dan 19 inci (lebar 1280–1440 px): bilah dipersempit supaya area isi
+   — terutama tabel PO — tetap lega. Lebar diatur lewat --sidebar-width karena
+   variabel itulah yang juga menggeser area isi; menyetel lebar elemen secara
+   langsung akan membuat isi tertinggal jauh di sebelah kanan.
+   ========================================================================== */
+@media (max-width: 1440px) {
+    :root {
+        --sidebar-width: 15.5rem !important;
+    }
+
+    .fi-sidebar-header {
+        height: 3.5rem !important;
+    }
+
+    .fi-sidebar-nav {
+        padding-inline: 0.75rem !important;
+        padding-block: 1.25rem !important;
+    }
+
+    .fi-sidebar-item-label {
+        font-size: 0.8125rem !important;
+    }
+
+    .fi-sidebar-group-label {
+        font-size: 0.6875rem !important;
+    }
+}
+
+/* ==========================================================================
+   Merek / logo
+   Setelan panel hanya punya satu tinggi logo (->brandLogoHeight, kini 4rem)
+   yang dipakai bersama header dan halaman login. Di header tingginya terasa
+   sesak karena header Filament sendiri hanya 4rem (64px), jadi logo di header
+   dikecilkan lewat CSS; halaman login tetap 4rem.
+   ========================================================================== */
+.fi-topbar .fi-logo {
+    height: 3rem !important;
 }
 
 /* Payment slip review workspace */

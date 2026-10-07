@@ -160,8 +160,8 @@
                     <td class="center">{{ $item->item_code_snapshot ?: ($item->item?->source_code ?: ($item->item_code ?: '-')) }}</td>
                     <td>
                         <div class="item-name">{{ $item->item_name_snapshot ?: $item->item_name }}</div>
-                        @if ($item->specification_snapshot ?: $item->specification)
-                            <div class="item-spec">{{ $item->specification_snapshot ?: $item->specification }}</div>
+                        @if ($item->specification ?: $item->specification_snapshot)
+                            <div class="item-spec">{{ $item->specification ?: $item->specification_snapshot }}</div>
                         @endif
                     </td>
                     <td class="numeric">{{ $quantity($item->quantity) }}</td>

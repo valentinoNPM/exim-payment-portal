@@ -17,7 +17,6 @@
         ];
 
         $catatan = [
-            'Judul / Keperluan' => $record->title,
             'Lokasi / Ship To' => $record->delivery_location,
             'Catatan PO' => $record->notes,
         ];

@@ -10,6 +10,7 @@ use App\Filament\Resources\PurchaseOrders\Schemas\PurchaseOrderForm;
 use App\Filament\Resources\PurchaseOrders\Tables\PurchaseOrdersTable;
 use App\Models\PurchaseOrder;
 use BackedEnum;
+use Filament\Navigation\NavigationItem;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -29,7 +30,22 @@ class PurchaseOrderResource extends Resource
 
     protected static ?string $modelLabel = 'PO';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 2;
+
+    public static function getNavigationItems(): array
+    {
+        $items = parent::getNavigationItems();
+
+        if (static::canCreate()) {
+            array_unshift($items, NavigationItem::make('New Purchase Order')
+                ->url(fn (): string => static::getUrl('create'))
+                ->icon(Heroicon::OutlinedPlusCircle)
+                ->group(static::getNavigationGroup())
+                ->sort(1));
+        }
+
+        return $items;
+    }
 
     public static function form(Schema $schema): Schema
     {

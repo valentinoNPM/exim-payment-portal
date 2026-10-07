@@ -14,7 +14,7 @@ use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
- * Menu sisi kiri grup "Purchase Order": Daftar PO, PO Baru, Slip PO, Laporan PO.
+ * Menu sisi kiri grup "Purchase Order": Daftar PO, New Purchase Order, dan Laporan PO.
  */
 class PurchaseOrderMenuTest extends TestCase
 {
@@ -68,18 +68,45 @@ class PurchaseOrderMenuTest extends TestCase
 
     public function test_po_baru_terdaftar_di_menu(): void
     {
+        $this->actingAs($this->gaMaker);
+
         $this->assertTrue(
             CreatePurchaseOrder::shouldRegisterNavigation(),
             'Halaman PO Baru harus muncul di menu.'
         );
+
+        $items = collect(PurchaseOrderResource::getNavigationItems());
+
+        $this->assertSame(
+            ['New Purchase Order', 'Daftar PO'],
+            $items->map(fn ($item): string => $item->getLabel())->values()->all(),
+        );
+        $this->assertSame(
+            PurchaseOrderResource::getUrl('create'),
+            $items->first()->getUrl(),
+        );
+    }
+
+    public function test_menu_new_purchase_order_tidak_diberikan_ke_non_ga(): void
+    {
+        $hr = Division::create(['code' => 'HR', 'name' => 'Human Resources', 'is_active' => true]);
+        $hrMaker = User::factory()->create(['division_id' => $hr->id])->assignRole('maker');
+
+        $this->actingAs($hrMaker);
+
+        $labels = collect(PurchaseOrderResource::getNavigationItems())
+            ->map(fn ($item): string => $item->getLabel())
+            ->all();
+
+        $this->assertNotContains('New Purchase Order', $labels);
     }
 
     public function test_urutan_menu_po_baru_slip_laporan(): void
     {
         $this->actingAs($this->gaMaker);
 
-        $this->assertSame(1, PurchaseOrderResource::getNavigationSort());
-        $this->assertSame(2, CreatePurchaseOrder::getNavigationSort());
+        $this->assertSame(2, PurchaseOrderResource::getNavigationSort());
+        $this->assertSame(1, CreatePurchaseOrder::getNavigationSort());
         $this->assertSame(3, PoSlips::getNavigationSort());
         $this->assertSame(4, PoReport::getNavigationSort());
     }

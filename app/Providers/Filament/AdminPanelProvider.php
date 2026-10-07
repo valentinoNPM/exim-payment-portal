@@ -34,8 +34,8 @@ class AdminPanelProvider extends PanelProvider
 
             // Branding
             ->brandName('EXIM Payment Portal')
-            ->brandLogo(asset('images/logo.svg'))
-            ->brandLogoHeight('1.5rem')
+            ->brandLogo(asset('images/logo.png'))
+            ->brandLogoHeight('4rem')
             ->favicon(asset('favicon.ico'))
 
             // Color scheme — Fintech Gold primary with Slate grays

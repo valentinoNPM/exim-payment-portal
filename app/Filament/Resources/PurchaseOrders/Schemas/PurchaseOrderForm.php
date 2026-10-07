@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\PurchaseOrders\Schemas;
 
+use App\Filament\Resources\PurchaseOrders\Tables\PurchaseOrderItemPickerTable;
 use App\Models\Item;
 use App\Models\PurchaseOrder;
 use App\Models\Tax;
@@ -9,8 +10,10 @@ use App\Models\Unit;
 use App\Services\PurchaseOrders\PurchaseOrderNumberGenerator;
 use App\Support\CurrencyFormatter;
 use Carbon\Carbon;
+use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\ModalTableSelect;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Repeater\TableColumn;
@@ -23,6 +26,7 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Width;
+use Filament\Support\Icons\Heroicon;
 
 class PurchaseOrderForm
 {
@@ -177,9 +181,6 @@ class PurchaseOrderForm
                             ->native(false)
                             ->default(fn (Get $get) => $get('po_date') ?? today())
                             ->minDate(fn (Get $get) => $get('po_date')),
-                        TextInput::make('title')
-                            ->label('Judul')
-                            ->maxLength(255),
                         Textarea::make('delivery_location')
                             ->label('Lokasi')
                             ->rows(2),
@@ -199,8 +200,7 @@ class PurchaseOrderForm
                             ->relationship()
                             ->collapsed(fn (?PurchaseOrder $record): bool => ($record?->items()->count() ?? 0) > 20)
                             ->table([
-                                TableColumn::make('Kode Barang')->width('140px'),
-                                TableColumn::make('Nama Barang')->width('190px')->markAsRequired(),
+                                TableColumn::make('Nama Barang')->width('330px')->markAsRequired(),
                                 TableColumn::make('Spesifikasi')->width('170px'),
                                 TableColumn::make('Kuantitas')->width('90px')->markAsRequired(),
                                 TableColumn::make('Satuan')->width('110px'),
@@ -210,30 +210,25 @@ class PurchaseOrderForm
                                 TableColumn::make('Pajak')->width('120px'),
                             ])
                             ->schema([
-                                Placeholder::make('item_code_display')
-                                    ->hiddenLabel()
-                                    ->content(fn (Get $get, $record): string => $get('item_id')
-                                        ? (Item::query()->whereKey($get('item_id'))->value('code') ?? '-')
-                                        : ($record?->item_code_snapshot ?: ($record?->item_code ?: '-'))),
                                 Grid::make(1)->schema([
                                     Hidden::make('item_name'),
-                                    Select::make('item_id')
+                                    ModalTableSelect::make('item_id')
                                         ->hiddenLabel()
-                                        ->placeholder('Cari barang…')
+                                        ->placeholder('Pilih barang')
                                         ->relationship(
                                             name: 'item',
-                                            titleAttribute: 'code',
+                                            titleAttribute: 'name',
                                             modifyQueryUsing: fn ($query) => $query->where('is_active', true),
                                         )
+                                        ->tableConfiguration(PurchaseOrderItemPickerTable::class)
                                         ->getOptionLabelFromRecordUsing(fn (Item $record): string => $record->code.' - '.$record->name)
-                                        ->searchable(['code', 'source_code', 'name'])
-                                        ->optionsLimit(30)
-                                        ->createOptionForm([
-                                            TextInput::make('name')->label('Nama Barang')->required()->maxLength(255),
-                                            Textarea::make('specification')->label('Spesifikasi')->columnSpanFull(),
-                                            Hidden::make('source')->default('manual'),
-                                            Hidden::make('is_active')->default(true),
-                                        ])
+                                        ->selectAction(fn (Action $action): Action => $action
+                                            ->label('Pilih barang')
+                                            ->icon(Heroicon::Plus)
+                                            ->iconButton()
+                                            ->tooltip('Pilih barang')
+                                            ->modalHeading('Pilih Barang')
+                                            ->modalWidth(Width::FiveExtraLarge))
                                         ->live()
                                         ->afterStateUpdated(function (mixed $state, Set $set): void {
                                             $item = Item::query()->find($state);

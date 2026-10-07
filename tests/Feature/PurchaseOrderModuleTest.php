@@ -88,6 +88,20 @@ class PurchaseOrderModuleTest extends TestCase
         $this->assertTrue(ItemResource::canAccess());
     }
 
+    public function test_ecount_key_column_is_hidden_by_default(): void
+    {
+        $this->actingAs($this->gaMaker);
+
+        $column = Livewire::test(ListPurchaseOrders::class)
+            ->instance()
+            ->getTable()
+            ->getColumn('source_code');
+
+        $this->assertNotNull($column);
+        $this->assertTrue($column->isToggleable());
+        $this->assertTrue($column->isToggledHiddenByDefault());
+    }
+
     public function test_number_generator_continues_after_highest_imported_daily_sequence(): void
     {
         $supplier = Supplier::create([
@@ -176,7 +190,6 @@ class PurchaseOrderModuleTest extends TestCase
                 'supplier_id' => $supplier->id,
                 'currency' => PurchaseOrder::CURRENCY_IDR,
                 'status' => PurchaseOrder::STATUS_NEW,
-                'title' => 'Uji nomor draf',
                 'items' => [[
                     'item_code' => 'DRAF-001',
                     'item_name' => 'Barang uji',
@@ -217,7 +230,6 @@ class PurchaseOrderModuleTest extends TestCase
                 'pic_name' => 'Staf GA',
                 'currency' => PurchaseOrder::CURRENCY_IDR,
                 'status' => PurchaseOrder::STATUS_NEW,
-                'title' => 'Kebutuhan pantry',
                 'delivery_date' => '2026-10-10',
                 'delivery_location' => 'Gudang GA',
                 'items' => [[
@@ -280,6 +292,7 @@ class PurchaseOrderModuleTest extends TestCase
             'pic_name' => 'PIC GA',
             'currency' => PurchaseOrder::CURRENCY_IDR,
             'delivery_location' => 'Gudang Hansoll',
+            'title' => 'Judul internal tidak boleh tampil',
             'status' => PurchaseOrder::STATUS_NEW,
             'created_by' => $this->gaMaker->id,
         ]);
@@ -318,6 +331,7 @@ class PurchaseOrderModuleTest extends TestCase
         $this->assertStringContainsString('SUB TOTAL', $html);
         $this->assertStringContainsString('PT Vendor Cetak', $html);
         $this->assertStringContainsString('Kertas A4', $html);
+        $this->assertStringNotContainsString('Judul internal tidak boleh tampil', $html);
         // kolom approval berupa dua kotak bergaris seperti cetakan ECOUNT
         foreach (['PIC', 'Area Manager', 'Factory Manager', 'Direktur', 'GA', 'Manager'] as $peran) {
             $this->assertStringContainsString($peran, $html, "Kolom approval tidak memuat: {$peran}");
@@ -639,19 +653,22 @@ class PurchaseOrderModuleTest extends TestCase
         $this->assertNotSame($first->code, $second->code);
     }
 
-    public function test_po_item_grid_shows_code_as_text_and_master_selector_under_item_name(): void
+    public function test_po_item_grid_combines_code_and_name_in_one_master_selector(): void
     {
         $this->actingAs($this->gaMaker);
         Item::create(['name' => 'Barang Pilihan']);
 
-        $html = Livewire::test(CreatePurchaseOrder::class)
-            ->html();
+        $component = Livewire::test(CreatePurchaseOrder::class);
+        $html = $component->html();
+        $itemKey = array_key_first($component->get('data.items'));
 
-        $this->assertStringContainsString('Kode Barang', $html);
         $this->assertStringContainsString('Nama Barang', $html);
-        $this->assertStringContainsString('Cari barang', $html);
-        $this->assertStringNotContainsString('Select an option', $html);
-        $this->assertStringContainsString('Pilih salah satu opsi', $html);
+        $this->assertStringNotContainsString('Kode Barang', $html);
+        $this->assertStringContainsString('Pilih barang', $html);
+        $this->assertStringNotContainsString('Cari barang', $html);
+        $this->assertStringNotContainsString('Buat opsi', $html);
+
+        $component->assertFormComponentActionExists("items.{$itemKey}.item_id", 'select');
     }
 
     public function test_po_list_can_be_filtered_by_period(): void
@@ -685,10 +702,12 @@ class PurchaseOrderModuleTest extends TestCase
 
         $createHtml = Livewire::test(CreatePurchaseOrder::class)->html();
 
-        foreach (['Data PO', 'Item PO', 'Kode Barang', 'Nama Barang', 'Kuantitas', 'Satuan', 'Harga', 'Jumlah Sebelum Pajak', 'Pajak', 'Mata Uang', 'Tanggal Selesai', 'Judul', 'Keterangan'] as $label) {
+        foreach (['Data PO', 'Item PO', 'Nama Barang', 'Kuantitas', 'Satuan', 'Harga', 'Jumlah Sebelum Pajak', 'Pajak', 'Mata Uang', 'Tanggal Selesai', 'Keterangan'] as $label) {
             $this->assertStringContainsString($label, $createHtml, "Label form PO tidak sesuai kosakata klien: {$label}");
         }
 
+        $this->assertStringNotContainsString('Kode Barang', $createHtml);
+        $this->assertStringNotContainsString('Judul', $createHtml);
         $this->assertStringNotContainsString('Aturan pajak HANSOLL', $createHtml);
     }
 
@@ -725,9 +744,12 @@ class PurchaseOrderModuleTest extends TestCase
         ]);
 
         $html = Livewire::test(ViewPurchaseOrder::class, ['record' => $purchaseOrder->getRouteKey()])->html();
+        $visibleHtml = preg_replace('/\s+wire:snapshot="[^"]*"/', '', $html) ?? $html;
 
-        $this->assertStringContainsString('VIEW-01', $html);
-        $this->assertStringContainsString('Item View', $html);
+        $this->assertStringContainsString('VIEW-01', $visibleHtml);
+        $this->assertStringContainsString('Item View', $visibleHtml);
+        $this->assertStringNotContainsString('Judul / Keperluan', $visibleHtml);
+        $this->assertStringNotContainsString('PO teks biasa', $visibleHtml);
         $this->assertSame(0, preg_match_all('/<input\b/i', $html));
         $this->assertSame(0, preg_match_all('/<select\b/i', $html));
         $this->assertSame(0, preg_match_all('/wire:model/i', $html));
@@ -940,15 +962,18 @@ class PurchaseOrderModuleTest extends TestCase
         $component = Livewire::test(EditPurchaseOrder::class, ['record' => $purchaseOrder->getRouteKey()])
             ->assertOk()
             ->assertFormSet([
-                'title' => 'Judul awal',
                 'source_code' => '03/10/2026 -1',
             ]);
+
+        $editHtml = $component->html();
+        $visibleEditHtml = preg_replace('/\s+wire:snapshot="[^"]*"/', '', $editHtml) ?? $editHtml;
+
+        $this->assertStringNotContainsString('Judul', $visibleEditHtml);
 
         $barisKunci = array_key_first($component->get('data.items'));
 
         $component
             ->fillForm([
-                'title' => 'Judul setelah diubah',
                 'delivery_location' => 'Gudang baru',
             ])
             ->set("data.items.{$barisKunci}.quantity", 4)
@@ -957,7 +982,7 @@ class PurchaseOrderModuleTest extends TestCase
 
         $purchaseOrder->refresh();
 
-        $this->assertSame('Judul setelah diubah', $purchaseOrder->title);
+        $this->assertSame('Judul awal', $purchaseOrder->title);
         $this->assertSame('Gudang baru', $purchaseOrder->delivery_location);
 
         // PO dibiarkan seperti dokumen impor (PIC sistem kosong): menyimpan harus tetap bisa,

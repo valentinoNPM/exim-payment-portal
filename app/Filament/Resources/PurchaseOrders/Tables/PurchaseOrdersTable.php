@@ -34,7 +34,7 @@ class PurchaseOrdersTable
                     ->tooltip('Tanggal + urutan harian di ECOUNT (mis. 01/09/2026 -4). Inilah identitas dokumen; nomor PO hanya label dan bisa sama untuk dua PO.')
                     ->searchable()
                     ->sortable()
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('po_date')
                     ->label('Tanggal')
                     ->date('d M Y')

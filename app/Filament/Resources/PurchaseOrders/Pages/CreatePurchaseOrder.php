@@ -19,7 +19,7 @@ class CreatePurchaseOrder extends CreateRecord
 
     protected static string|UnitEnum|null $navigationGroup = 'Purchase Order';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 1;
 
     protected static bool $shouldRegisterNavigation = true;
 
