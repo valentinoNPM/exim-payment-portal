@@ -663,7 +663,7 @@ class PurchaseOrderModuleTest extends TestCase
         $itemKey = array_key_first($component->get('data.items'));
 
         $this->assertStringContainsString('Nama Barang', $html);
-        $this->assertStringContainsString('width: 480px', $html);
+        $this->assertStringContainsString('width: 360px', $html);
         $this->assertStringNotContainsString('Kode Barang', $html);
         $this->assertStringContainsString('Pilih barang', $html);
         $this->assertStringContainsString('Pilih satuan', $html);

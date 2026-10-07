@@ -777,6 +777,55 @@
     flex: 0 0 auto;
 }
 
+/* Form item PO mempunyai lebih banyak kolom input daripada repeater lain. Pada
+   panel sempit, pertahankan lebar aman lalu gunakan scroll horizontal. */
+.po-item-entry .fi-fo-table-repeater > table {
+    min-width: 70rem;
+}
+
+.po-item-entry .fi-fo-modal-table-select:not(.fi-fo-modal-table-select-multiple) {
+    min-width: 20rem;
+}
+
+.po-item-entry .fi-fo-table-repeater > table th:nth-last-child(9),
+.po-item-entry .fi-fo-table-repeater > table td:nth-last-child(9) {
+    min-width: 22rem;
+}
+
+.po-item-entry .fi-fo-table-repeater > table th:nth-last-child(8),
+.po-item-entry .fi-fo-table-repeater > table td:nth-last-child(8) {
+    min-width: 9rem;
+}
+
+.po-item-entry .fi-fo-table-repeater > table th:nth-last-child(7),
+.po-item-entry .fi-fo-table-repeater > table td:nth-last-child(7) {
+    min-width: 6rem;
+}
+
+.po-item-entry .fi-fo-table-repeater > table th:nth-last-child(6),
+.po-item-entry .fi-fo-table-repeater > table td:nth-last-child(6) {
+    min-width: 9rem;
+}
+
+.po-item-entry .fi-fo-table-repeater > table td:nth-last-child(6) .fi-fo-select,
+.po-item-entry .fi-fo-table-repeater > table td:nth-last-child(6) .fi-fo-select-wrp,
+.po-item-entry .fi-fo-table-repeater > table td:nth-last-child(6) .fi-input-wrp,
+.po-item-entry .fi-fo-table-repeater > table td:nth-last-child(6) .fi-select-input,
+.po-item-entry .fi-fo-table-repeater > table td:nth-last-child(6) .fi-select-input-btn,
+.po-item-entry .fi-fo-table-repeater > table td:nth-last-child(6) select {
+    width: 100%;
+    min-width: 8rem;
+}
+
+.po-item-entry .fi-fo-table-repeater > table td:nth-last-child(6) .fi-select-input,
+.po-item-entry .fi-fo-table-repeater > table td:nth-last-child(6) .fi-select-input-btn {
+    white-space: nowrap;
+}
+
+.po-item-entry .fi-fo-table-repeater > table td:nth-last-child(5) input {
+    min-width: 7rem;
+}
+
 /* kontrol di dalam sel tidak boleh terhimpit sampai teksnya pecah baris;
    karena wadahnya bisa digulir, memberi ukuran minimum di sini tidak menabrak sel sebelah */
 .fi-fo-table-repeater > table td:nth-last-child(6) .fi-select-input,
