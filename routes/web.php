@@ -5,6 +5,7 @@ use App\Http\Controllers\DownloadErpExportController;
 use App\Http\Controllers\PreviewPaymentSlipPdfController;
 use App\Http\Controllers\PreviewPurchaseOrderPdfController;
 use App\Models\DocumentFile;
+use Filament\Http\Middleware\Authenticate as FilamentAuthenticate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
@@ -15,7 +16,7 @@ Route::get('/payment-slips/{paymentSlip}/pdf', PreviewPaymentSlipPdfController::
     ->middleware('auth')->name('payment-slips.pdf.preview');
 
 Route::get('/purchase-orders/{purchaseOrder}/pdf', PreviewPurchaseOrderPdfController::class)
-    ->middleware('auth')->name('purchase-orders.pdf.preview');
+    ->middleware(FilamentAuthenticate::class)->name('purchase-orders.pdf.preview');
 
 Route::get('/payment-slips/{paymentSlip}/checker-edit', [CheckerEditPaymentSlipController::class, 'show'])
     ->middleware('auth')->name('payment-slips.checker-edit');
