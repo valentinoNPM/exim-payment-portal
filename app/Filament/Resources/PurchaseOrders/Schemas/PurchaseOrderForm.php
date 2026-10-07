@@ -267,7 +267,7 @@ class PurchaseOrderForm
                                             ->orderBy('name'),
                                     )
                                     ->getOptionLabelFromRecordUsing(fn (Unit $record): string => $record->name)
-                                    ->searchable(['code', 'name'])
+                                    ->native()
                                     ->required(fn (Get $get, ?PurchaseOrderItem $record): bool => $record === null && filled($get('item_id')))
                                     ->placeholder('Pilih satuan'),
                                 TextInput::make('unit_price_amount')
