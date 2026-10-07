@@ -789,11 +789,9 @@
     min-width: 5rem;
 }
 
-/* Isi panel sempit: sembunyikan kolom yang sudah tampil di Ringkasan, halaman Lihat,
-   dan cetakan PDF — Spesifikasi dan Dasar Pajak lebih dulu, lalu Jumlah Sebelum Pajak. */
+/* Isi panel sempit: sembunyikan hanya kolom hasil perhitungan yang sudah tampil di
+   Ringkasan. Spesifikasi tetap terlihat karena merupakan input yang dapat diedit. */
 @container (max-width: 82rem) {
-    .fi-fo-table-repeater > table th:nth-last-child(8),
-    .fi-fo-table-repeater > table td:nth-last-child(8),
     .fi-fo-table-repeater > table th:nth-last-child(3),
     .fi-fo-table-repeater > table td:nth-last-child(3) {
         display: none;
