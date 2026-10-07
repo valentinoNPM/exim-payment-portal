@@ -810,6 +810,12 @@ class PurchaseOrderModuleTest extends TestCase
         $this->assertSame('Kain Twill', $line->item_name_snapshot);
         $this->assertSame('Lebar 150 cm', $line->specification_snapshot);
         $this->assertSame($unit->id, $line->unit_id);
+        $this->assertSame('ROLL', $line->unit_code_snapshot);
+
+        $formHtml = Livewire::test(EditPurchaseOrder::class, ['record' => $line->purchase_order_id])->html();
+
+        $this->assertStringContainsString('Roll', $formHtml);
+        $this->assertStringNotContainsString('ROLL - Roll', $formHtml);
     }
 
     public function test_new_po_line_requires_unit_and_sets_missing_item_default_without_overwriting_existing_default(): void
@@ -902,6 +908,8 @@ class PurchaseOrderModuleTest extends TestCase
 
     public function test_supplier_item_code_and_unit_changes_do_not_change_existing_po_pdf(): void
     {
+        $this->actingAs($this->gaMaker);
+
         $supplier = Supplier::create([
             'code' => 'SUP-HISTORY',
             'name' => 'Vendor Historis',
@@ -927,6 +935,8 @@ class PurchaseOrderModuleTest extends TestCase
         $item->update(['source_code' => 'EC-NEW']);
         $unit->update(['code' => 'BOX']);
 
+        $detailHtml = Livewire::test(ViewPurchaseOrder::class, ['record' => $purchaseOrder->getRouteKey()])->html();
+
         $html = view('pdf.purchase-order', [
             'purchaseOrder' => $purchaseOrder->fresh()->load(['supplier', 'items.item', 'items.unit', 'taxes']),
         ])->render();
@@ -935,8 +945,10 @@ class PurchaseOrderModuleTest extends TestCase
         $this->assertStringContainsString('Alamat Historis', $html);
         $this->assertStringContainsString('EC-OLD', $html);
         $this->assertStringContainsString('PCS', $html);
+        $this->assertStringContainsString('PCS', $detailHtml);
         $this->assertStringNotContainsString('Vendor Baru', $html);
         $this->assertStringNotContainsString('EC-NEW', $html);
+        $this->assertStringNotContainsString('BOX', $detailHtml);
     }
 
     public function test_editing_imported_po_header_accepts_legacy_values_and_preserves_source_total(): void

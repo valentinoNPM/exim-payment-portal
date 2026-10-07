@@ -266,7 +266,7 @@ class PurchaseOrderForm
                                             ->where('is_active', true)
                                             ->orderBy('name'),
                                     )
-                                    ->getOptionLabelFromRecordUsing(fn (Unit $record): string => $record->code.' - '.$record->name)
+                                    ->getOptionLabelFromRecordUsing(fn (Unit $record): string => $record->name)
                                     ->searchable(['code', 'name'])
                                     ->required(fn (Get $get, ?PurchaseOrderItem $record): bool => $record === null && filled($get('item_id')))
                                     ->placeholder('Pilih satuan'),

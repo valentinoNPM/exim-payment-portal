@@ -74,7 +74,7 @@
                                     <td>{{ $isi($item->item_name_snapshot ?: $item->item_name) }}</td>
                                     <td class="po-view__muted">{{ $isi($item->specification_snapshot ?: $item->specification) }}</td>
                                     <td class="po-view__num">{{ $jumlah($item->quantity) }}</td>
-                                    <td>{{ $isi($item->unit?->code) }}</td>
+                                    <td>{{ $isi($item->unit_code_snapshot ?: $item->unit?->code) }}</td>
                                     <td class="po-view__num">{{ $money($item->unit_price_amount) }}</td>
                                     <td class="po-view__num">{{ $money($item->subtotal_amount) }}</td>
                                     <td class="po-view__num">{{ $money($item->subtotal_amount) }}</td>
