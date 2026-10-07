@@ -123,6 +123,7 @@ class GeneralPaymentSlipPdfRevisionTest extends TestCase
         $this->assertStringContainsString('>Box</td>', $html);
         $this->assertMatchesRegularExpression('/<td style="text-align: center;">3<\/td>/', $html);
         $this->assertStringNotContainsString('Qty: 3', $html);
+        $this->assertStringNotContainsString('Ref:', $html);
     }
 
     public function test_legacy_general_pdf_keeps_charge_lain_lain_fallback(): void

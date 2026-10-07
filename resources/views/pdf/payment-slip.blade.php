@@ -372,8 +372,7 @@
                     @endphp
                     <tr>
                         <td>
-                            {{ $detailRowCount }}. {{ $item->item_name }}<br>
-                            <span class="item-meta">Ref: {{ $invoice->invoice_number }}</span>
+                            {{ $detailRowCount }}. {{ $item->item_name }}
                         </td>
                         <td style="text-align: center;">{{ $quantity }}</td>
                         <td style="text-align: center;">{{ $item->unit?->name ?? '-' }}</td>
