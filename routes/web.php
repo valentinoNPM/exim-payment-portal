@@ -3,6 +3,7 @@
 use App\Http\Controllers\CheckerEditPaymentSlipController;
 use App\Http\Controllers\DownloadErpExportController;
 use App\Http\Controllers\PreviewPaymentSlipPdfController;
+use App\Http\Controllers\PreviewPurchaseOrderPdfController;
 use App\Models\DocumentFile;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
@@ -12,6 +13,9 @@ Route::get('/erp-exports/{batch}/download', DownloadErpExportController::class)
 
 Route::get('/payment-slips/{paymentSlip}/pdf', PreviewPaymentSlipPdfController::class)
     ->middleware('auth')->name('payment-slips.pdf.preview');
+
+Route::get('/purchase-orders/{purchaseOrder}/pdf', PreviewPurchaseOrderPdfController::class)
+    ->middleware('auth')->name('purchase-orders.pdf.preview');
 
 Route::get('/payment-slips/{paymentSlip}/checker-edit', [CheckerEditPaymentSlipController::class, 'show'])
     ->middleware('auth')->name('payment-slips.checker-edit');

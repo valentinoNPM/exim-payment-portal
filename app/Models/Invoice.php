@@ -16,6 +16,7 @@ class Invoice extends Model
 
     protected $fillable = [
         'payment_slip_id',
+        'purchase_order_id',
         'buyer_id',
         'invoice_number',
         'invoice_date',
@@ -41,6 +42,11 @@ class Invoice extends Model
     public function paymentSlip(): BelongsTo
     {
         return $this->belongsTo(PaymentSlip::class);
+    }
+
+    public function purchaseOrder(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrder::class);
     }
 
     public function buyer(): BelongsTo

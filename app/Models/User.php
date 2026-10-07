@@ -49,4 +49,9 @@ class User extends Authenticatable implements FilamentUser
     {
         return strtoupper((string) $this->division?->code) === 'EXIM';
     }
+
+    public function isGaDivision(): bool
+    {
+        return strtoupper((string) $this->division?->code) === 'GA';
+    }
 }

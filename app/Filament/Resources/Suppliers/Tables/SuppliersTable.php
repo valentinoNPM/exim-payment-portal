@@ -19,6 +19,20 @@ class SuppliersTable
                     ->searchable(),
                 TextColumn::make('name')
                     ->searchable(),
+                TextColumn::make('email')
+                    ->label('Email')
+                    ->searchable()
+                    ->toggleable()
+                    ->placeholder('—'),
+                TextColumn::make('phone')
+                    ->label('Telepon')
+                    ->searchable()
+                    ->toggleable()
+                    ->placeholder('—'),
+                TextColumn::make('source_code')
+                    ->label('Kode ECOUNT')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 IconColumn::make('is_active')
                     ->boolean(),
                 TextColumn::make('created_at')

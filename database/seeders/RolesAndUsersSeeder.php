@@ -28,6 +28,7 @@ class RolesAndUsersSeeder extends Seeder
         $divExim = Division::firstOrCreate(['code' => 'EXIM'], ['name' => 'Export-Import Division']);
         $divAcc = Division::firstOrCreate(['code' => 'ACC'], ['name' => 'Accounting & Finance']);
         $divMgmt = Division::firstOrCreate(['code' => 'MGMT'], ['name' => 'Management']);
+        $divGa = Division::firstOrCreate(['code' => 'GA'], ['name' => 'General Affairs', 'is_active' => true]);
 
         // 2. Create Default Users & Assign Roles + Divisions
         $makerUser = User::firstOrCreate(
@@ -41,6 +42,19 @@ class RolesAndUsersSeeder extends Seeder
         $makerUser->assignRole($makerRole);
         if (! $makerUser->division_id) {
             $makerUser->update(['division_id' => $divExim->id]);
+        }
+
+        $gaMakerUser = User::firstOrCreate(
+            ['email' => 'maker.ga@exim.com'],
+            [
+                'name' => 'Staff GA Maker',
+                'password' => Hash::make('password'),
+                'division_id' => $divGa->id,
+            ]
+        );
+        $gaMakerUser->assignRole($makerRole);
+        if (! $gaMakerUser->division_id) {
+            $gaMakerUser->update(['division_id' => $divGa->id]);
         }
 
         $checkerUser = User::firstOrCreate(

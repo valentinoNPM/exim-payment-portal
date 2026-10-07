@@ -12,8 +12,14 @@ class Supplier extends Model
 
     protected $fillable = [
         'code',
+        'source_code',
         'name',
         'address',
+        'address_2',
+        'email',
+        'phone',
+        'phone_digit',
+        'fax',
         'is_active',
     ];
 
@@ -24,5 +30,10 @@ class Supplier extends Model
     public function paymentSlips(): HasMany
     {
         return $this->hasMany(PaymentSlip::class);
+    }
+
+    public function purchaseOrders(): HasMany
+    {
+        return $this->hasMany(PurchaseOrder::class);
     }
 }

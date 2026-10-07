@@ -27,4 +27,14 @@ class Tax extends Model
     {
         return $this->hasMany(InvoiceItemTax::class);
     }
+
+    public function purchaseOrderTaxes(): HasMany
+    {
+        return $this->hasMany(PurchaseOrderTax::class);
+    }
+
+    public function purchaseOrderItemTaxes(): HasMany
+    {
+        return $this->hasMany(PurchaseOrderItemTax::class);
+    }
 }

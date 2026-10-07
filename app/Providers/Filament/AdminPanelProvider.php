@@ -57,6 +57,8 @@ class AdminPanelProvider extends PanelProvider
             // Sidebar
             ->sidebarCollapsibleOnDesktop()
             ->navigationGroups([
+                NavigationGroup::make('Purchase Order')
+                    ->icon('heroicon-o-shopping-cart'),
                 NavigationGroup::make('Payment')
                     ->icon('heroicon-o-banknotes'),
                 NavigationGroup::make('Master Data')

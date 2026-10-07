@@ -24,4 +24,9 @@ class Division extends Model
     {
         return $this->hasMany(User::class);
     }
+
+    public function purchaseOrders(): HasMany
+    {
+        return $this->hasMany(PurchaseOrder::class);
+    }
 }
