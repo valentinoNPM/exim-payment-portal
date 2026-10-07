@@ -5,6 +5,7 @@ namespace App\Filament\Resources\PurchaseOrders\Schemas;
 use App\Filament\Resources\PurchaseOrders\Tables\PurchaseOrderItemPickerTable;
 use App\Models\Item;
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
 use App\Models\Tax;
 use App\Models\Unit;
 use App\Services\PurchaseOrders\PurchaseOrderNumberGenerator;
@@ -255,9 +256,19 @@ class PurchaseOrderForm
                                     ->required()
                                     ->live(onBlur: true)
                                     ->afterStateUpdated(fn (Get $get, Set $set) => self::updateLineTotal($get, $set)),
-                                Placeholder::make('satuan_tampil')
+                                Select::make('unit_id')
                                     ->label('Satuan')
-                                    ->content(fn (Get $get): string => Unit::query()->find($get('unit_id'))?->name ?? '—'),
+                                    ->relationship(
+                                        name: 'unit',
+                                        titleAttribute: 'name',
+                                        modifyQueryUsing: fn ($query) => $query
+                                            ->where('is_active', true)
+                                            ->orderBy('name'),
+                                    )
+                                    ->getOptionLabelFromRecordUsing(fn (Unit $record): string => $record->code.' - '.$record->name)
+                                    ->searchable(['code', 'name'])
+                                    ->required(fn (Get $get, ?PurchaseOrderItem $record): bool => $record === null && filled($get('item_id')))
+                                    ->placeholder('Pilih satuan'),
                                 TextInput::make('unit_price_amount')
                                     ->label('Harga')
                                     ->numeric()

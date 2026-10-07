@@ -666,6 +666,7 @@ class PurchaseOrderModuleTest extends TestCase
         $this->assertStringContainsString('width: 480px', $html);
         $this->assertStringNotContainsString('Kode Barang', $html);
         $this->assertStringContainsString('Pilih barang', $html);
+        $this->assertStringContainsString('Pilih satuan', $html);
         $this->assertStringNotContainsString('Cari barang', $html);
         $this->assertStringNotContainsString('Buat opsi', $html);
 
@@ -809,6 +810,58 @@ class PurchaseOrderModuleTest extends TestCase
         $this->assertSame('Kain Twill', $line->item_name_snapshot);
         $this->assertSame('Lebar 150 cm', $line->specification_snapshot);
         $this->assertSame($unit->id, $line->unit_id);
+    }
+
+    public function test_new_po_line_requires_unit_and_sets_missing_item_default_without_overwriting_existing_default(): void
+    {
+        $this->actingAs($this->gaMaker);
+        $supplier = Supplier::create([
+            'code' => 'SUP-UNIT-DEFAULT',
+            'name' => 'PT Vendor Unit Default',
+            'is_active' => true,
+        ]);
+        $pieces = Unit::create(['code' => 'PCS', 'name' => 'Pieces', 'is_active' => true]);
+        $boxes = Unit::create(['code' => 'BOX', 'name' => 'Box', 'is_active' => true]);
+        $masterWithoutUnit = Item::create([
+            'name' => 'Barang Tanpa Satuan',
+            'source_code' => 'EC-NO-UNIT',
+            'source' => 'ecount',
+        ]);
+
+        $component = Livewire::test(CreatePurchaseOrder::class)
+            ->fillForm([
+                'po_date' => '2026-10-07',
+                'supplier_id' => $supplier->id,
+                'pic_name' => 'PIC Unit',
+                'currency' => PurchaseOrder::CURRENCY_IDR,
+                'status' => PurchaseOrder::STATUS_NEW,
+                'items' => [[
+                    'item_id' => $masterWithoutUnit->id,
+                    'quantity' => 1,
+                    'unit_price_amount' => 10000,
+                ]],
+            ]);
+
+        $itemKey = array_key_first($component->get('data.items'));
+
+        $component
+            ->call('create')
+            ->assertHasFormErrors(["items.{$itemKey}.unit_id" => 'required'])
+            ->set("data.items.{$itemKey}.unit_id", $pieces->id)
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $line = PurchaseOrder::query()->firstOrFail()->items()->firstOrFail();
+
+        $this->assertSame($pieces->id, $line->unit_id);
+        $this->assertSame('PCS', $line->unit_code_snapshot);
+        $this->assertSame($pieces->id, $masterWithoutUnit->fresh()->unit_id);
+
+        $line->update(['unit_id' => $boxes->id]);
+
+        $this->assertSame($boxes->id, $line->fresh()->unit_id);
+        $this->assertSame('BOX', $line->unit_code_snapshot);
+        $this->assertSame($pieces->id, $masterWithoutUnit->fresh()->unit_id);
     }
 
     public function test_item_master_changes_do_not_change_existing_po_pdf_snapshot(): void

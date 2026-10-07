@@ -73,6 +73,16 @@ class PurchaseOrderItem extends Model
                 $item->unit_code_snapshot = Unit::query()->whereKey($item->unit_id)->value('code');
             }
 
+            // Pilihan satuan pertama pada PO menjadi default master hanya ketika
+            // master item belum memiliki satuan. Override per PO tidak boleh
+            // mengubah default yang sudah ditetapkan sebelumnya.
+            if ($item->item_id && $item->unit_id) {
+                Item::query()
+                    ->whereKey($item->item_id)
+                    ->whereNull('unit_id')
+                    ->update(['unit_id' => $item->unit_id]);
+            }
+
             $item->subtotal_amount = round((float) $item->quantity * (float) $item->unit_price_amount, 2);
             $item->tax_amount = round((float) ($item->tax_amount ?? 0), 2);
             $item->total_amount = $item->subtotal_amount + $item->tax_amount;
