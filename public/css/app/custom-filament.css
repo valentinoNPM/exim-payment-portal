@@ -743,27 +743,42 @@
 /* Kolom dihitung dari BELAKANG (:nth-last-child), sebab jumlah sel di depan bisa
    berbeda antar halaman: "Buat PO" tidak punya gagang urut, "Ubah PO" punya.
    Urutan dari belakang: 1 aksi, 2 Pajak, 3 Dasar Pajak, 4 Jumlah Sebelum Pajak,
-   5 Harga, 6 Satuan, 7 Kuantitas, 8 Spesifikasi, 9 Nama Barang, 10 Kode Barang. */
+   5 Harga, 6 Satuan, 7 Kuantitas, 8 Spesifikasi, 9 Nama Barang. */
 
-/* kolom Kode Barang tidak boleh pecah menjadi beberapa baris */
-.fi-fo-table-repeater > table th:nth-last-child(10),
-.fi-fo-table-repeater > table td:nth-last-child(10) {
-    white-space: nowrap;
-    min-width: 8.5rem;
+/* Pemilih barang adalah modal select, bukan select biasa. Bentangkan permukaan
+   kontrolnya agar nama barang panjang punya ruang dan tombol + tetap di ujung kanan. */
+.fi-fo-table-repeater .fi-fo-modal-table-select:not(.fi-fo-modal-table-select-multiple) {
+    justify-content: space-between;
+    width: 100%;
+    min-width: 28rem;
+    min-height: 2.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d4d4d8;
+    border-radius: 0.5rem;
+    background: #ffffff;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
 }
 
-.fi-fo-table-repeater > table td:nth-last-child(10) * {
+.dark .fi-fo-table-repeater .fi-fo-modal-table-select:not(.fi-fo-modal-table-select-multiple) {
+    border-color: #52525b;
+    background: #18181b;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.25);
+}
+
+.fi-fo-table-repeater .fi-fo-modal-table-select:not(.fi-fo-modal-table-select-multiple) > :first-child {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.fi-fo-table-repeater .fi-fo-modal-table-select:not(.fi-fo-modal-table-select-multiple) > :last-child {
+    flex: 0 0 auto;
 }
 
 /* kontrol di dalam sel tidak boleh terhimpit sampai teksnya pecah baris;
    karena wadahnya bisa digulir, memberi ukuran minimum di sini tidak menabrak sel sebelah */
-.fi-fo-table-repeater > table td:nth-last-child(9) .fi-select-input,
-.fi-fo-table-repeater > table td:nth-last-child(9) .fi-select-input-btn,
-.fi-fo-table-repeater > table td:nth-last-child(9) select {
-    min-width: 11rem;
-}
-
 .fi-fo-table-repeater > table td:nth-last-child(6) .fi-select-input,
 .fi-fo-table-repeater > table td:nth-last-child(6) .fi-select-input-btn,
 .fi-fo-table-repeater > table td:nth-last-child(6) select {
