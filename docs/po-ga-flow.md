@@ -25,6 +25,8 @@ Dokumen pendamping: `docs/ecount-po-reference.md` (hasil penelusuran modul PO EC
 6. Cakupan pengguna awal adalah **divisi GA**. GA membuat PO dan, untuk fase awal, GA juga membuat
    payment slip yang terkait. Perluasan ke divisi lain dibahas kemudian.
 7. Mata uang PO fase awal mendukung **IDR dan USD**, mengikuti kemampuan Payment Slip General.
+   Untuk migrasi historis, 68 PO asing mengikuti berkas verifikasi `perubahan-mata-uang.csv`;
+   kunci ECOUNT menjadi acuan koreksi dan nilai sumber tidak dikonversi ulang oleh aplikasi.
 8. Segmen **`HIJ`** pada nomor PO adalah kode perusahaan **Hansoll Indo Java**. Contoh yang terlihat:
    `PO/HIJ/24092026-000006`. Kode disimpan sebagai konfigurasi perusahaan, bukan nilai tersebar di kode.
 9. Dokumen ini adalah keputusan utama. Jika `docs/ecount-po-reference.md` masih menyebut approval atau
