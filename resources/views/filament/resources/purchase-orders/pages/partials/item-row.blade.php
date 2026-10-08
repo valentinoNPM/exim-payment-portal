@@ -22,6 +22,17 @@
         >
     </td>
     <td>
+        <textarea
+            class="po-editor__textarea po-editor__item-notes"
+            name="items[{{ $index }}][notes]"
+            maxlength="1000"
+            rows="2"
+            data-field="notes"
+            aria-label="Keterangan item"
+            placeholder="Keterangan item"
+        >{{ $row['notes'] ?? '' }}</textarea>
+    </td>
+    <td>
         <input
             class="po-editor__input po-editor__number-input"
             type="number"
@@ -38,7 +49,6 @@
         <input type="hidden" name="items[{{ $index }}][unit_id]" value="{{ $row['unit_id'] ?? '' }}" data-field="unit_id">
         <button type="button" class="po-editor__unit-button" data-open-unit-picker>
             <span data-unit-label>{{ $row['unit_name'] ?? 'Pilih satuan' }}</span>
-            <span aria-hidden="true">⌄</span>
         </button>
     </td>
     <td>

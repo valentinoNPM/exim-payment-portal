@@ -302,6 +302,7 @@ class PurchaseOrderModuleTest extends TestCase
             'warehouse_id' => $this->warehouse->id,
             'delivery_location' => 'Gudang Hansoll',
             'title' => 'Judul internal tidak boleh tampil',
+            'notes' => 'Catatan header lama tidak boleh tampil',
             'status' => PurchaseOrder::STATUS_NEW,
             'created_by' => $this->gaMaker->id,
         ]);
@@ -310,6 +311,7 @@ class PurchaseOrderModuleTest extends TestCase
             'item_code' => 'ATK-01',
             'item_name' => 'Kertas A4',
             'specification' => '80 gsm',
+            'notes' => 'Keterangan per item untuk cetak',
             'quantity' => 5,
             'unit_price_amount' => 60000,
         ]);
@@ -347,6 +349,8 @@ class PurchaseOrderModuleTest extends TestCase
         $this->assertStringContainsString('SUB TOTAL', $html);
         $this->assertStringContainsString('PT Vendor Cetak', $html);
         $this->assertStringContainsString('Kertas A4', $html);
+        $this->assertStringContainsString('Keterangan per item untuk cetak', $html);
+        $this->assertStringNotContainsString('Catatan header lama tidak boleh tampil', $html);
         $this->assertStringNotContainsString('Judul internal tidak boleh tampil', $html);
         // kolom approval berupa dua kotak bergaris seperti cetakan ECOUNT
         foreach (['PIC', 'Area Manager', 'Factory Manager', 'Direktur', 'GA', 'Manager'] as $peran) {
@@ -737,6 +741,7 @@ class PurchaseOrderModuleTest extends TestCase
             'line_number' => 1,
             'item_code' => 'VIEW-01',
             'item_name' => 'Item View',
+            'notes' => 'Keterangan item pada detail',
             'quantity' => 2,
             'unit_price_amount' => 15000,
         ]);
@@ -746,6 +751,7 @@ class PurchaseOrderModuleTest extends TestCase
 
         $this->assertStringContainsString('VIEW-01', $visibleHtml);
         $this->assertStringContainsString('Item View', $visibleHtml);
+        $this->assertStringContainsString('Keterangan item pada detail', $visibleHtml);
         $this->assertStringNotContainsString('Judul / Keperluan', $visibleHtml);
         $this->assertStringNotContainsString('PO teks biasa', $visibleHtml);
         $this->assertSame(0, preg_match_all('/<input\b/i', $html));
@@ -936,6 +942,7 @@ class PurchaseOrderModuleTest extends TestCase
         $purchaseOrder->forceFill([
             'source' => 'ecount',
             'source_code' => '03/10/2026 -99',
+            'notes' => 'Catatan header historis',
         ])->saveQuietly();
         $purchaseOrder->items()->create([
             'line_number' => 1,
@@ -952,17 +959,19 @@ class PurchaseOrderModuleTest extends TestCase
                 'id' => $line->id,
                 'item_id' => null,
                 'specification' => $line->specification,
+                'notes' => 'Keterangan item diperbarui',
                 'quantity' => $line->quantity,
                 'unit_id' => null,
                 'unit_price_amount' => $line->unit_price_amount,
             ]], [
                 'po_date' => $purchaseOrder->po_date->format('Y-m-d'),
-                'notes' => 'Catatan diperbarui',
+                'notes' => 'Input header harus diabaikan',
             ]),
         )->assertSessionHasNoErrors()->assertRedirect();
 
         $this->assertSame('1234.00', $purchaseOrder->fresh()->grand_total_amount);
-        $this->assertSame('Catatan diperbarui', $purchaseOrder->fresh()->notes);
+        $this->assertSame('Catatan header historis', $purchaseOrder->fresh()->notes);
+        $this->assertSame('Keterangan item diperbarui', $line->fresh()->notes);
     }
 
     public function test_legacy_text_only_po_item_can_still_be_saved(): void

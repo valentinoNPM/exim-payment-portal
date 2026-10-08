@@ -45,8 +45,6 @@
         .below-items { margin-top: 7px; page-break-inside: avoid; }
         .notes-cell { width: 57%; padding: 0 12px 0 0; }
         .summary-cell { width: 43%; padding: 0; }
-        .notes-title { color: #173a5e; font-size: 7.5px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; }
-        .notes-content { margin-top: 3px; color: #374151; font-size: 8px; line-height: 1.4; }
         .summary td { border: .7px solid #94a3b8; padding: 3px 6px; font-size: 8px; }
         .summary .summary-label { width: 56%; color: #374151; font-weight: 700; }
         .summary .summary-value { width: 44%; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -144,7 +142,7 @@
         <thead>
             <tr>
                 <th style="width: 8%;">Kode Barang</th>
-                <th style="width: {{ $foreignCurrency ? '31%' : '36%' }};">Nama Barang [Spec.]</th>
+                <th style="width: {{ $foreignCurrency ? '27%' : '34%' }};">Nama Barang [Spec.]</th>
                 <th style="width: 7%;">Kuantitas</th>
                 <th style="width: 7%;">Satuan</th>
                 <th style="width: 11%;">Harga</th>
@@ -152,7 +150,7 @@
                 @if ($foreignCurrency)
                     <th style="width: 7%;">Tipe Mata Uang Asing</th>
                 @endif
-                <th style="width: 18%;">Keterangan</th>
+                <th style="width: 20%;">Keterangan</th>
             </tr>
         </thead>
         <tbody>
@@ -172,7 +170,7 @@
                     @if ($foreignCurrency)
                         <td class="center">{{ $currency }}</td>
                     @endif
-                    <td>{{ $item->notes }}</td>
+                    <td>{!! nl2br(e($item->notes)) !!}</td>
                 </tr>
             @endforeach
             <tr class="grand-row">
@@ -189,10 +187,6 @@
     <table class="below-items">
         <tr>
             <td class="notes-cell">
-                @if ($purchaseOrder->notes)
-                    <div class="notes-title">Catatan</div>
-                    <div class="notes-content">{!! nl2br(e($purchaseOrder->notes)) !!}</div>
-                @endif
             </td>
             <td class="summary-cell">
                 <table class="summary">

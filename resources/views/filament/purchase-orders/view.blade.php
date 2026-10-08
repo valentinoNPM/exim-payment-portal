@@ -19,24 +19,12 @@
                 : null,
         ];
 
-        $catatan = [
-            'Catatan PO' => $record->notes,
-        ];
     @endphp
 
     <div class="po-view">
         <x-filament::section heading="Data Purchase Order">
             <dl class="po-view__grid">
                 @foreach ($identitas as $label => $value)
-                    <div class="po-view__item">
-                        <dt class="po-view__label">{{ $label }}</dt>
-                        <dd class="po-view__value">{{ $isi($value) }}</dd>
-                    </div>
-                @endforeach
-            </dl>
-
-            <dl class="po-view__grid po-view__grid--notes">
-                @foreach ($catatan as $label => $value)
                     <div class="po-view__item">
                         <dt class="po-view__label">{{ $label }}</dt>
                         <dd class="po-view__value">{{ $isi($value) }}</dd>
@@ -61,6 +49,7 @@
                                 <th>Kode</th>
                                 <th>Nama Item</th>
                                 <th>Spesifikasi</th>
+                                <th>Keterangan</th>
                                 <th class="po-view__num">Kuantitas</th>
                                 <th>Satuan</th>
                                 <th class="po-view__num">Harga</th>
@@ -75,6 +64,7 @@
                                     <td class="po-view__code">{{ $isi($item->item_code_snapshot ?: $item->item_code) }}</td>
                                     <td>{{ $isi($item->item_name_snapshot ?: $item->item_name) }}</td>
                                     <td class="po-view__muted">{{ $isi($item->specification ?: $item->specification_snapshot) }}</td>
+                                    <td class="po-view__muted po-view__note">{{ $isi($item->notes) }}</td>
                                     <td class="po-view__num">{{ $jumlah($item->quantity) }}</td>
                                     <td>{{ $isi($item->unit_code_snapshot ?: $item->unit?->code) }}</td>
                                     <td class="po-view__num">{{ $money($item->unit_price_amount) }}</td>

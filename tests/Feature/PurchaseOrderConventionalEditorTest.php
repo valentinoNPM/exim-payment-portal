@@ -94,6 +94,8 @@ class PurchaseOrderConventionalEditorTest extends TestCase
         $this->assertStringNotContainsString('<select id="pic-user-id"', $html);
         $this->assertStringNotContainsString('<select id="warehouse-id"', $html);
         $this->assertStringNotContainsString('name="delivery_location"', $html);
+        $this->assertStringNotContainsString('name="notes"', $html);
+        $this->assertMatchesRegularExpression('/name="items\[[^]]+\]\[notes\]"/', $html);
         $this->assertStringContainsString('step="1"', $html);
         $this->assertStringContainsString('novalidate', $html);
         $this->assertStringNotContainsString('fi-fo-repeater', $html);
@@ -113,7 +115,6 @@ class PurchaseOrderConventionalEditorTest extends TestCase
             'PPh (potongan)',
             'Status',
             'Diskon',
-            'Keterangan',
         ];
         $positions = array_map(fn (string $label): int|false => strpos($html, $label), $labelsInEcountOrder);
         $sortedPositions = $positions;
@@ -140,6 +141,7 @@ class PurchaseOrderConventionalEditorTest extends TestCase
             'items' => [[
                 'item_id' => $this->item->id,
                 'specification' => 'Spesifikasi pesanan',
+                'notes' => 'Kirim terpisah per ukuran',
                 'quantity' => 2,
                 'unit_id' => $this->unit->id,
                 'unit_price_amount' => 10000,
@@ -153,6 +155,7 @@ class PurchaseOrderConventionalEditorTest extends TestCase
         $this->assertSame($this->warehouse->id, $purchaseOrder->warehouse_id);
         $this->assertSame('Barang Editor', $purchaseOrder->items->first()->item_name_snapshot);
         $this->assertSame('Spesifikasi pesanan', $purchaseOrder->items->first()->specification);
+        $this->assertSame('Kirim terpisah per ukuran', $purchaseOrder->items->first()->notes);
         $this->assertSame('PCS', $purchaseOrder->items->first()->unit_code_snapshot);
         $this->assertSame('2200.00', $purchaseOrder->tax_addition_amount);
         $this->assertSame('23200.00', $purchaseOrder->grand_total_amount);
@@ -251,6 +254,7 @@ class PurchaseOrderConventionalEditorTest extends TestCase
                     'id' => $firstLine->id,
                     'item_id' => $this->item->id,
                     'specification' => 'Ubah spesifikasi',
+                    'notes' => 'Keterangan hasil edit',
                     'quantity' => 2,
                     'unit_id' => $this->unit->id,
                     'unit_price_amount' => 10000,
@@ -267,10 +271,11 @@ class PurchaseOrderConventionalEditorTest extends TestCase
         $this->assertSame([1, 2], $purchaseOrder->items()->pluck('line_number')->all());
         $this->assertSame($secondItem->id, $purchaseOrder->items()->first()->item_id);
         $this->assertSame('Ubah spesifikasi', $firstLine->fresh()->specification);
+        $this->assertSame('Keterangan hasil edit', $firstLine->fresh()->notes);
         $this->assertSame('35000.00', $purchaseOrder->grand_total_amount);
     }
 
-    public function test_header_only_edit_preserves_imported_total(): void
+    public function test_item_note_edit_preserves_imported_total_and_legacy_po_note(): void
     {
         $purchaseOrder = $this->existingPurchaseOrder();
         $line = $purchaseOrder->items()->create([
@@ -282,15 +287,17 @@ class PurchaseOrderConventionalEditorTest extends TestCase
         $purchaseOrder->forceFill([
             'source' => 'ecount',
             'grand_total_amount' => 1234,
+            'notes' => 'Catatan PO lama',
         ])->saveQuietly();
 
         $response = $this->put(route('purchase-orders.editor.update', $purchaseOrder), $this->payload([
             'po_date' => $purchaseOrder->po_date->format('Y-m-d'),
-            'notes' => 'Catatan diperbarui',
+            'notes' => 'Input header harus diabaikan',
             'items' => [[
                 'id' => $line->id,
                 'item_id' => null,
                 'specification' => null,
+                'notes' => 'Keterangan baris diperbarui',
                 'quantity' => 0,
                 'unit_id' => null,
                 'unit_price_amount' => -1000,
@@ -299,7 +306,8 @@ class PurchaseOrderConventionalEditorTest extends TestCase
 
         $response->assertRedirect();
         $this->assertSame('1234.00', $purchaseOrder->fresh()->grand_total_amount);
-        $this->assertSame('Catatan diperbarui', $purchaseOrder->fresh()->notes);
+        $this->assertSame('Catatan PO lama', $purchaseOrder->fresh()->notes);
+        $this->assertSame('Keterangan baris diperbarui', $line->fresh()->notes);
     }
 
     public function test_edit_accepts_an_inactive_tax_already_attached_to_the_po(): void
@@ -323,18 +331,18 @@ class PurchaseOrderConventionalEditorTest extends TestCase
         $this->put(route('purchase-orders.editor.update', $purchaseOrder), $this->payload([
             'po_date' => $purchaseOrder->po_date->format('Y-m-d'),
             'addition_tax_id' => $tax->id,
-            'notes' => 'Tetap memakai pajak historis',
             'items' => [[
                 'id' => $line->id,
                 'item_id' => $line->item_id,
                 'specification' => $line->specification,
+                'notes' => 'Tetap memakai pajak historis',
                 'quantity' => $line->quantity,
                 'unit_id' => $line->unit_id,
                 'unit_price_amount' => $line->unit_price_amount,
             ]],
         ]))->assertSessionHasNoErrors()->assertRedirect();
 
-        $this->assertSame('Tetap memakai pajak historis', $purchaseOrder->fresh()->notes);
+        $this->assertSame('Tetap memakai pajak historis', $line->fresh()->notes);
     }
 
     public function test_edit_keeps_an_inactive_warehouse_available_for_an_existing_po(): void

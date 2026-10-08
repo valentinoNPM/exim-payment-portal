@@ -198,9 +198,6 @@ class PurchaseOrderForm
                             ->searchable()
                             ->preload()
                             ->placeholder('Pilih gudang'),
-                        Textarea::make('notes')
-                            ->label('Keterangan')
-                            ->rows(2),
                     ])
                     ->columns(2)
                     ->maxWidth(Width::FourExtraLarge)
@@ -217,6 +214,7 @@ class PurchaseOrderForm
                             ->table([
                                 TableColumn::make('Nama Barang')->width('360px')->markAsRequired(),
                                 TableColumn::make('Spesifikasi')->width('170px'),
+                                TableColumn::make('Keterangan')->width('220px'),
                                 TableColumn::make('Kuantitas')->width('90px')->markAsRequired(),
                                 TableColumn::make('Satuan')->width('110px'),
                                 TableColumn::make('Harga')->width('150px')->markAsRequired(),
@@ -260,6 +258,10 @@ class PurchaseOrderForm
                                 TextInput::make('specification')
                                     ->label('Spesifikasi')
                                     ->maxLength(500),
+                                Textarea::make('notes')
+                                    ->label('Keterangan')
+                                    ->rows(2)
+                                    ->maxLength(1000),
                                 TextInput::make('quantity')
                                     ->label('Kuantitas')
                                     ->numeric()

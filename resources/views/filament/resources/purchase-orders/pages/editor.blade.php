@@ -182,10 +182,6 @@
                     </div>
                 @endif
 
-                <div class="po-editor__field po-editor__field--wide">
-                    <label for="notes">Keterangan</label>
-                    <textarea id="notes" class="po-editor__textarea" name="notes" rows="2">{{ old('notes', $record?->notes) }}</textarea>
-                </div>
             </div>
         </section>
 
@@ -205,6 +201,7 @@
                             <th aria-label="Urutan"></th>
                             <th>Nama Barang <span>*</span></th>
                             <th>Spesifikasi</th>
+                            <th>Keterangan</th>
                             <th>Kuantitas <span>*</span></th>
                             <th>Satuan</th>
                             <th>Harga <span>*</span></th>

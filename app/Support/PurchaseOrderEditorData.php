@@ -33,6 +33,7 @@ class PurchaseOrderEditorData
                     'item_code' => $line->item_code_snapshot ?: $line->item_code,
                     'item_name' => $line->item_name_snapshot ?: $line->item_name,
                     'specification' => $line->specification ?: $line->specification_snapshot,
+                    'notes' => $line->notes,
                     'quantity' => $line->quantity,
                     'unit_id' => $line->unit_id,
                     'unit_name' => $line->unit?->name,
@@ -44,6 +45,7 @@ class PurchaseOrderEditorData
                     'item_code' => null,
                     'item_name' => null,
                     'specification' => null,
+                    'notes' => null,
                     'quantity' => 1,
                     'unit_id' => null,
                     'unit_name' => null,
@@ -122,6 +124,7 @@ class PurchaseOrderEditorData
                     ?? $line?->specification
                     ?? $line?->specification_snapshot
                     ?? $master?->specification,
+                'notes' => $row['notes'] ?? $line?->notes,
                 'quantity' => $row['quantity'] ?? $line?->quantity ?? 1,
                 'unit_id' => $row['unit_id'] ?? $line?->unit_id ?? $master?->unit_id,
                 'unit_name' => $units->get($row['unit_id'] ?? null)?->name
