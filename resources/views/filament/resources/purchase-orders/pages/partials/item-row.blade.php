@@ -68,6 +68,6 @@
     <td class="po-editor__numeric" data-line-subtotal>Rp 0</td>
     <td class="po-editor__numeric" data-line-tax>Rp 0</td>
     <td class="po-editor__delete-cell">
-        <button type="button" class="po-editor__delete-button" data-remove-row aria-label="Hapus item">×</button>
+        <button type="button" class="po-editor__delete-button" data-remove-row aria-label="Hapus item" title="Hapus item">×</button>
     </td>
 </tr>

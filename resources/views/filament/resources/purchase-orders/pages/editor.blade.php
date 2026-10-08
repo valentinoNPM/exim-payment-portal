@@ -191,7 +191,7 @@
                     <h2 id="po-items-heading">Item PO</h2>
                     <p>Perubahan baris dihitung di browser dan disimpan sekaligus.</p>
                 </div>
-                <button type="button" class="po-editor__secondary-button" data-add-row>Tambah Item</button>
+                <button type="button" class="po-editor__add-button" data-add-row>Tambah Item</button>
             </header>
 
             <div class="po-editor__table-wrap">

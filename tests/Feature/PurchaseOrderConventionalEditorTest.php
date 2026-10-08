@@ -82,6 +82,8 @@ class PurchaseOrderConventionalEditorTest extends TestCase
 
         $this->assertStringContainsString('data-po-editor', $html);
         $this->assertStringContainsString('data-item-dialog', $html);
+        $this->assertStringContainsString('class="po-editor__add-button"', $html);
+        $this->assertStringContainsString('class="po-editor__delete-button"', $html);
         $this->assertStringContainsString('data-unit-dialog', $html);
         $this->assertStringContainsString('data-header-picker-dialog', $html);
         $this->assertStringContainsString('data-open-header-picker="supplier"', $html);
