@@ -31,6 +31,8 @@ class PaymentSlipResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'Payment';
 
+    protected static ?string $navigationLabel = 'Payment Slips';
+
     protected static ?int $navigationSort = 1;
 
     public static function getNavigationItems(): array

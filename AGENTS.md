@@ -85,6 +85,23 @@ Tetap minta persetujuan sebelum tindakan yang destruktif, sulit dipulihkan, berd
 
 Jika platform atau sandbox tetap menampilkan permintaan approval, ikuti mekanisme keamanan platform. Namun, jangan meminta konfirmasi percakapan tambahan untuk operasi yang sudah diizinkan di atas.
 
+## Standar tampilan (UI/UX)
+
+- **Baca `docs/ui-guidelines.md` sebelum membuat atau mengubah tampilan apa pun.**
+- **Jangan memakai kelas utilitas Tailwind di Blade panel.** CSS panel proyek ini hanya berisi kelas
+  komponen `.fi-*` (tanpa kelas utilitas seperti `p-2`, `grid`, `gap-4`, `text-sm`, `md:*`), karena
+  panel tidak punya tema Tailwind/Vite. Blade yang memakainya akan tampil sebagai HTML telanjang.
+  Gunakan komponen Filament (`<x-filament::section>`, `<x-filament-panels::page>`) dan CSS proyek di
+  `public/css/app/custom-filament.css` dengan kelas semantik ber-prefiks fitur.
+- Halaman rincian/read-only dirender sebagai teks biasa, bukan komponen form (`disabled()` bukan
+  solusi read-only).
+- Semua nilai uang lewat `App\Support\CurrencyFormatter`; kolom angka rata kanan dengan
+  `font-variant-numeric: tabular-nums`.
+- Setiap gaya baru wajib punya aturan pasangan untuk mode gelap (`.dark`).
+- Sebelum mengklaim perbaikan tampilan atau performa, ukur bobot halaman (elemen & ukuran HTML);
+  batas praktis ~3.000 elemen atau ~1 MB HTML per halaman. Verifikasi tampilan di panel yang benar
+  login, bukan hanya pada render statis.
+
 ## Larangan kompatibilitas
 
 - Jangan menghasilkan kode Filament 3/4 yang mengandalkan `Filament\Forms\Form`, `Filament\Tables\Actions\*`, `->actions()`, atau `->bulkActions()`.

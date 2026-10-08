@@ -112,6 +112,7 @@
                 <table class="document-meta">
                     <tr><td class="meta-label">Tanggal</td><td class="meta-value">: {{ $purchaseOrder->po_date?->format('d/m/Y') }}</td></tr>
                     <tr><td class="meta-label">Purchase Order No.</td><td class="meta-value">: {{ $purchaseOrder->po_number }}</td></tr>
+                    <tr><td class="meta-label">Lokasi</td><td class="meta-value">: {{ $purchaseOrder->warehouse?->name ?: '-' }}</td></tr>
                 </table>
             </td>
         </tr>

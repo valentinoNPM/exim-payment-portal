@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\CurrencyFormatter;
+
 final class InvoiceAmountCalculator
 {
     /**
@@ -26,7 +28,7 @@ final class InvoiceAmountCalculator
      */
     public static function calculateForCurrency(float $subtotal, ?float $additionRate, ?float $deductionRate, string $currency): array
     {
-        if ($currency !== 'USD') {
+        if (! CurrencyFormatter::usesDecimals($currency)) {
             return self::calculate($subtotal, $additionRate, $deductionRate);
         }
 

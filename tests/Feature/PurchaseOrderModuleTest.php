@@ -19,6 +19,7 @@ use App\Models\Supplier;
 use App\Models\Tax;
 use App\Models\Unit;
 use App\Models\User;
+use App\Models\Warehouse;
 use App\Services\PurchaseOrders\PurchaseOrderNumberGenerator;
 use Carbon\Carbon;
 use Filament\Facades\Filament;
@@ -37,6 +38,8 @@ class PurchaseOrderModuleTest extends TestCase
 
     protected User $gaMaker;
 
+    protected Warehouse $warehouse;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -51,6 +54,12 @@ class PurchaseOrderModuleTest extends TestCase
         $this->gaMaker = User::factory()->create([
             'division_id' => $this->gaDivision->id,
         ])->assignRole('maker');
+        $this->warehouse = Warehouse::create([
+            'source_code' => 'TEST-GA',
+            'name' => 'Gudang GA Test',
+            'type' => 'Gudang',
+            'is_active' => true,
+        ]);
 
         Filament::setCurrentPanel(Filament::getPanel('admin'));
     }
@@ -157,15 +166,15 @@ class PurchaseOrderModuleTest extends TestCase
         $draft = app(PurchaseOrderNumberGenerator::class)->preview(today());
 
         $this->assertStringContainsString($draft['po_number'], $html, 'Halaman PO Baru tidak menampilkan nomor draf.');
-        $this->assertStringContainsString('belum paten', $html);
+        $this->assertStringContainsString('masih berupa draf', $html);
         $this->assertStringNotContainsString('wire:model="data.po_number"', $html, 'Nomor PO tidak boleh bisa diisi manual.');
         // pratinjau tidak boleh memakai urutan
         $this->assertSame(0, (int) DB::table('purchase_order_sequences')->sum('last_number'));
 
-        // nomor draf mengikuti tanggal yang dipilih
-        Livewire::test(CreatePurchaseOrder::class)
-            ->fillForm(['po_date' => '2026-12-25'])
-            ->assertSee('PO/HIJ/25122026-');
+        // nomor draf mengikuti tanggal yang dipilih melalui endpoint ringan.
+        $this->getJson(route('purchase-orders.editor.number-preview', ['date' => '2026-12-25']))
+            ->assertOk()
+            ->assertJsonPath('po_number', 'PO/HIJ/25122026-000001');
     }
 
     public function test_preview_number_is_not_reserved_and_equals_the_saved_po_number(): void
@@ -176,6 +185,13 @@ class PurchaseOrderModuleTest extends TestCase
             'name' => 'Vendor Draf',
             'is_active' => true,
         ]);
+        $unit = Unit::create(['code' => 'PCS-DRAF', 'name' => 'Pieces Draf', 'is_active' => true]);
+        $item = Item::create([
+            'name' => 'Barang uji',
+            'source_code' => 'DRAF-001',
+            'unit_id' => $unit->id,
+            'is_active' => true,
+        ]);
 
         $generator = app(PurchaseOrderNumberGenerator::class);
         $preview = $generator->preview(Carbon::parse('2026-10-03'));
@@ -184,21 +200,14 @@ class PurchaseOrderModuleTest extends TestCase
         $this->assertSame($preview['po_number'], $generator->preview(Carbon::parse('2026-10-03'))['po_number']);
         $this->assertSame(0, (int) DB::table('purchase_order_sequences')->sum('last_number'));
 
-        Livewire::test(CreatePurchaseOrder::class)
-            ->fillForm([
-                'po_date' => '2026-10-03',
-                'supplier_id' => $supplier->id,
-                'currency' => PurchaseOrder::CURRENCY_IDR,
-                'status' => PurchaseOrder::STATUS_NEW,
-                'items' => [[
-                    'item_code' => 'DRAF-001',
-                    'item_name' => 'Barang uji',
-                    'quantity' => 1,
-                    'unit_price_amount' => 1000,
-                ]],
-            ])
-            ->call('create')
-            ->assertHasNoFormErrors();
+        $this->post(route('purchase-orders.editor.store'), $this->editorPayload($supplier, [[
+            'item_id' => $item->id,
+            'quantity' => 1,
+            'unit_id' => $unit->id,
+            'unit_price_amount' => 1000,
+        ]], ['po_date' => '2026-10-03']))
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
 
         $saved = PurchaseOrder::query()->firstOrFail();
 
@@ -222,33 +231,32 @@ class PurchaseOrderModuleTest extends TestCase
             'name' => 'Box',
             'is_active' => true,
         ]);
+        $item = Item::create([
+            'name' => 'Air mineral',
+            'specification' => '600 ml',
+            'source_code' => 'PAN-001',
+            'unit_id' => $unit->id,
+            'is_active' => true,
+        ]);
 
-        Livewire::test(CreatePurchaseOrder::class)
-            ->fillForm([
-                'po_date' => '2026-10-03',
-                'supplier_id' => $supplier->id,
-                'pic_name' => 'Staf GA',
-                'currency' => PurchaseOrder::CURRENCY_IDR,
-                'status' => PurchaseOrder::STATUS_NEW,
-                'delivery_date' => '2026-10-10',
-                'delivery_location' => 'Gudang GA',
-                'items' => [[
-                    'item_code' => 'PAN-001',
-                    'item_name' => 'Air mineral',
-                    'specification' => '600 ml',
-                    'quantity' => 10,
-                    'unit_id' => $unit->id,
-                    'unit_price_amount' => 25000,
-                ]],
-            ])
-            ->call('create')
-            ->assertHasNoFormErrors();
+        $this->post(route('purchase-orders.editor.store'), $this->editorPayload($supplier, [[
+            'item_id' => $item->id,
+            'specification' => '600 ml',
+            'quantity' => 10,
+            'unit_id' => $unit->id,
+            'unit_price_amount' => 25000,
+        ]], [
+            'po_date' => '2026-10-03',
+            'delivery_date' => '2026-10-10',
+            'warehouse_id' => $this->warehouse->id,
+        ]))->assertSessionHasNoErrors()->assertRedirect();
 
         $purchaseOrder = PurchaseOrder::query()->with('items')->firstOrFail();
 
         $this->assertSame('PO/HIJ/03102026-000001', $purchaseOrder->po_number);
         $this->assertSame($this->gaDivision->id, $purchaseOrder->division_id);
         $this->assertSame($this->gaMaker->id, $purchaseOrder->created_by);
+        $this->assertSame($this->warehouse->id, $purchaseOrder->warehouse_id);
         $this->assertSame('250000.00', $purchaseOrder->subtotal_amount);
         $this->assertSame('250000.00', $purchaseOrder->grand_total_amount);
         $this->assertSame('250000.00', $purchaseOrder->items->first()->subtotal_amount);
@@ -291,6 +299,7 @@ class PurchaseOrderModuleTest extends TestCase
             'supplier_id' => $supplier->id,
             'pic_name' => 'PIC GA',
             'currency' => PurchaseOrder::CURRENCY_IDR,
+            'warehouse_id' => $this->warehouse->id,
             'delivery_location' => 'Gudang Hansoll',
             'title' => 'Judul internal tidak boleh tampil',
             'status' => PurchaseOrder::STATUS_NEW,
@@ -308,6 +317,11 @@ class PurchaseOrderModuleTest extends TestCase
         Livewire::test(ListPurchaseOrders::class)
             ->assertCanSeeTableRecords([$purchaseOrder]);
 
+        Livewire::test(ViewPurchaseOrder::class, ['record' => $purchaseOrder->getRouteKey()])
+            ->assertSee('Gudang')
+            ->assertSee('Gudang GA Test')
+            ->assertSee('TEST-GA');
+
         $response = $this->get(route('purchase-orders.pdf.preview', $purchaseOrder));
 
         $response->assertOk()
@@ -315,12 +329,14 @@ class PurchaseOrderModuleTest extends TestCase
         $this->assertStringContainsString('inline', (string) $response->headers->get('content-disposition'));
 
         $html = view('pdf.purchase-order', [
-            'purchaseOrder' => $purchaseOrder->fresh()->load(['division', 'supplier', 'creator', 'items.unit', 'items.item']),
+            'purchaseOrder' => $purchaseOrder->fresh()->load(['division', 'warehouse', 'supplier', 'creator', 'items.unit', 'items.item']),
         ])->render();
         // Bentuk cetakan mengikuti PDF ECOUNT (PROSES.md butir 18).
         $this->assertStringContainsString('Purchase Order', $html);
         $this->assertStringContainsString('Purchase Order No.', $html);
         $this->assertStringContainsString($purchaseOrder->po_number, $html);
+        $this->assertStringContainsString('Lokasi', $html);
+        $this->assertStringContainsString('Gudang GA Test', $html);
         $this->assertStringContainsString('Vendor', $html);
         $this->assertStringContainsString('Ship To', $html);
         $this->assertStringContainsString('PT HANSOLL INDO JAVA', $html);
@@ -421,30 +437,26 @@ class PurchaseOrderModuleTest extends TestCase
             'calculation_type' => 'addition',
             'is_active' => true,
         ]);
+        $unit = Unit::create(['code' => 'PCS-BULK', 'name' => 'Pieces Bulk', 'is_active' => true]);
+        $firstItem = Item::create(['name' => 'Item satu', 'unit_id' => $unit->id, 'is_active' => true]);
+        $secondItem = Item::create(['name' => 'Item dua', 'unit_id' => $unit->id, 'is_active' => true]);
 
-        Livewire::test(CreatePurchaseOrder::class)
-            ->fillForm([
-                'po_date' => '2026-10-03',
-                'supplier_id' => $supplier->id,
-                'pic_name' => 'PIC Pajak Massal',
-                'currency' => PurchaseOrder::CURRENCY_IDR,
-                'status' => PurchaseOrder::STATUS_NEW,
-                'items' => [
-                    [
-                        'item_name' => 'Item satu',
-                        'quantity' => 1,
-                        'unit_price_amount' => 100000,
-                    ],
-                    [
-                        'item_name' => 'Item dua',
-                        'quantity' => 3,
-                        'unit_price_amount' => 50000,
-                    ],
-                ],
-            ])
-            ->set('data.addition_tax_id', $ppn->id)
-            ->call('create')
-            ->assertHasNoFormErrors();
+        $this->post(route('purchase-orders.editor.store'), $this->editorPayload($supplier, [
+            [
+                'item_id' => $firstItem->id,
+                'quantity' => 1,
+                'unit_id' => $unit->id,
+                'unit_price_amount' => 100000,
+            ],
+            [
+                'item_id' => $secondItem->id,
+                'quantity' => 3,
+                'unit_id' => $unit->id,
+                'unit_price_amount' => 50000,
+            ],
+        ], ['addition_tax_id' => $ppn->id]))
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
 
         $purchaseOrder = PurchaseOrder::query()->with('items.taxes')->firstOrFail();
 
@@ -469,26 +481,17 @@ class PurchaseOrderModuleTest extends TestCase
             'calculation_type' => 'addition',
             'is_active' => true,
         ]);
+        $unit = Unit::create(['code' => 'PCS-NO-TAX', 'name' => 'Pieces No Tax', 'is_active' => true]);
+        $item = Item::create(['name' => 'Item bersih pajak', 'unit_id' => $unit->id, 'is_active' => true]);
 
-        $component = Livewire::test(CreatePurchaseOrder::class)
-            ->fillForm([
-                'po_date' => '2026-10-03',
-                'supplier_id' => $supplier->id,
-                'pic_name' => 'PIC Tanpa Pajak',
-                'currency' => PurchaseOrder::CURRENCY_IDR,
-                'status' => PurchaseOrder::STATUS_NEW,
-                'addition_tax_id' => $ppn->id,
-                'items' => [[
-                    'item_name' => 'Item bersih pajak',
-                    'quantity' => 2,
-                    'unit_price_amount' => 75000,
-                ]],
-            ]);
-
-        $component
-            ->set('data.addition_tax_id', null)
-            ->call('create')
-            ->assertHasNoFormErrors();
+        $this->post(route('purchase-orders.editor.store'), $this->editorPayload($supplier, [[
+            'item_id' => $item->id,
+            'quantity' => 2,
+            'unit_id' => $unit->id,
+            'unit_price_amount' => 75000,
+        ]], ['addition_tax_id' => null]))
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
 
         $purchaseOrder = PurchaseOrder::query()->firstOrFail();
 
@@ -520,30 +523,25 @@ class PurchaseOrderModuleTest extends TestCase
             'calculation_type' => 'deduction',
             'is_active' => true,
         ]);
+        $unit = Unit::create(['code' => 'PCS-MONEY', 'name' => 'Pieces Money', 'is_active' => true]);
+        $item = Item::create(['name' => 'Item uang', 'unit_id' => $unit->id, 'is_active' => true]);
 
-        Livewire::test(CreatePurchaseOrder::class)
-            ->assertSchemaComponentExists('addition_tax_id')
-            ->assertSchemaComponentExists('deduction_tax_id')
-            ->assertSchemaComponentExists('discount_amount')
-            ->assertSchemaComponentExists('shipping_amount')
-            ->fillForm([
-                'po_date' => '2026-10-03',
-                'supplier_id' => $supplier->id,
-                'pic_name' => 'PIC Uang',
-                'currency' => PurchaseOrder::CURRENCY_IDR,
-                'status' => PurchaseOrder::STATUS_NEW,
-                'discount_amount' => 10000,
-                'shipping_amount' => 20000,
-                'items' => [[
-                    'item_name' => 'Item uang',
-                    'quantity' => 1,
-                    'unit_price_amount' => 100000,
-                ]],
-            ])
-            ->set('data.addition_tax_id', $ppn->id)
-            ->set('data.deduction_tax_id', $pph->id)
-            ->call('create')
-            ->assertHasNoFormErrors();
+        $html = Livewire::test(CreatePurchaseOrder::class)->html();
+        foreach (['addition_tax_id', 'deduction_tax_id', 'discount_amount', 'shipping_amount'] as $field) {
+            $this->assertStringContainsString('name="'.$field.'"', $html);
+        }
+
+        $this->post(route('purchase-orders.editor.store'), $this->editorPayload($supplier, [[
+            'item_id' => $item->id,
+            'quantity' => 1,
+            'unit_id' => $unit->id,
+            'unit_price_amount' => 100000,
+        ]], [
+            'addition_tax_id' => $ppn->id,
+            'deduction_tax_id' => $pph->id,
+            'discount_amount' => 10000,
+            'shipping_amount' => 20000,
+        ]))->assertSessionHasNoErrors()->assertRedirect();
 
         $purchaseOrder = PurchaseOrder::query()->firstOrFail();
 
@@ -658,19 +656,17 @@ class PurchaseOrderModuleTest extends TestCase
         $this->actingAs($this->gaMaker);
         Item::create(['name' => 'Barang Pilihan']);
 
-        $component = Livewire::test(CreatePurchaseOrder::class);
-        $html = $component->html();
-        $itemKey = array_key_first($component->get('data.items'));
+        $html = Livewire::test(CreatePurchaseOrder::class)->html();
 
         $this->assertStringContainsString('Nama Barang', $html);
-        $this->assertStringContainsString('width: 360px', $html);
         $this->assertStringNotContainsString('Kode Barang', $html);
         $this->assertStringContainsString('Pilih barang', $html);
         $this->assertStringContainsString('Pilih satuan', $html);
-        $this->assertStringNotContainsString('Cari barang', $html);
+        $this->assertStringContainsString('Cari barang', $html);
         $this->assertStringNotContainsString('Buat opsi', $html);
-
-        $component->assertFormComponentActionExists("items.{$itemKey}.item_id", 'select');
+        $this->assertStringContainsString('data-item-dialog', $html);
+        $this->assertStringContainsString('data-unit-dialog', $html);
+        $this->assertStringNotContainsString('fi-fo-repeater', $html);
     }
 
     public function test_po_list_can_be_filtered_by_period(): void
@@ -698,13 +694,13 @@ class PurchaseOrderModuleTest extends TestCase
 
         $listHtml = Livewire::test(ListPurchaseOrders::class)->html();
 
-        foreach (['Daftar Pesanan Pembelian', 'No. PO', 'Vendor', 'Divisi', 'Barang', 'Tanggal Selesai', 'Total', 'Status', 'Cetak'] as $label) {
+        foreach (['Daftar Pesanan Pembelian', 'No. PO', 'Vendor', 'Divisi', 'Barang', 'Tanggal Pengiriman', 'Total', 'Status', 'Cetak'] as $label) {
             $this->assertStringContainsString($label, $listHtml, "Label daftar PO tidak sesuai kosakata klien: {$label}");
         }
 
         $createHtml = Livewire::test(CreatePurchaseOrder::class)->html();
 
-        foreach (['Data PO', 'Item PO', 'Nama Barang', 'Kuantitas', 'Satuan', 'Harga', 'Jumlah Sebelum Pajak', 'Pajak', 'Mata Uang', 'Tanggal Selesai', 'Keterangan'] as $label) {
+        foreach (['Data PO', 'Item PO', 'Nama Barang', 'Kuantitas', 'Satuan', 'Harga', 'Subtotal', 'Pajak', 'Mata Uang', 'Tanggal Pengiriman', 'Keterangan'] as $label) {
             $this->assertStringContainsString($label, $createHtml, "Label form PO tidak sesuai kosakata klien: {$label}");
         }
 
@@ -778,30 +774,15 @@ class PurchaseOrderModuleTest extends TestCase
             'source' => 'ecount',
         ]);
 
-        $component = Livewire::test(CreatePurchaseOrder::class)
-            ->fillForm([
-                'po_date' => '2026-10-03',
-                'supplier_id' => $supplier->id,
-                'pic_name' => 'PIC Master Item',
-                'currency' => PurchaseOrder::CURRENCY_IDR,
-                'status' => PurchaseOrder::STATUS_NEW,
-                'items' => [[
-                    'item_id' => $masterItem->id,
-                    'quantity' => 2,
-                    'unit_price_amount' => 100000,
-                ]],
-            ]);
-
-        $itemsState = $component->get('data.items');
-        $itemKey = array_key_first($itemsState);
-
-        $component
-            ->set("data.items.{$itemKey}.item_id", $masterItem->id)
-            ->assertSet("data.items.{$itemKey}.item_name", 'Kain Twill')
-            ->assertSet("data.items.{$itemKey}.specification", 'Lebar 150 cm')
-            ->assertSet("data.items.{$itemKey}.unit_id", $unit->id)
-            ->call('create')
-            ->assertHasNoFormErrors();
+        $this->post(route('purchase-orders.editor.store'), $this->editorPayload($supplier, [[
+            'item_id' => $masterItem->id,
+            'specification' => 'Lebar 150 cm',
+            'quantity' => 2,
+            'unit_id' => $unit->id,
+            'unit_price_amount' => 100000,
+        ]], ['po_date' => '2026-10-03']))
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
 
         $line = PurchaseOrder::query()->firstOrFail()->items()->firstOrFail();
 
@@ -834,28 +815,20 @@ class PurchaseOrderModuleTest extends TestCase
             'source' => 'ecount',
         ]);
 
-        $component = Livewire::test(CreatePurchaseOrder::class)
-            ->fillForm([
-                'po_date' => '2026-10-07',
-                'supplier_id' => $supplier->id,
-                'pic_name' => 'PIC Unit',
-                'currency' => PurchaseOrder::CURRENCY_IDR,
-                'status' => PurchaseOrder::STATUS_NEW,
-                'items' => [[
-                    'item_id' => $masterWithoutUnit->id,
-                    'quantity' => 1,
-                    'unit_price_amount' => 10000,
-                ]],
-            ]);
+        $payload = $this->editorPayload($supplier, [[
+            'item_id' => $masterWithoutUnit->id,
+            'quantity' => 1,
+            'unit_id' => null,
+            'unit_price_amount' => 10000,
+        ]], ['po_date' => '2026-10-07']);
 
-        $itemKey = array_key_first($component->get('data.items'));
+        $this->post(route('purchase-orders.editor.store'), $payload)
+            ->assertSessionHasErrors('items.0.unit_id');
 
-        $component
-            ->call('create')
-            ->assertHasFormErrors(["items.{$itemKey}.unit_id" => 'required'])
-            ->set("data.items.{$itemKey}.unit_id", $pieces->id)
-            ->call('create')
-            ->assertHasNoFormErrors();
+        $payload['items'][0]['unit_id'] = $pieces->id;
+        $this->post(route('purchase-orders.editor.store'), $payload)
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
 
         $line = PurchaseOrder::query()->firstOrFail()->items()->firstOrFail();
 
@@ -972,10 +945,21 @@ class PurchaseOrderModuleTest extends TestCase
         ]);
         $purchaseOrder->forceFill(['grand_total_amount' => 1234])->saveQuietly();
 
-        Livewire::test(EditPurchaseOrder::class, ['record' => $purchaseOrder->getRouteKey()])
-            ->fillForm(['notes' => 'Catatan diperbarui'])
-            ->call('save')
-            ->assertHasNoFormErrors();
+        $line = $purchaseOrder->items()->firstOrFail();
+        $this->put(
+            route('purchase-orders.editor.update', $purchaseOrder),
+            $this->editorPayload($supplier, [[
+                'id' => $line->id,
+                'item_id' => null,
+                'specification' => $line->specification,
+                'quantity' => $line->quantity,
+                'unit_id' => null,
+                'unit_price_amount' => $line->unit_price_amount,
+            ]], [
+                'po_date' => $purchaseOrder->po_date->format('Y-m-d'),
+                'notes' => 'Catatan diperbarui',
+            ]),
+        )->assertSessionHasNoErrors()->assertRedirect();
 
         $this->assertSame('1234.00', $purchaseOrder->fresh()->grand_total_amount);
         $this->assertSame('Catatan diperbarui', $purchaseOrder->fresh()->notes);
@@ -1025,31 +1009,33 @@ class PurchaseOrderModuleTest extends TestCase
         $purchaseOrder->forceFill(['source_code' => '03/10/2026 -1'])->saveQuietly();
         $nomorAwal = $purchaseOrder->fresh()->po_number;
 
-        $component = Livewire::test(EditPurchaseOrder::class, ['record' => $purchaseOrder->getRouteKey()])
+        $editHtml = Livewire::test(EditPurchaseOrder::class, ['record' => $purchaseOrder->getRouteKey()])
             ->assertOk()
-            ->assertFormSet([
-                'source_code' => '03/10/2026 -1',
-            ]);
-
-        $editHtml = $component->html();
+            ->html();
         $visibleEditHtml = preg_replace('/\s+wire:snapshot="[^"]*"/', '', $editHtml) ?? $editHtml;
 
+        $this->assertStringContainsString('03/10/2026 -1', $visibleEditHtml);
         $this->assertStringNotContainsString('Judul', $visibleEditHtml);
 
-        $barisKunci = array_key_first($component->get('data.items'));
-
-        $component
-            ->fillForm([
-                'delivery_location' => 'Gudang baru',
-            ])
-            ->set("data.items.{$barisKunci}.quantity", 4)
-            ->call('save')
-            ->assertHasNoFormErrors();
+        $this->put(
+            route('purchase-orders.editor.update', $purchaseOrder),
+            $this->editorPayload($supplier, [[
+                'id' => $line->id,
+                'item_id' => null,
+                'specification' => $line->specification,
+                'quantity' => 4,
+                'unit_id' => null,
+                'unit_price_amount' => $line->unit_price_amount,
+            ]], [
+                'po_date' => $purchaseOrder->po_date->format('Y-m-d'),
+                'warehouse_id' => $this->warehouse->id,
+            ]),
+        )->assertSessionHasNoErrors()->assertRedirect();
 
         $purchaseOrder->refresh();
 
         $this->assertSame('Judul awal', $purchaseOrder->title);
-        $this->assertSame('Gudang baru', $purchaseOrder->delivery_location);
+        $this->assertSame($this->warehouse->id, $purchaseOrder->warehouse_id);
 
         // PO dibiarkan seperti dokumen impor (PIC sistem kosong): menyimpan harus tetap bisa,
         // PIC sistem terisi otomatis, dan nama PIC asli tidak boleh tertimpa.
@@ -1151,5 +1137,24 @@ class PurchaseOrderModuleTest extends TestCase
             'status' => PurchaseOrder::STATUS_NEW,
             'created_by' => $this->gaMaker->id,
         ]);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $items
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function editorPayload(Supplier $supplier, array $items, array $overrides = []): array
+    {
+        return array_merge([
+            'po_date' => '2026-10-03',
+            'supplier_id' => $supplier->id,
+            'pic_user_id' => $this->gaMaker->id,
+            'currency' => PurchaseOrder::CURRENCY_IDR,
+            'status' => PurchaseOrder::STATUS_NEW,
+            'discount_amount' => 0,
+            'shipping_amount' => 0,
+            'items' => $items,
+        ], $overrides);
     }
 }

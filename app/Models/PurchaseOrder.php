@@ -59,6 +59,7 @@ class PurchaseOrder extends Model
         'sequence_number',
         'po_date',
         'division_id',
+        'warehouse_id',
         'supplier_id',
         'supplier_name_snapshot',
         'supplier_address_snapshot',
@@ -165,6 +166,16 @@ class PurchaseOrder extends Model
     public function division(): BelongsTo
     {
         return $this->belongsTo(Division::class);
+    }
+
+    /**
+     * Gudang/lokasi PO. Boleh kosong: nilai gudang per dokumen belum pernah ikut terimpor
+     * (kolom kode_gudang/nama_gudang di berkas impor 0 terisi dari 26.397 baris). Menunggu
+     * ekspor slip PO yang difilter per gudang di ECOUNT.
+     */
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     public function supplier(): BelongsTo

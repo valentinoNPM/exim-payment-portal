@@ -8,6 +8,7 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\Tax;
 use App\Models\Unit;
+use App\Models\Warehouse;
 use App\Services\PurchaseOrders\PurchaseOrderNumberGenerator;
 use App\Support\CurrencyFormatter;
 use Carbon\Carbon;
@@ -178,13 +179,25 @@ class PurchaseOrderForm
                             ->required()
                             ->helperText('Status ini hanya pencatatan progres, bukan alur approval sistem.'),
                         DatePicker::make('delivery_date')
-                            ->label('Tanggal Selesai')
+                            ->label('Tanggal Pengiriman')
                             ->native(false)
                             ->default(fn (Get $get) => $get('po_date') ?? today())
                             ->minDate(fn (Get $get) => $get('po_date')),
-                        Textarea::make('delivery_location')
-                            ->label('Lokasi')
-                            ->rows(2),
+                        Select::make('warehouse_id')
+                            ->label('Gudang')
+                            ->options(fn (?PurchaseOrder $record): array => Warehouse::query()
+                                ->where(fn ($query) => $query
+                                    ->where('is_active', true)
+                                    ->when($record?->warehouse_id, fn ($query, $id) => $query->orWhere('id', $id)))
+                                ->orderBy('name')
+                                ->get()
+                                ->mapWithKeys(fn (Warehouse $warehouse): array => [
+                                    $warehouse->id => $warehouse->name.' ('.$warehouse->source_code.')',
+                                ])
+                                ->all())
+                            ->searchable()
+                            ->preload()
+                            ->placeholder('Pilih gudang'),
                         Textarea::make('notes')
                             ->label('Keterangan')
                             ->rows(2),

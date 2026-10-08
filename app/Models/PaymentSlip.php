@@ -27,9 +27,12 @@ class PaymentSlip extends Model
 
     public const CURRENCY_USD = 'USD';
 
+    public const CURRENCY_EUR = 'EUR';
+
     public const CURRENCIES = [
         self::CURRENCY_IDR,
         self::CURRENCY_USD,
+        self::CURRENCY_EUR,
     ];
 
     public const TRANSACTION_TYPE_LABELS = [

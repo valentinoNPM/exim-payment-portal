@@ -103,6 +103,42 @@ class CurrencyFeatureTest extends TestCase
         $this->assertSame('3000.50', $slip->grand_total_amount);
     }
 
+    public function test_general_payment_slip_can_be_saved_with_eur_and_decimal_taxes(): void
+    {
+        $maker = $this->makerForDivision('HR');
+        $this->actingAs($maker);
+        $supplier = Supplier::create(['code' => 'EUR-SUP', 'name' => 'EUR Supplier', 'is_active' => true]);
+        $ppn = Tax::create(['code' => 'PPN-EUR', 'name' => 'PPN EUR 11%', 'rate' => 11, 'calculation_type' => 'addition', 'is_active' => true]);
+
+        Livewire::test(CreateGeneralPaymentSlip::class)
+            ->fillForm([
+                'transaction_description' => 'Biaya pengujian EUR',
+                'currency' => PaymentSlip::CURRENCY_EUR,
+                'supplier_id' => $supplier->id,
+                'invoices' => [[
+                    'invoice_number' => 'NOTA-EUR-001',
+                    'invoice_date' => '2026-10-05',
+                    'items' => [[
+                        'item_name' => 'EUR Item',
+                        'quantity' => 2,
+                        'unit_id' => $this->unit->id,
+                        'unit_price_amount' => 100.25,
+                        'ppn_tax_id' => $ppn->id,
+                    ]],
+                ]],
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $slip = PaymentSlip::query()->where('created_by', $maker->id)->firstOrFail();
+        $item = $slip->invoices()->firstOrFail()->items()->firstOrFail();
+
+        $this->assertSame(PaymentSlip::CURRENCY_EUR, $slip->currency);
+        $this->assertSame('200.50', $item->subtotal_amount);
+        $this->assertSame('22.06', $item->tax_addition_amount);
+        $this->assertSame('222.56', $slip->grand_total_amount);
+    }
+
     public function test_general_payment_slip_keeps_taxes_at_item_level(): void
     {
         $maker = $this->makerForDivision('HR');
@@ -149,7 +185,7 @@ class CurrencyFeatureTest extends TestCase
         PaymentSlip::create([
             'slip_number' => 'PS-INVALID-CUR',
             'transaction_type' => PaymentSlip::TYPE_GENERAL,
-            'currency' => 'EUR',
+            'currency' => 'JPY',
             'supplier_id' => $supplier->id,
             'status' => 'draft',
             'created_by' => $this->checker->id,
@@ -162,14 +198,14 @@ class CurrencyFeatureTest extends TestCase
         $this->actingAs($maker);
         $supplier = Supplier::create(['code' => 'EDIT-SUP', 'name' => 'Edit Supplier', 'is_active' => true]);
 
-        // Create a USD General slip
+        // Create a EUR General slip
         Livewire::test(CreateGeneralPaymentSlip::class)
             ->fillForm([
                 'transaction_description' => 'Biaya pengujian edit',
-                'currency' => PaymentSlip::CURRENCY_USD,
+                'currency' => PaymentSlip::CURRENCY_EUR,
                 'supplier_id' => $supplier->id,
                 'invoices' => [[
-                    'invoice_number' => 'EDIT-USD-001',
+                    'invoice_number' => 'EDIT-EUR-001',
                     'invoice_date' => '2026-09-22',
                     'items' => [[
                         'item_name' => 'Edit Item',
@@ -183,15 +219,15 @@ class CurrencyFeatureTest extends TestCase
             ->assertHasNoFormErrors();
 
         $slip = PaymentSlip::query()->where('created_by', $maker->id)->firstOrFail();
-        $this->assertSame(PaymentSlip::CURRENCY_USD, $slip->currency);
+        $this->assertSame(PaymentSlip::CURRENCY_EUR, $slip->currency);
 
         // Edit the slip and verify currency is preserved
         $editPage = Livewire::test(EditPaymentSlip::class, ['record' => $slip->id]);
         $editState = $editPage->get('data');
-        $this->assertSame(PaymentSlip::CURRENCY_USD, $editState['currency']);
+        $this->assertSame(PaymentSlip::CURRENCY_EUR, $editState['currency']);
 
         $editPage->call('save')->assertHasNoFormErrors();
-        $this->assertSame(PaymentSlip::CURRENCY_USD, $slip->fresh()->currency);
+        $this->assertSame(PaymentSlip::CURRENCY_EUR, $slip->fresh()->currency);
     }
 
     public function test_view_general_shows_currency_in_form(): void
@@ -200,7 +236,7 @@ class CurrencyFeatureTest extends TestCase
         $slip = PaymentSlip::withoutEvents(fn () => PaymentSlip::create([
             'slip_number' => 'PS-VIEW-CUR',
             'transaction_type' => PaymentSlip::TYPE_GENERAL,
-            'currency' => PaymentSlip::CURRENCY_USD,
+            'currency' => PaymentSlip::CURRENCY_EUR,
             'supplier_id' => $supplier->id,
             'status' => 'draft',
             'created_by' => $this->checker->id,
@@ -208,7 +244,7 @@ class CurrencyFeatureTest extends TestCase
 
         $viewPage = Livewire::test(ViewPaymentSlip::class, ['record' => $slip->id]);
         $viewState = $viewPage->get('data');
-        $this->assertSame(PaymentSlip::CURRENCY_USD, $viewState['currency']);
+        $this->assertSame(PaymentSlip::CURRENCY_EUR, $viewState['currency']);
     }
 
     public function test_table_formats_idr_correctly(): void
@@ -243,6 +279,22 @@ class CurrencyFeatureTest extends TestCase
 
         $formatted = CurrencyFormatter::format($slip->grand_total_amount, $slip->currency);
         $this->assertSame('USD 1,500.50', $formatted);
+    }
+
+    public function test_table_formats_eur_correctly(): void
+    {
+        $supplier = Supplier::create(['code' => 'TBL-EUR', 'name' => 'Table EUR Supplier', 'is_active' => true]);
+        $slip = PaymentSlip::withoutEvents(fn () => PaymentSlip::create([
+            'slip_number' => 'PS-TBL-EUR',
+            'transaction_type' => PaymentSlip::TYPE_GENERAL,
+            'currency' => PaymentSlip::CURRENCY_EUR,
+            'supplier_id' => $supplier->id,
+            'status' => 'draft',
+            'created_by' => $this->checker->id,
+            'grand_total_amount' => 1500.50,
+        ]));
+
+        $this->assertSame('EUR 1,500.50', CurrencyFormatter::format($slip->grand_total_amount, $slip->currency));
     }
 
     public function test_pdf_general_idr_format(): void
@@ -289,6 +341,26 @@ class CurrencyFeatureTest extends TestCase
         $this->assertStringContainsString('#EDF1F3', $html);
         // Must NOT contain Rp formatting
         $this->assertStringNotContainsString('Rp ', $html);
+    }
+
+    public function test_pdf_general_eur_format(): void
+    {
+        $slip = ErpPaymentSlip::create($this->checker);
+        $slip->update(['transaction_type' => PaymentSlip::TYPE_GENERAL, 'currency' => PaymentSlip::CURRENCY_EUR, 'buyer_id' => null]);
+        $invoice = $slip->invoices()->firstOrFail();
+        $invoice->items()->delete();
+        $invoice->items()->create([
+            'item_name' => 'European Service',
+            'quantity' => 1,
+            'unit_price_amount' => 1500.75,
+        ]);
+        $slip->load(['supplier', 'buyer', 'invoices.buyer', 'invoices.items', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
+
+        $html = view('pdf.payment-slip', ['slip' => $slip])->render();
+
+        $this->assertStringContainsString('EUR 1,500.75', $html);
+        $this->assertStringNotContainsString('Rp ', $html);
+        $this->assertStringNotContainsString('USD ', $html);
     }
 
     public function test_pdf_import_export_unchanged(): void

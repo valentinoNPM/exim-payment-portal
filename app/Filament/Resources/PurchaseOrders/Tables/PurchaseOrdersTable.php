@@ -56,7 +56,7 @@ class PurchaseOrdersTable
                     ->expandableLimitedList()
                     ->wrap(),
                 TextColumn::make('delivery_date')
-                    ->label('Tanggal Selesai')
+                    ->label('Tanggal Pengiriman')
                     ->date('d M Y')
                     ->placeholder('-')
                     ->sortable(),

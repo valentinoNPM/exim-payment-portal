@@ -2,13 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\PurchaseOrders\Pages\ViewPurchaseOrder;
 use App\Models\Division;
 use App\Models\Item;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\Supplier;
 use App\Models\User;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -24,6 +28,8 @@ class PurchaseOrderItemSpecificationTest extends TestCase
 
     private Item $master;
 
+    private User $pembuat;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -31,6 +37,11 @@ class PurchaseOrderItemSpecificationTest extends TestCase
         $division = Division::create(['code' => 'GA', 'name' => 'General Affairs', 'is_active' => true]);
         $supplier = Supplier::create(['code' => 'SUP-SPESIFIKASI', 'name' => 'Vendor Uji Spesifikasi', 'is_active' => true]);
         $pembuat = User::factory()->create(['division_id' => $division->id]);
+
+        Role::create(['name' => 'maker']);
+        Role::create(['name' => 'checker']);
+        $this->pembuat = $pembuat->assignRole('maker');
+        Filament::setCurrentPanel(Filament::getPanel('admin'));
 
         $this->po = PurchaseOrder::create([
             'po_number' => 'PO/HIJ/07102026-000099',
@@ -111,6 +122,30 @@ class PurchaseOrderItemSpecificationTest extends TestCase
             '0.04 x 90 x 130',
             $html,
             'PDF masih mencetak ukuran dari master barang, bukan ukuran pada baris PO.'
+        );
+    }
+
+    public function test_halaman_detail_menampilkan_spesifikasi_baris_bukan_spesifikasi_master(): void
+    {
+        $this->actingAs($this->pembuat);
+        $this->buatBaris(['specification' => '0,06 x 100 x 150']);
+
+        $html = Livewire::test(ViewPurchaseOrder::class, ['record' => $this->po->getRouteKey()])->html();
+
+        // Data snapshot Livewire memuat seluruh nilai model (termasuk spesifikasi master),
+        // jadi disaring dulu supaya yang diperiksa benar-benar yang tampil di layar.
+        $terlihat = preg_replace('/\s+wire:snapshot="[^"]*"/', '', $html) ?? $html;
+        $terlihat = preg_replace('/\s+wire:effects="[^"]*"/', '', $terlihat) ?? $terlihat;
+
+        $this->assertStringContainsString(
+            'po-view__muted">0,06 x 100 x 150<',
+            $terlihat,
+            'Halaman detail PO tidak menampilkan ukuran yang diketik pada baris PO.'
+        );
+        $this->assertStringNotContainsString(
+            '0.04 x 90 x 130',
+            $terlihat,
+            'Halaman detail PO masih menampilkan ukuran dari master barang.'
         );
     }
 }

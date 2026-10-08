@@ -9,7 +9,7 @@ class GeneratePurchaseOrderPdf
 {
     public function execute(PurchaseOrder $purchaseOrder): \Barryvdh\DomPDF\PDF
     {
-        $purchaseOrder->refresh()->load(['division', 'supplier', 'creator', 'items.unit', 'items.item', 'taxes']);
+        $purchaseOrder->refresh()->load(['division', 'warehouse', 'supplier', 'creator', 'items.unit', 'items.item', 'taxes']);
 
         return Pdf::loadView('pdf.purchase-order', [
             'purchaseOrder' => $purchaseOrder,

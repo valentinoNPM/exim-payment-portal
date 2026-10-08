@@ -3,20 +3,31 @@
 namespace App\Filament\Resources\PurchaseOrders\Pages;
 
 use App\Filament\Resources\PurchaseOrders\PurchaseOrderResource;
-use App\Models\Tax;
-use App\Models\User;
+use App\Models\PurchaseOrder;
+use App\Support\PurchaseOrderEditorData;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
-use Filament\Resources\Pages\EditRecord;
+use Filament\Resources\Pages\Concerns\InteractsWithRecord;
+use Filament\Resources\Pages\Page;
 
-class EditPurchaseOrder extends EditRecord
+class EditPurchaseOrder extends Page
 {
+    use InteractsWithRecord;
+
     protected static string $resource = PurchaseOrderResource::class;
 
     protected static ?string $title = 'Ubah PO';
 
-    protected ?bool $hasDatabaseTransactions = true;
+    protected string $view = 'filament.resources.purchase-orders.pages.editor';
 
+    public function mount(int|string $record): void
+    {
+        $this->record = $this->resolveRecord($record);
+
+        abort_unless(PurchaseOrderResource::canEdit($this->getRecord()), 403);
+    }
+
+    /** @return array<ViewAction|DeleteAction> */
     protected function getHeaderActions(): array
     {
         return [
@@ -26,48 +37,12 @@ class EditPurchaseOrder extends EditRecord
         ];
     }
 
-    protected function mutateFormDataBeforeSave(array $data): array
+    /** @return array<string, mixed> */
+    protected function getViewData(): array
     {
-        $picUserId = $data['pic_user_id'] ?? $this->getRecord()->pic_user_id ?? auth()->id();
-        $data['pic_user_id'] = $picUserId;
+        /** @var PurchaseOrder $record */
+        $record = $this->getRecord();
 
-        // Nama PIC disalin dari pengguna terpilih HANYA kalau PIC sistemnya memang diganti.
-        // Dokumen hasil impor ECOUNT tidak punya PIC sistem dan nama PIC aslinya harus tetap utuh.
-        $picLama = $this->getRecord()->pic_user_id;
-        if ($picLama !== null && (int) $picLama !== (int) $picUserId) {
-            $data['pic_name'] = User::query()->whereKey($picUserId)->value('name')
-                ?? $this->getRecord()->pic_name;
-        }
-
-        return $data;
-    }
-
-    protected function afterSave(): void
-    {
-        $additionTaxId = Tax::query()
-            ->whereKey($this->data['addition_tax_id'] ?? null)
-            ->where('calculation_type', 'addition')
-            ->where('is_active', true)
-            ->value('id');
-        $deductionTaxId = Tax::query()
-            ->whereKey($this->data['deduction_tax_id'] ?? null)
-            ->where('calculation_type', 'deduction')
-            ->where('is_active', true)
-            ->value('id');
-        $taxIds = array_values(array_filter([$additionTaxId, $deductionTaxId]));
-
-        $taxChanged = false;
-
-        foreach ($this->getRecord()->items as $item) {
-            $changes = $item->selectedTaxes()->sync($taxIds);
-            $taxChanged = $taxChanged
-                || $changes['attached'] !== []
-                || $changes['detached'] !== []
-                || $changes['updated'] !== [];
-        }
-
-        if ($taxChanged || $this->getRecord()->wasChanged(['discount_amount', 'shipping_amount'])) {
-            $this->getRecord()->recalculateTotals();
-        }
+        return app(PurchaseOrderEditorData::class)->for($record);
     }
 }

@@ -130,10 +130,11 @@ class InvoiceItem extends Model
         $this->subtotal_amount = round((float) $this->quantity * (float) $this->unit_price_amount, 2);
         $ppn = $this->taxFor('ppn_tax_id', 'addition');
         $pph = $this->taxFor('pph_tax_id', 'deduction');
-        $amounts = InvoiceAmountCalculator::calculate(
+        $amounts = InvoiceAmountCalculator::calculateForCurrency(
             (float) $this->subtotal_amount,
             $ppn ? (float) $ppn->rate : null,
             $pph ? (float) $pph->rate : null,
+            $this->calculationCurrency(),
         );
 
         $this->tax_addition_amount = $ppn
@@ -157,5 +158,15 @@ class InvoiceItem extends Model
         }
 
         return $tax;
+    }
+
+    private function calculationCurrency(): string
+    {
+        $invoice = $this->invoice ?? Invoice::query()->find($this->invoice_id);
+        $paymentSlip = $invoice?->paymentSlip;
+
+        return $paymentSlip?->transaction_type === PaymentSlip::TYPE_GENERAL
+            ? ($paymentSlip->currency ?? PaymentSlip::CURRENCY_IDR)
+            : PaymentSlip::CURRENCY_IDR;
     }
 }

@@ -4,6 +4,7 @@ use App\Http\Controllers\CheckerEditPaymentSlipController;
 use App\Http\Controllers\DownloadErpExportController;
 use App\Http\Controllers\PreviewPaymentSlipPdfController;
 use App\Http\Controllers\PreviewPurchaseOrderPdfController;
+use App\Http\Controllers\PurchaseOrderEditorController;
 use App\Models\DocumentFile;
 use Filament\Http\Middleware\Authenticate as FilamentAuthenticate;
 use Illuminate\Support\Facades\Route;
@@ -17,6 +18,19 @@ Route::get('/payment-slips/{paymentSlip}/pdf', PreviewPaymentSlipPdfController::
 
 Route::get('/purchase-orders/{purchaseOrder}/pdf', PreviewPurchaseOrderPdfController::class)
     ->middleware(FilamentAuthenticate::class)->name('purchase-orders.pdf.preview');
+
+Route::prefix('admin/purchase-orders')
+    ->middleware(FilamentAuthenticate::class)
+    ->group(function (): void {
+        Route::post('/', [PurchaseOrderEditorController::class, 'store'])
+            ->name('purchase-orders.editor.store');
+        Route::put('/{purchaseOrder}', [PurchaseOrderEditorController::class, 'update'])
+            ->name('purchase-orders.editor.update');
+        Route::get('/editor/items', [PurchaseOrderEditorController::class, 'items'])
+            ->name('purchase-orders.editor.items');
+        Route::get('/editor/number-preview', [PurchaseOrderEditorController::class, 'numberPreview'])
+            ->name('purchase-orders.editor.number-preview');
+    });
 
 Route::get('/payment-slips/{paymentSlip}/checker-edit', [CheckerEditPaymentSlipController::class, 'show'])
     ->middleware('auth')->name('payment-slips.checker-edit');

@@ -356,16 +356,17 @@
                     @php
                         $detailRowCount++;
                         $quantity = rtrim(rtrim(number_format((float) $item->quantity, 4, ',', '.'), '0'), ',');
-                        $unitPrice = $currency === \App\Models\PaymentSlip::CURRENCY_USD
+                        $usesDecimals = \App\Support\CurrencyFormatter::usesDecimals($currency);
+                        $unitPrice = $usesDecimals
                             ? (float) $item->unit_price_amount
                             : \App\Services\InvoiceAmountCalculator::roundRupiah((float) $item->unit_price_amount);
-                        $itemSubtotal = $currency === \App\Models\PaymentSlip::CURRENCY_USD
+                        $itemSubtotal = $usesDecimals
                             ? (float) $item->subtotal_amount
                             : \App\Services\InvoiceAmountCalculator::roundRupiah((float) $item->subtotal_amount);
-                        $itemPpn = $currency === \App\Models\PaymentSlip::CURRENCY_USD
+                        $itemPpn = $usesDecimals
                             ? (float) $item->tax_addition_amount
                             : \App\Services\InvoiceAmountCalculator::roundRupiah((float) $item->tax_addition_amount);
-                        $itemPph = $currency === \App\Models\PaymentSlip::CURRENCY_USD
+                        $itemPph = $usesDecimals
                             ? (float) $item->tax_deduction_amount
                             : \App\Services\InvoiceAmountCalculator::roundRupiah((float) $item->tax_deduction_amount);
                         $itemNet = $itemSubtotal + $itemPpn - $itemPph;

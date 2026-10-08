@@ -1,6 +1,6 @@
 <x-filament-panels::page>
     @php
-        $record->loadMissing(['supplier', 'items.unit', 'taxes', 'invoices.paymentSlip']);
+        $record->loadMissing(['supplier', 'warehouse', 'items.unit', 'taxes', 'invoices.paymentSlip']);
         $money = fn ($value) => \App\Support\CurrencyFormatter::format($value, $record->currency);
         $jumlah = fn ($value) => rtrim(rtrim(number_format((float) $value, 4, ',', '.'), '0'), ',');
         $isi = fn ($value) => filled($value) ? $value : '—';
@@ -14,10 +14,12 @@
             'Pajak Dokumen' => $record->taxes->first()?->tax_name_snapshot ?? 'Tanpa pajak',
             'Status Informasi' => \App\Models\PurchaseOrder::STATUS_LABELS[$record->status] ?? $record->status,
             'Tanggal Pengiriman' => $record->delivery_date?->translatedFormat('d F Y'),
+            'Gudang' => $record->warehouse
+                ? $record->warehouse->name.' ('.$record->warehouse->source_code.')'
+                : null,
         ];
 
         $catatan = [
-            'Lokasi / Ship To' => $record->delivery_location,
             'Catatan PO' => $record->notes,
         ];
     @endphp
@@ -72,7 +74,7 @@
                                 <tr>
                                     <td class="po-view__code">{{ $isi($item->item_code_snapshot ?: $item->item_code) }}</td>
                                     <td>{{ $isi($item->item_name_snapshot ?: $item->item_name) }}</td>
-                                    <td class="po-view__muted">{{ $isi($item->specification_snapshot ?: $item->specification) }}</td>
+                                    <td class="po-view__muted">{{ $isi($item->specification ?: $item->specification_snapshot) }}</td>
                                     <td class="po-view__num">{{ $jumlah($item->quantity) }}</td>
                                     <td>{{ $isi($item->unit_code_snapshot ?: $item->unit?->code) }}</td>
                                     <td class="po-view__num">{{ $money($item->unit_price_amount) }}</td>

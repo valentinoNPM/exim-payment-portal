@@ -75,6 +75,7 @@ class PaymentSlipForm
                         ->options([
                             PaymentSlip::CURRENCY_IDR => 'IDR - Rupiah',
                             PaymentSlip::CURRENCY_USD => 'USD - US Dollar',
+                            PaymentSlip::CURRENCY_EUR => 'EUR - Euro',
                         ])
                         ->default(PaymentSlip::CURRENCY_IDR)
                         ->required()

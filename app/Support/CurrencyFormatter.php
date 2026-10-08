@@ -9,6 +9,7 @@ final class CurrencyFormatter
      *
      * IDR: Rp 1.500.000 (dot thousands, no decimals)
      * USD: USD 1,500.00 (comma thousands, dot decimal, always 2 decimals)
+     * EUR: EUR 1,500.00 (comma thousands, dot decimal, always 2 decimals)
      */
     public static function format(float|string|null $amount, string $currency = 'IDR'): string
     {
@@ -16,6 +17,7 @@ final class CurrencyFormatter
 
         return match ($currency) {
             'USD' => 'USD '.number_format($value, 2, '.', ','),
+            'EUR' => 'EUR '.number_format($value, 2, '.', ','),
             default => 'Rp '.number_format($value, 0, ',', '.'),
         };
     }
@@ -25,7 +27,11 @@ final class CurrencyFormatter
      */
     public static function prefix(string $currency = 'IDR'): string
     {
-        return $currency === 'USD' ? 'USD' : 'Rp';
+        return match ($currency) {
+            'USD' => 'USD',
+            'EUR' => 'EUR',
+            default => 'Rp',
+        };
     }
 
     /**
@@ -33,13 +39,14 @@ final class CurrencyFormatter
      *
      * IDR: 1.500.000,00 (dot thousands, comma decimal)
      * USD: 1,500,000.00 (comma thousands, dot decimal)
+     * EUR: 1,500,000.00 (comma thousands, dot decimal)
      */
     public static function formatFormState(float|string|null $state, string $currency = 'IDR', int $decimals = 2): string
     {
         $value = (float) ($state ?? 0);
 
         return match ($currency) {
-            'USD' => number_format($value, $decimals, '.', ','),
+            'USD', 'EUR' => number_format($value, $decimals, '.', ','),
             default => number_format($value, $decimals, ',', '.'),
         };
     }
@@ -52,8 +59,13 @@ final class CurrencyFormatter
         $value = (float) ($state ?? 0);
 
         return match ($currency) {
-            'USD' => number_format($value, 2, '.', ','),
+            'USD', 'EUR' => number_format($value, 2, '.', ','),
             default => number_format($value, 0, ',', '.'),
         };
+    }
+
+    public static function usesDecimals(string $currency): bool
+    {
+        return in_array($currency, ['USD', 'EUR'], true);
     }
 }

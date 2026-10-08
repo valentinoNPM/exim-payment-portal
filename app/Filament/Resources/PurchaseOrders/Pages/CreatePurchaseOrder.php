@@ -3,13 +3,11 @@
 namespace App\Filament\Resources\PurchaseOrders\Pages;
 
 use App\Filament\Resources\PurchaseOrders\PurchaseOrderResource;
-use App\Models\Division;
-use App\Models\Tax;
-use App\Models\User;
-use Filament\Resources\Pages\CreateRecord;
+use App\Support\PurchaseOrderEditorData;
+use Filament\Resources\Pages\Page;
 use UnitEnum;
 
-class CreatePurchaseOrder extends CreateRecord
+class CreatePurchaseOrder extends Page
 {
     protected static string $resource = PurchaseOrderResource::class;
 
@@ -23,46 +21,11 @@ class CreatePurchaseOrder extends CreateRecord
 
     protected static bool $shouldRegisterNavigation = true;
 
-    protected ?bool $hasDatabaseTransactions = true;
+    protected string $view = 'filament.resources.purchase-orders.pages.editor';
 
-    protected function mutateFormDataBeforeCreate(array $data): array
+    /** @return array<string, mixed> */
+    protected function getViewData(): array
     {
-        $data['division_id'] = Division::query()
-            ->whereRaw('UPPER(code) = ?', ['GA'])
-            ->value('id');
-        $data['created_by'] = auth()->id();
-        $data['pic_user_id'] = $data['pic_user_id'] ?? auth()->id();
-        // Nama PIC disalin dari pengguna terpilih — cetakan PDF memakai kolom ini.
-        $data['pic_name'] = User::query()->whereKey($data['pic_user_id'])->value('name')
-            ?? auth()->user()?->name;
-
-        abort_unless($data['division_id'], 422, 'Division GA belum tersedia.');
-
-        return $data;
-    }
-
-    protected function afterCreate(): void
-    {
-        $this->syncDocumentTax();
-    }
-
-    private function syncDocumentTax(): void
-    {
-        $additionTaxId = Tax::query()
-            ->whereKey($this->data['addition_tax_id'] ?? null)
-            ->where('calculation_type', 'addition')
-            ->where('is_active', true)
-            ->value('id');
-        $deductionTaxId = Tax::query()
-            ->whereKey($this->data['deduction_tax_id'] ?? null)
-            ->where('calculation_type', 'deduction')
-            ->where('is_active', true)
-            ->value('id');
-        $taxIds = array_values(array_filter([$additionTaxId, $deductionTaxId]));
-
-        foreach ($this->getRecord()->items as $item) {
-            $item->selectedTaxes()->sync($taxIds);
-            $item->recalculateTaxes();
-        }
+        return app(PurchaseOrderEditorData::class)->for();
     }
 }
