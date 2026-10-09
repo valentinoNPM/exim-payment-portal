@@ -4,10 +4,10 @@
     <meta charset="utf-8">
     <title>Purchase Order - {{ $purchaseOrder->po_number }}</title>
     <style>
-        @page { margin: 11mm 13mm 12mm; }
+        @page { margin: 11mm 11mm 12mm; }
 
         * { box-sizing: border-box; }
-        body { margin: 0; color: #172033; font-family: Arial, Helvetica, sans-serif; font-size: 8.5px; line-height: 1.35; }
+        body { margin: 0; color: #172033; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 1.35; }
         table { width: 100%; border-collapse: collapse; }
         td, th { vertical-align: top; }
         .numeric { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -17,49 +17,49 @@
         .brand-cell { width: 58%; padding: 0; }
         .document-cell { width: 42%; padding: 0 0 0 12px; }
         .logo { width: 108px; height: auto; margin-bottom: 3px; }
-        .company-name { margin: 0 0 3px; color: #111827; font-size: 12.5px; font-weight: 700; letter-spacing: .15px; }
-        .company-address { color: #374151; font-size: 8px; line-height: 1.3; }
-        .document-title { margin: 0 0 8px; color: #111827; font-size: 20px; font-weight: 700; line-height: 1; text-align: right; }
+        .company-name { margin: 0 0 3px; color: #111827; font-size: 14px; font-weight: 700; letter-spacing: .15px; }
+        .company-address { color: #374151; font-size: 10px; line-height: 1.3; }
+        .document-title { margin: 0 0 8px; color: #111827; font-size: 22px; font-weight: 700; line-height: 1; text-align: right; }
         .document-meta { margin-left: auto; width: 100%; }
-        .document-meta td { padding: 1px 0; }
+        .document-meta td { padding: 1.5px 0; font-size: 11.25px; }
         .document-meta .meta-label { width: 42%; color: #4b5563; }
         .document-meta .meta-value { font-weight: 700; overflow-wrap: anywhere; }
 
         .party-table { margin-bottom: 8px; table-layout: fixed; }
         .party-table .party-card { width: 48%; border: .8px solid #64748b; padding: 0; }
         .party-table .party-gap { width: 4%; border: 0; }
-        .party-heading { border-bottom: .8px solid #64748b; background: #edf3f8; color: #173a5e; font-size: 8.5px; font-weight: 700; padding: 3px 6px; text-transform: uppercase; letter-spacing: .35px; }
+        .party-heading { border-bottom: .8px solid #64748b; background: #edf3f8; color: #173a5e; font-size: 10px; font-weight: 700; padding: 3.5px 6px; text-transform: uppercase; letter-spacing: .35px; }
         .party-body { min-height: 66px; padding: 5px 6px 6px; }
-        .party-name { min-height: 14px; color: #111827; font-size: 9px; font-weight: 700; }
-        .party-address { margin-top: 4px; color: #374151; line-height: 1.35; }
+        .party-name { min-height: 14px; color: #111827; font-size: 11px; font-weight: 700; }
+        .party-address { margin-top: 4px; color: #374151; font-size: 10px; line-height: 1.35; }
 
         .items { table-layout: fixed; }
         .items thead { display: table-header-group; }
         .items tr { page-break-inside: avoid; }
-        .items th { border: .8px solid #64748b; background: #e7eef5; color: #173a5e; font-size: 7.8px; font-weight: 700; line-height: 1.2; padding: 4px 3px; text-align: center; }
-        .items td { border: .7px solid #94a3b8; color: #1f2937; font-size: 8px; line-height: 1.28; padding: 4px; }
+        .items th { border: .8px solid #64748b; background: #e7eef5; color: #173a5e; font-size: 11px; font-weight: 700; line-height: 1.2; padding: 4.5px 3px; text-align: center; }
+        .items td { border: .7px solid #94a3b8; color: #1f2937; font-size: 11px; line-height: 1.3; padding: 4.5px; }
         .items .item-name { color: #111827; font-weight: 700; }
-        .items .item-spec { margin-top: 2px; color: #4b5563; font-size: 7.5px; }
+        .items .item-spec { margin-top: 2px; color: #4b5563; font-size: 9.5px; }
         .items .grand-row td { border-top: 1px solid #475569; background: #f8fafc; color: #111827; font-weight: 700; }
 
         .below-items { margin-top: 7px; page-break-inside: avoid; }
         .notes-cell { width: 57%; padding: 0 12px 0 0; }
         .summary-cell { width: 43%; padding: 0; }
-        .summary td { border: .7px solid #94a3b8; padding: 3px 6px; font-size: 8px; }
+        .summary td { border: .7px solid #94a3b8; padding: 3.5px 6px; font-size: 10px; }
         .summary .summary-label { width: 56%; color: #374151; font-weight: 700; }
         .summary .summary-value { width: 44%; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-        .summary .summary-total td { border-top: 1.2px solid #1f4e79; background: #e7eef5; color: #173a5e; font-size: 9px; font-weight: 700; }
+        .summary .summary-total td { border-top: 1.2px solid #1f4e79; background: #e7eef5; color: #173a5e; font-size: 11px; font-weight: 700; }
 
         .approval-wrap { margin-top: 14px; page-break-inside: avoid; table-layout: fixed; }
         .approval-left { width: 57%; padding: 0; }
         .approval-gap { width: 7%; padding: 0; }
         .approval-right { width: 36%; padding: 0; }
         .approval { table-layout: fixed; }
-        .approval th { border: .7px solid #94a3b8; background: #f8fafc; color: #334155; font-size: 7.5px; font-weight: 700; line-height: 1.2; padding: 3px 2px; text-align: center; }
+        .approval th { border: .7px solid #94a3b8; background: #f8fafc; color: #334155; font-size: 9.5px; font-weight: 700; line-height: 1.2; padding: 3.5px 2px; text-align: center; }
         .approval td { height: 43px; border: .7px solid #94a3b8; }
-        .approval .name-row td { height: 13px; color: #64748b; font-size: 6.8px; text-align: center; }
+        .approval .name-row td { height: 13px; color: #64748b; font-size: 8.5px; text-align: center; }
 
-        .document-footer { position: fixed; right: 0; bottom: -7mm; left: 0; border-top: .6px solid #cbd5e1; color: #64748b; font-size: 6.8px; padding-top: 2px; }
+        .document-footer { position: fixed; right: 0; bottom: -7mm; left: 0; border-top: .6px solid #cbd5e1; color: #64748b; font-size: 8px; padding-top: 2px; }
         .document-footer .page-number:after { content: counter(page); }
     </style>
 </head>
@@ -141,14 +141,14 @@
     <table class="items">
         <thead>
             <tr>
-                <th style="width: 8%;">Kode Barang</th>
-                <th style="width: {{ $foreignCurrency ? '27%' : '34%' }};">Nama Barang [Spec.]</th>
-                <th style="width: 7%;">Kuantitas</th>
+                <th style="width: 9%;">Kode Barang</th>
+                <th style="width: {{ $foreignCurrency ? '24%' : '31%' }};">Nama Barang [Spec.]</th>
+                <th style="width: 8%;">Kuantitas</th>
                 <th style="width: 7%;">Satuan</th>
                 <th style="width: 11%;">Harga</th>
-                <th style="width: 13%;">{{ $amountHeading }}</th>
+                <th style="width: {{ $foreignCurrency ? '13%' : '14%' }};">{{ $amountHeading }}</th>
                 @if ($foreignCurrency)
-                    <th style="width: 7%;">Tipe Mata Uang Asing</th>
+                    <th style="width: 8%;">Tipe Mata Uang Asing</th>
                 @endif
                 <th style="width: 20%;">Keterangan</th>
             </tr>

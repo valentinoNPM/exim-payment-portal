@@ -357,6 +357,11 @@ class PurchaseOrderModuleTest extends TestCase
             $this->assertStringContainsString($peran, $html, "Kolom approval tidak memuat: {$peran}");
         }
         $this->assertStringNotContainsString('PIC GA', $html);
+        $this->assertStringContainsString('font-size: 12px; line-height: 1.35;', $html);
+        $this->assertStringContainsString('font-size: 11.25px;', $html);
+        $this->assertStringContainsString('font-size: 11px; font-weight: 700; line-height: 1.2;', $html);
+        $this->assertStringContainsString('font-size: 11px; line-height: 1.3;', $html);
+        $this->assertStringContainsString('width: 9%;">Kode Barang', $html);
         // Angka IDR mengikuti cetakan ECOUNT: pemisah ribuan tanpa desimal dan tanpa awalan mata uang.
         $this->assertStringContainsString('60.000', $html);
         $this->assertStringContainsString('300.000', $html);
