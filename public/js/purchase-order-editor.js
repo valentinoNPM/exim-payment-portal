@@ -324,7 +324,7 @@
                 if (rows().length === 1) {
                     row.querySelectorAll('input').forEach((input) => {
                         if (input.dataset.field === 'quantity') input.value = '1';
-                        else if (input.dataset.field === 'unit_price_amount') input.value = '0';
+                        else if (input.dataset.field === 'unit_price_amount') input.value = '';
                         else input.value = '';
                     });
                     row.querySelector('[data-item-label]').textContent = 'Pilih barang';

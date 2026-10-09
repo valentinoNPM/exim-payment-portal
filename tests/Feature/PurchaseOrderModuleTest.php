@@ -356,6 +356,7 @@ class PurchaseOrderModuleTest extends TestCase
         foreach (['PIC', 'Area Manager', 'Factory Manager', 'Direktur', 'GA', 'Manager'] as $peran) {
             $this->assertStringContainsString($peran, $html, "Kolom approval tidak memuat: {$peran}");
         }
+        $this->assertStringNotContainsString('PIC GA', $html);
         // Angka IDR mengikuti cetakan ECOUNT: pemisah ribuan tanpa desimal dan tanpa awalan mata uang.
         $this->assertStringContainsString('60.000', $html);
         $this->assertStringContainsString('300.000', $html);

@@ -1,3 +1,8 @@
+@php
+    $unitPriceInput = $row['unit_price_amount'] ?? null;
+    $unitPriceInput = is_numeric($unitPriceInput) && (float) $unitPriceInput === 0.0 ? '' : $unitPriceInput;
+@endphp
+
 <tr class="po-editor__item-row" data-po-item-row>
     <td class="po-editor__move-cell">
         <input type="hidden" name="items[{{ $index }}][id]" value="{{ $row['id'] ?? '' }}" data-field="id">
@@ -57,7 +62,7 @@
             <input
                 type="number"
                 name="items[{{ $index }}][unit_price_amount]"
-                value="{{ $row['unit_price_amount'] ?? 0 }}"
+                value="{{ $unitPriceInput }}"
                 step="0.01"
                 required
                 data-field="unit_price_amount"

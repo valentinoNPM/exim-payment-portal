@@ -9,6 +9,9 @@
         $selectedStatus = old('status', $record?->status ?? \App\Models\PurchaseOrder::STATUS_NEW);
         $poDate = old('po_date', $record?->po_date?->format('Y-m-d') ?? today()->format('Y-m-d'));
         $deliveryDate = old('delivery_date', $record?->delivery_date?->format('Y-m-d') ?? $poDate);
+        $blankZero = static fn ($value) => is_numeric($value) && (float) $value === 0.0 ? '' : $value;
+        $shippingAmountInput = $blankZero(old('shipping_amount', $record?->shipping_amount));
+        $discountAmountInput = $blankZero(old('discount_amount', $record?->discount_amount));
         $selectedSupplierRecord = $suppliers->firstWhere('id', (int) $selectedSupplier);
         $selectedPicRecord = $users->firstWhere('id', (int) $selectedPic);
         $selectedWarehouseRecord = $warehouses->firstWhere('id', (int) $selectedWarehouse);
@@ -142,7 +145,7 @@
                     <label for="shipping-amount">Biaya Kirim</label>
                     <div class="po-editor__money-input">
                         <span data-currency-prefix>Rp</span>
-                        <input id="shipping-amount" type="number" name="shipping_amount" min="0" step="0.01" value="{{ old('shipping_amount', $record?->shipping_amount ?? 0) }}" data-shipping>
+                        <input id="shipping-amount" type="number" name="shipping_amount" min="0" step="0.01" value="{{ $shippingAmountInput }}" data-shipping>
                     </div>
                 </div>
 
@@ -171,7 +174,7 @@
                     <label for="discount-amount">Diskon</label>
                     <div class="po-editor__money-input">
                         <span data-currency-prefix>Rp</span>
-                        <input id="discount-amount" type="number" name="discount_amount" min="0" step="0.01" value="{{ old('discount_amount', $record?->discount_amount ?? 0) }}" data-discount>
+                        <input id="discount-amount" type="number" name="discount_amount" min="0" step="0.01" value="{{ $discountAmountInput }}" data-discount>
                     </div>
                 </div>
 
@@ -240,7 +243,7 @@
 
         <template data-item-row-template>
             @include('filament.resources.purchase-orders.pages.partials.item-row', [
-                'row' => ['quantity' => 1, 'unit_price_amount' => 0],
+                'row' => ['quantity' => 1, 'unit_price_amount' => null],
                 'index' => '__INDEX__',
             ])
         </template>

@@ -207,7 +207,7 @@
                 <table class="approval">
                     <tr><th>PIC</th><th>Area Manager</th><th>Factory Manager</th><th>Direktur</th></tr>
                     <tr><td></td><td></td><td></td><td></td></tr>
-                    <tr class="name-row"><td>{{ $purchaseOrder->pic_name }}</td><td></td><td></td><td></td></tr>
+                    <tr class="name-row"><td></td><td></td><td></td><td></td></tr>
                 </table>
             </td>
             <td class="approval-gap"></td>

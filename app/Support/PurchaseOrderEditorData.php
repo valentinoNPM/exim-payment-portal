@@ -49,7 +49,7 @@ class PurchaseOrderEditorData
                     'quantity' => 1,
                     'unit_id' => null,
                     'unit_name' => null,
-                    'unit_price_amount' => 0,
+                    'unit_price_amount' => null,
                 ]];
         }
 
@@ -130,7 +130,7 @@ class PurchaseOrderEditorData
                 'unit_name' => $units->get($row['unit_id'] ?? null)?->name
                     ?? $line?->unit?->name
                     ?? $master?->unit?->name,
-                'unit_price_amount' => $row['unit_price_amount'] ?? $line?->unit_price_amount ?? 0,
+                'unit_price_amount' => $row['unit_price_amount'] ?? $line?->unit_price_amount,
             ];
         })->all();
     }

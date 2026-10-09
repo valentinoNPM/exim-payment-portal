@@ -99,6 +99,9 @@ class PurchaseOrderConventionalEditorTest extends TestCase
         $this->assertStringNotContainsString('name="notes"', $html);
         $this->assertMatchesRegularExpression('/name="items\[[^]]+\]\[notes\]"/', $html);
         $this->assertStringContainsString('step="1"', $html);
+        $this->assertMatchesRegularExpression('/name="shipping_amount"[^>]*value=""/', $html);
+        $this->assertMatchesRegularExpression('/name="discount_amount"[^>]*value=""/', $html);
+        $this->assertMatchesRegularExpression('/name="items\[[^]]+\]\[unit_price_amount\]"[^>]*value=""/', $html);
         $this->assertStringContainsString('novalidate', $html);
         $this->assertStringNotContainsString('fi-fo-repeater', $html);
         $this->assertStringNotContainsString('wire:model="data.items', $html);
@@ -198,6 +201,33 @@ class PurchaseOrderConventionalEditorTest extends TestCase
 
         $this->assertSame('1.2500', $line->quantity);
         $this->assertSame('12500.00', $line->subtotal_amount);
+    }
+
+    public function test_empty_optional_amounts_are_saved_as_zero(): void
+    {
+        $this->post(route('purchase-orders.editor.store'), $this->payload([
+            'discount_amount' => '',
+            'shipping_amount' => '',
+        ]))->assertSessionHasNoErrors()->assertRedirect();
+
+        $purchaseOrder = PurchaseOrder::query()->firstOrFail();
+
+        $this->assertSame('0.00', $purchaseOrder->discount_amount);
+        $this->assertSame('0.00', $purchaseOrder->shipping_amount);
+    }
+
+    public function test_empty_item_price_is_still_rejected(): void
+    {
+        $this->post(route('purchase-orders.editor.store'), $this->payload([
+            'items' => [[
+                'item_id' => $this->item->id,
+                'quantity' => 1,
+                'unit_id' => $this->unit->id,
+                'unit_price_amount' => '',
+            ]],
+        ]))->assertSessionHasErrors('items.0.unit_price_amount');
+
+        $this->assertDatabaseCount('purchase_orders', 0);
     }
 
     public function test_item_search_is_paginated_and_returns_unit_information(): void
