@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\PurchaseOrders\Tables;
 
+use App\Filament\Resources\PurchaseOrders\PurchaseOrderResource;
 use App\Models\PurchaseOrder;
 use App\Support\CurrencyFormatter;
 use Filament\Actions\Action;
@@ -31,6 +32,11 @@ class PurchaseOrdersTable
                     ->label('Kunci ECOUNT')
                     ->fontFamily('mono')
                     ->placeholder('-')
+                    ->formatStateUsing(fn (?string $state, PurchaseOrder $record): ?string => $record->isPaymentSlipEligibleSource()
+                        ? $state
+                        : trim(($state ? $state.' - ' : '').'Arsip ECOUNT'))
+                    ->badge(fn (PurchaseOrder $record): bool => ! $record->isPaymentSlipEligibleSource())
+                    ->color('gray')
                     ->tooltip('Tanggal + urutan harian di ECOUNT (mis. 01/09/2026 -4). Inilah identitas dokumen; nomor PO hanya label dan bisa sama untuk dua PO.')
                     ->searchable()
                     ->sortable()
@@ -104,7 +110,7 @@ class PurchaseOrdersTable
             ])
             ->recordActions([
                 ViewAction::make(),
-                EditAction::make(),
+                EditAction::make()->visible(fn (PurchaseOrder $record): bool => PurchaseOrderResource::canEdit($record)),
                 Action::make('preview_pdf')
                     ->label('Cetak')
                     ->icon('heroicon-o-document-magnifying-glass')

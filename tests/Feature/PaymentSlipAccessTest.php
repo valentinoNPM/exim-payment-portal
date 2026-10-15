@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\PaymentSlips\Pages\EditPaymentSlip;
 use App\Filament\Resources\PaymentSlips\Pages\ListPaymentSlips;
+use App\Filament\Resources\PaymentSlips\Pages\ViewPaymentSlip;
 use App\Filament\Resources\PaymentSlips\PaymentSlipResource;
 use App\Models\Buyer;
 use App\Models\PaymentSlip;
@@ -87,6 +89,66 @@ class PaymentSlipAccessTest extends TestCase
         Livewire::test(ListPaymentSlips::class)->assertCanSeeTableRecords([$slip]);
         $this->assertTrue(PaymentSlipResource::canView($slip));
         $this->assertFalse(PaymentSlipResource::canSubmit($slip));
+    }
+
+    public function test_edit_page_redirects_with_a_notification_when_edit_access_is_revoked_mid_request(): void
+    {
+        $maker = User::factory()->create()->assignRole('maker');
+        $slip = $this->createSlip('PS-EDIT-REVOKED', $maker);
+
+        $this->actingAs($maker);
+
+        $page = Livewire::test(EditPaymentSlip::class, ['record' => $slip->getRouteKey()]);
+
+        PaymentSlip::query()->whereKey($slip)->update(['status' => 'approved']);
+
+        $page
+            ->set('data.transaction_description', 'SHOULD-NOT-BE-SAVED')
+            ->assertRedirect(PaymentSlipResource::getUrl('view', ['record' => $slip]))
+            ->assertNotified('Slip tidak dapat diedit lagi');
+
+        $this->assertSame('approved', $slip->fresh()->status);
+        $this->assertNull($slip->fresh()->transaction_description);
+    }
+
+    public function test_view_edit_action_visibility_follows_edit_permission(): void
+    {
+        $maker = User::factory()->create()->assignRole('maker');
+        $draft = $this->createSlip('PS-VIEW-DRAFT', $maker);
+        $approved = $this->createSlip('PS-VIEW-APPROVED', $maker, 'approved');
+        $exported = $this->createSlip('PS-VIEW-EXPORTED', $maker, 'exported');
+
+        $this->actingAs($maker);
+
+        Livewire::test(ViewPaymentSlip::class, ['record' => $draft->getRouteKey()])
+            ->assertActionVisible('edit');
+        Livewire::test(ViewPaymentSlip::class, ['record' => $approved->getRouteKey()])
+            ->assertActionHidden('edit');
+        Livewire::test(ViewPaymentSlip::class, ['record' => $exported->getRouteKey()])
+            ->assertActionHidden('edit');
+
+        Livewire::test(ListPaymentSlips::class)
+            ->assertTableActionVisible('edit', $draft)
+            ->assertTableActionHidden('edit', $approved)
+            ->assertTableActionHidden('edit', $exported);
+    }
+
+    public function test_checker_can_choose_edit_or_check_for_submitted_slip(): void
+    {
+        $maker = User::factory()->create()->assignRole('maker');
+        $checker = User::factory()->create()->assignRole('checker');
+        $submitted = $this->createSlip('PS-CHECK-SUBMITTED', $maker, 'submitted');
+
+        $this->actingAs($checker);
+
+        Livewire::test(ViewPaymentSlip::class, ['record' => $submitted->getRouteKey()])
+            ->assertActionVisible('check_slip')
+            ->assertActionHasUrl('check_slip', route('payment-slips.checker-edit', $submitted))
+            ->assertActionVisible('edit');
+
+        Livewire::test(ListPaymentSlips::class)
+            ->assertTableActionVisible('checker_edit', $submitted)
+            ->assertTableActionVisible('edit', $submitted);
     }
 
     private function createSlip(string $number, User $creator, string $status = 'draft'): PaymentSlip

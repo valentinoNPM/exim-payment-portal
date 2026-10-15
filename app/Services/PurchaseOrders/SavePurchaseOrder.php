@@ -6,6 +6,7 @@ use App\Models\Division;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\User;
+use App\Support\MoneyRounding;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 
@@ -19,6 +20,8 @@ class SavePurchaseOrder
             $purchaseOrder = $purchaseOrder
                 ? PurchaseOrder::query()->lockForUpdate()->findOrFail($purchaseOrder->getKey())
                 : new PurchaseOrder;
+
+            abort_if($purchaseOrder->isSourceLocked(), 403, 'PO Final/terkait payment slip tidak dapat diubah.');
 
             $picUser = User::query()->findOrFail($data['pic_user_id']);
             $oldPicUserId = $purchaseOrder->pic_user_id;
@@ -54,6 +57,7 @@ class SavePurchaseOrder
 
             $purchaseOrder->fill($header);
             $purchaseOrder->save();
+            $currencyChanged = ! $isCreating && $purchaseOrder->wasChanged('currency');
 
             $totalsNeedRefresh = $isCreating || $purchaseOrder->wasChanged([
                 'discount_amount',
@@ -96,6 +100,9 @@ class SavePurchaseOrder
                     'unit_id' => $row['unit_id'] ?? null,
                     'unit_price_amount' => $row['unit_price_amount'],
                 ]);
+                if ($currencyChanged) {
+                    $line->subtotal_amount = MoneyRounding::round((float) $line->quantity * (float) $line->unit_price_amount, $purchaseOrder->currency);
+                }
                 $line->save();
 
                 $keptIds[] = $line->getKey();
@@ -109,11 +116,11 @@ class SavePurchaseOrder
                     || $taxChanges['detached'] !== []
                     || $taxChanges['updated'] !== [];
 
-                if ($line->wasRecentlyCreated || $taxChanged) {
+                if ($line->wasRecentlyCreated || $taxChanged || $currencyChanged) {
                     $line->recalculateTaxes();
                 }
 
-                $totalsNeedRefresh = $totalsNeedRefresh || $amountChanged || $taxChanged;
+                $totalsNeedRefresh = $totalsNeedRefresh || $amountChanged || $taxChanged || $currencyChanged;
             }
 
             $removedItems = $existingItems->whereNotIn('id', $keptIds);

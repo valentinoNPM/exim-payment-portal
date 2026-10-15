@@ -77,7 +77,8 @@ class GeneralPaymentSlipPdfRevisionTest extends TestCase
         $slip = PaymentSlip::query()->where('customer_id', $customer->id)->firstOrFail();
 
         Livewire::test(ViewPaymentSlip::class, ['record' => $slip->getRouteKey()])
-            ->assertFormSet(['customer_id' => $customer->id]);
+            ->assertSee('Customer')
+            ->assertSee('General Customer');
 
         $slip->invoices()->firstOrFail()->items()->update(['unit_id' => null]);
 
@@ -113,9 +114,11 @@ class GeneralPaymentSlipPdfRevisionTest extends TestCase
         ]);
         $slip->load(['supplier', 'customer', 'buyer', 'invoices.buyer', 'invoices.items.unit', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
 
-        $html = view('pdf.payment-slip', ['slip' => $slip])->render();
+        $html = view('pdf.payment-slips.general', ['slip' => $slip])->render();
 
         $this->assertStringContainsString('PAYMENT/INCOME SLIP', $html);
+        $this->assertStringContainsString('class="signature-block"', $html);
+        $this->assertStringContainsString('page-break-inside: avoid', $html);
         $this->assertStringContainsString('CHARGE BIAYA OPERASIONAL KANTOR', $html);
         $this->assertStringContainsString('PT Customer PDF', $html);
         $this->assertStringContainsString('>Quantity</th>', $html);
@@ -133,7 +136,7 @@ class GeneralPaymentSlipPdfRevisionTest extends TestCase
         $slip->update(['transaction_type' => PaymentSlip::TYPE_GENERAL, 'buyer_id' => null]);
         $slip->load(['supplier', 'customer', 'buyer', 'invoices.buyer', 'invoices.items.unit', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
 
-        $html = view('pdf.payment-slip', ['slip' => $slip])->render();
+        $html = view('pdf.payment-slips.general', ['slip' => $slip])->render();
 
         $this->assertStringContainsString('CHARGE LAIN-LAIN', $html);
         $this->assertStringContainsString('>Satuan</th>', $html);

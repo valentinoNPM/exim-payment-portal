@@ -7,6 +7,8 @@
 
         $identitas = [
             'Nomor PO' => $record->po_number,
+            'Finalisasi' => $record->finalized_at ? 'Final — '.$record->finalized_at->translatedFormat('d F Y H:i') : 'Belum Final',
+            'Penerbitan Payment Slip' => ! $record->isPaymentSlipEligibleSource() ? 'Arsip ECOUNT / asal tidak memenuhi syarat' : ($record->hasIssuedPaymentSlip() ? 'Sudah diterbitkan — sumber terkunci' : 'Belum diterbitkan'),
             'Tanggal PO' => $record->po_date?->translatedFormat('d F Y'),
             'Vendor / Supplier' => $record->supplier?->name,
             'PIC' => $record->pic_name,
@@ -22,6 +24,12 @@
     @endphp
 
     <div class="po-view">
+        @if (! $record->isPaymentSlipEligibleSource())
+            <div class="po-view__archive-notice" role="status">
+                Dokumen arsip ECOUNT - hanya dokumentasi, tidak dapat diterbitkan menjadi payment slip.
+            </div>
+        @endif
+
         <x-filament::section heading="Data Purchase Order">
             <dl class="po-view__grid">
                 @foreach ($identitas as $label => $value)

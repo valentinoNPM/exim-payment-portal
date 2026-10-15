@@ -2,14 +2,16 @@
 
 namespace App\Filament\Resources\PaymentSlips;
 
-use App\Filament\Resources\PaymentSlips\Pages\CreateExportPaymentSlip;
-use App\Filament\Resources\PaymentSlips\Pages\CreateGeneralPaymentSlip;
-use App\Filament\Resources\PaymentSlips\Pages\CreateImportPaymentSlip;
-use App\Filament\Resources\PaymentSlips\Pages\CreatePaymentSlip;
+use App\Filament\Resources\PaymentSlips\Pages\CreateExportPaymentSlipEditor;
+use App\Filament\Resources\PaymentSlips\Pages\CreateGeneralPaymentSlipEditor;
+use App\Filament\Resources\PaymentSlips\Pages\CreateImportPaymentSlipEditor;
+use App\Filament\Resources\PaymentSlips\Pages\CreatePaymentSlipEditor;
 use App\Filament\Resources\PaymentSlips\Pages\EditPaymentSlip;
+use App\Filament\Resources\PaymentSlips\Pages\EditPaymentSlipEditor;
 use App\Filament\Resources\PaymentSlips\Pages\ListPaymentSlips;
 use App\Filament\Resources\PaymentSlips\Pages\ViewPaymentSlip;
-use App\Filament\Resources\PaymentSlips\Schemas\PaymentSlipForm;
+use App\Filament\Resources\PaymentSlips\Schemas\EximPaymentSlipForm;
+use App\Filament\Resources\PaymentSlips\Schemas\GeneralPaymentSlipForm;
 use App\Filament\Resources\PaymentSlips\Schemas\PaymentSlipInfolist;
 use App\Filament\Resources\PaymentSlips\Tables\PaymentSlipsTable;
 use App\Models\PaymentSlip;
@@ -70,7 +72,14 @@ class PaymentSlipResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return PaymentSlipForm::configure($schema);
+        $record = $schema->getRecord();
+        $type = $record instanceof PaymentSlip
+            ? $record->transaction_type
+            : $schema->getLivewire()->getFixedTransactionType();
+
+        return $type === PaymentSlip::TYPE_GENERAL
+            ? GeneralPaymentSlipForm::configure($schema)
+            : EximPaymentSlipForm::configure($schema);
     }
 
     public static function getEloquentQuery(): Builder
@@ -108,6 +117,9 @@ class PaymentSlipResource extends Resource
 
     public static function canDelete(Model $record): bool
     {
+        if ($record->hasPurchaseOrderSource()) {
+            return false;
+        }
         $user = auth()->user();
 
         return $user?->hasRole('maker')
@@ -168,12 +180,13 @@ class PaymentSlipResource extends Resource
     {
         return [
             'index' => ListPaymentSlips::route('/'),
-            'create' => CreatePaymentSlip::route('/create'),
-            'create-export' => CreateExportPaymentSlip::route('/create/export'),
-            'create-import' => CreateImportPaymentSlip::route('/create/import'),
-            'create-general' => CreateGeneralPaymentSlip::route('/create/general'),
+            'create' => CreatePaymentSlipEditor::route('/create'),
+            'create-export' => CreateExportPaymentSlipEditor::route('/create/export'),
+            'create-import' => CreateImportPaymentSlipEditor::route('/create/import'),
+            'create-general' => CreateGeneralPaymentSlipEditor::route('/create/general'),
             'view' => ViewPaymentSlip::route('/{record}'),
-            'edit' => EditPaymentSlip::route('/{record}/edit'),
+            'edit' => EditPaymentSlipEditor::route('/{record}/edit'),
+            'edit-accounting' => EditPaymentSlip::route('/{record}/edit-accounting'),
         ];
     }
 

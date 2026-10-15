@@ -27,7 +27,15 @@ class DocumentFileRegistrar
             $document = DocumentFile::query()
                 ->where('disk', 'local')
                 ->where('checksum', $checksum)
-                ->first();
+                ->get()
+                ->first(fn (DocumentFile $candidate): bool => Storage::disk($candidate->disk)->exists($candidate->path));
+
+            if (! $document) {
+                $document = DocumentFile::query()
+                    ->where('disk', 'local')
+                    ->where('checksum', $checksum)
+                    ->first();
+            }
 
             if (! $document) {
                 $document = DocumentFile::create([
@@ -37,6 +45,16 @@ class DocumentFileRegistrar
                     'mime_type' => Storage::disk('local')->mimeType($path) ?: 'application/pdf',
                     'size_bytes' => Storage::disk('local')->size($path),
                     'checksum' => $checksum,
+                    'uploaded_at' => now(),
+                ]);
+            } elseif (! Storage::disk($document->disk)->exists($document->path)) {
+                // Preserve references to this row: the replacement has identical
+                // content, while `path` is unique and belongs to one document row.
+                $document->update([
+                    'path' => $path,
+                    'original_name' => $originalNames[$path] ?? basename($path),
+                    'mime_type' => Storage::disk('local')->mimeType($path) ?: 'application/pdf',
+                    'size_bytes' => Storage::disk('local')->size($path),
                     'uploaded_at' => now(),
                 ]);
             }

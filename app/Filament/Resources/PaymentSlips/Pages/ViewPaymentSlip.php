@@ -10,6 +10,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Illuminate\Support\Facades\Storage;
 
 class ViewPaymentSlip extends ViewRecord
 {
@@ -19,15 +20,32 @@ class ViewPaymentSlip extends ViewRecord
 
     public ?string $activePdfUrl = null;
 
-    protected function mutateFormDataBeforeFill(array $data): array
+    public function mount(int|string $record): void
     {
-        $slip = $this->getRecord();
-        $firstInvoice = $slip->invoices()->first();
-        if ($firstInvoice && $firstInvoice->documentFile) {
-            $this->activePdfUrl = route('document-files.view', $firstInvoice->documentFile);
-        }
+        parent::mount($record);
 
-        return $data;
+        $slip = $this->getRecord()->loadMissing([
+            'supplier',
+            'customer',
+            'buyer',
+            'creator.division',
+            'invoices.buyer',
+            'invoices.documentFile',
+            'invoices.ppnTax',
+            'invoices.pphTax',
+            'invoices.items.unit',
+            'invoices.items.ppnTax',
+            'invoices.items.pphTax',
+            'invoices.items.chartOfAccount',
+        ]);
+
+        $firstDocument = $slip->invoices
+            ->pluck('documentFile')
+            ->filter()
+            ->first(fn (DocumentFile $document): bool => Storage::disk($document->disk)->exists($document->path));
+        if ($firstDocument) {
+            $this->activePdfUrl = route('document-files.view', $firstDocument);
+        }
     }
 
     public function setActivePdf(int $documentFileId): void
@@ -65,7 +83,7 @@ class ViewPaymentSlip extends ViewRecord
                 ->action(function () {
                     app(VerifyPaymentSlip::class)->execute($this->getRecord(), auth()->user());
                     Notification::make()
-                        ->title('Payment Slip verified and ready for ERP export.')
+                        ->title($this->getRecord()->transaction_type === PaymentSlip::TYPE_GENERAL ? 'Payment Slip General berhasil diverifikasi.' : 'Payment Slip verified and ready for ERP export.')
                         ->success()
                         ->send();
                 }),
@@ -74,7 +92,16 @@ class ViewPaymentSlip extends ViewRecord
                 ->icon('heroicon-o-eye')
                 ->url(fn (): string => route('payment-slips.pdf.preview', $this->getRecord()))
                 ->openUrlInNewTab(),
-            EditAction::make(),
+            Action::make('check_slip')
+                ->label('Check')
+                ->icon('heroicon-o-clipboard-document-check')
+                ->color('warning')
+                ->visible(fn (): bool => auth()->user()?->hasRole('checker')
+                    && $this->getRecord()->status === 'submitted'
+                    && PaymentSlipResource::canEdit($this->getRecord()))
+                ->url(fn (): string => route('payment-slips.checker-edit', $this->getRecord())),
+            EditAction::make()
+                ->visible(fn (): bool => PaymentSlipResource::canEdit($this->getRecord())),
             DeleteAction::make()
                 ->visible(fn (): bool => PaymentSlipResource::canDelete($this->getRecord())),
         ];

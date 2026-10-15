@@ -92,7 +92,8 @@ class PaymentSlipsTable
             ])
             ->recordActions([
                 ViewAction::make(),
-                EditAction::make(),
+                EditAction::make()
+                    ->visible(fn (PaymentSlip $record): bool => PaymentSlipResource::canEdit($record)),
                 Action::make('checker_edit')
                     ->label('Check')
                     ->icon('heroicon-o-clipboard-document-check')
@@ -123,7 +124,7 @@ class PaymentSlipsTable
                     ->action(function (PaymentSlip $record) {
                         app(VerifyPaymentSlip::class)->execute($record, auth()->user());
                         Notification::make()
-                            ->title('Payment Slip verified and ready for ERP export.')
+                            ->title($record->transaction_type === PaymentSlip::TYPE_GENERAL ? 'Payment Slip General berhasil diverifikasi.' : 'Payment Slip verified and ready for ERP export.')
                             ->success()
                             ->send();
                     }),

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\PurchaseOrders\PurchaseOrderNumberGenerator;
+use App\Support\MoneyRounding;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -86,6 +87,7 @@ class PurchaseOrder extends Model
     ];
 
     protected $casts = [
+        'finalized_at' => 'datetime',
         'sequence_number' => 'integer',
         'po_date' => 'date',
         'delivery_date' => 'date',
@@ -100,6 +102,16 @@ class PurchaseOrder extends Model
 
     protected static function booted(): void
     {
+        static::updating(function (PurchaseOrder $po): void {
+            if ($po->isSourceLocked() && $po->isDirty()) {
+                throw ValidationException::withMessages(['purchase_order' => 'PO Final/terkait payment slip terkunci. Batalkan Final sebelum mengoreksi PO yang belum diterbitkan.']);
+            }
+        });
+        static::deleting(function (PurchaseOrder $po): void {
+            if ($po->hasIssuedPaymentSlip()) {
+                throw ValidationException::withMessages(['purchase_order' => 'PO terkait payment slip tidak boleh dihapus.']);
+            }
+        });
         static::saving(function (PurchaseOrder $purchaseOrder): void {
             $currency = $purchaseOrder->currency ?? self::CURRENCY_IDR;
 
@@ -110,6 +122,11 @@ class PurchaseOrder extends Model
             }
 
             $purchaseOrder->currency = $currency;
+            foreach (['discount_amount', 'shipping_amount'] as $field) {
+                if (! $purchaseOrder->exists || $purchaseOrder->isDirty([$field, 'currency'])) {
+                    $purchaseOrder->{$field} = MoneyRounding::round((float) ($purchaseOrder->{$field} ?? 0), $currency);
+                }
+            }
         });
 
         static::creating(function (PurchaseOrder $purchaseOrder): void {
@@ -234,7 +251,33 @@ class PurchaseOrder extends Model
 
     public function scopeOutstanding(Builder $query): Builder
     {
+        // One PO produces one slip, not partial billing.
         return $query->whereDoesntHave('invoices');
+    }
+
+    public function isPaymentSlipEligibleSource(): bool
+    {
+        // 'exim' was the pre-import migration default for application-created PO.
+        return in_array($this->source, ['manual', 'exim'], true) && blank($this->source_code);
+    }
+
+    public function hasIssuedPaymentSlip(): bool
+    {
+        return $this->invoices()->exists() || $this->audits()->where('event', 'payment_slip_issued')->exists();
+    }
+
+    public function isSourceLocked(): bool
+    {
+        return $this->exists && (static::query()->whereKey($this->id)->whereNotNull('finalized_at')->exists() || $this->hasIssuedPaymentSlip());
+    }
+
+    public function delete()
+    {
+        return DB::transaction(function () {
+            static::query()->whereKey($this->id)->lockForUpdate()->firstOrFail();
+
+            return parent::delete();
+        });
     }
 
     public function recalculateTotals(): void

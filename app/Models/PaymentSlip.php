@@ -75,6 +75,16 @@ class PaymentSlip extends Model
 
     protected static function booted(): void
     {
+        static::updating(function (PaymentSlip $slip): void {
+            if ($slip->hasPurchaseOrderSource() && $slip->isDirty(['supplier_id', 'currency', 'transaction_type'])) {
+                throw ValidationException::withMessages(['payment_slip' => 'Supplier dan mata uang sumber PO terkunci.']);
+            }
+        });
+        static::deleting(function (PaymentSlip $slip): void {
+            if ($slip->hasPurchaseOrderSource()) {
+                throw ValidationException::withMessages(['payment_slip' => 'Payment slip dari PO tidak boleh dihapus.']);
+            }
+        });
         static::saving(function (PaymentSlip $paymentSlip): void {
             $currency = $paymentSlip->transaction_type === self::TYPE_GENERAL
                 ? ($paymentSlip->currency ?? self::CURRENCY_IDR)
@@ -162,5 +172,10 @@ class PaymentSlip extends Model
     {
         return $this->transaction_type === self::TYPE_IMPORT
             || $this->tax_calculation_mode === self::TAX_MODE_ITEMIZED;
+    }
+
+    public function hasPurchaseOrderSource(): bool
+    {
+        return $this->exists && $this->invoices()->whereNotNull('purchase_order_id')->exists();
     }
 }

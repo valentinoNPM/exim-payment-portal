@@ -1,5 +1,12 @@
 # Rencana Integrasi PO → General Payment Slip
 
+> **Arsip rencana awal — bukan acuan implementasi aktif.** Keputusan penerbitan
+> PO Final, sumber terkunci, satu PO–satu slip, dan pengecualian ECOUNT berada di
+> `po-to-general-payment-slip-implementation-plan.md`. Untuk keputusan terbaru,
+> gunakan bagian "Revisi aktif — 15 Oktober 2026" di dokumen tersebut. Prefill
+> editable, penerbitan berulang, dan scope awal di bawah tidak mengalahkan keputusan
+> terbaru. Revisi dokumen tidak memberikan izin perubahan kode/deploy.
+
 > Rencana ini **terpisah** dari refactor Payment Slip (`docs/payment-slip-refactor-plan.md`).
 > Refactor itu berkontrak "hasil dan tampilan identik dengan baseline" serta menyiapkan kontrak
 > referensi PO opsional di sisi General. Rencana ini memakai kontrak tersebut untuk prefill dan

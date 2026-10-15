@@ -6,6 +6,7 @@ use App\Data\ErpJournalRow;
 use App\Models\Invoice;
 use App\Models\PaymentSlip;
 use App\Services\InvoiceAmountCalculator;
+use App\Services\PaymentSlips\GeneralErpExportEligibility;
 use Illuminate\Validation\ValidationException;
 
 class ErpJournalBuilder
@@ -15,6 +16,7 @@ class ErpJournalBuilder
     /** @return list<ErpJournalRow> */
     public function build(PaymentSlip $slip, array $vatNumbers = []): array
     {
+        app(GeneralErpExportEligibility::class)->validate($slip);
         $slip->loadMissing(['supplier', 'buyer', 'invoices.buyer', 'invoices.items.chartOfAccount', 'erpExportItem']);
         $this->require($slip->erpExportItem === null, 'This payment slip has already been exported.');
         $this->require($slip->status === 'approved', 'Only approved payment slips can be exported.');

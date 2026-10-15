@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Support\MoneyRounding;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Validation\ValidationException;
 
 class PurchaseOrderItemTax extends Pivot
 {
@@ -32,6 +34,13 @@ class PurchaseOrderItemTax extends Pivot
 
     protected static function booted(): void
     {
+        $guard = function (PurchaseOrderItemTax $tax): void {
+            if ($tax->purchaseOrderItem?->purchaseOrder?->isSourceLocked()) {
+                throw ValidationException::withMessages(['taxes' => 'Pajak PO Final/terkait slip terkunci.']);
+            }
+        };
+        static::saving($guard);
+        static::deleting($guard);
         static::creating(function (PurchaseOrderItemTax $purchaseOrderItemTax): void {
             $tax = Tax::query()->findOrFail($purchaseOrderItemTax->tax_id);
             $item = PurchaseOrderItem::query()->findOrFail($purchaseOrderItemTax->purchase_order_item_id);
@@ -41,9 +50,9 @@ class PurchaseOrderItemTax extends Pivot
             $purchaseOrderItemTax->rate_snapshot = $tax->rate;
             $purchaseOrderItemTax->calculation_type_snapshot = $tax->calculation_type;
             $purchaseOrderItemTax->taxable_amount = $item->subtotal_amount;
-            $purchaseOrderItemTax->tax_amount = round(
+            $purchaseOrderItemTax->tax_amount = MoneyRounding::round(
                 (float) $item->subtotal_amount * ((float) $tax->rate / 100),
-                2,
+                $item->purchaseOrder->currency,
             );
         });
 

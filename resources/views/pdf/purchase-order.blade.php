@@ -50,14 +50,14 @@
         .summary .summary-value { width: 44%; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
         .summary .summary-total td { border-top: 1.2px solid #1f4e79; background: #e7eef5; color: #173a5e; font-size: 11px; font-weight: 700; }
 
-        .approval-wrap { margin-top: 14px; page-break-inside: avoid; table-layout: fixed; }
-        .approval-left { width: 57%; padding: 0; }
-        .approval-gap { width: 7%; padding: 0; }
-        .approval-right { width: 36%; padding: 0; }
+        .approval-wrap { margin-top: 16px; page-break-inside: avoid; table-layout: fixed; }
+        .approval-left { width: 58%; padding: 0; }
+        .approval-gap { width: 3%; padding: 0; }
+        .approval-right { width: 39%; padding: 0; }
         .approval { table-layout: fixed; }
-        .approval th { border: .7px solid #94a3b8; background: #f8fafc; color: #334155; font-size: 9.5px; font-weight: 700; line-height: 1.2; padding: 3.5px 2px; text-align: center; }
-        .approval td { height: 43px; border: .7px solid #94a3b8; }
-        .approval .name-row td { height: 13px; color: #64748b; font-size: 8.5px; text-align: center; }
+        .approval th { border: .7px solid #94a3b8; background: #f8fafc; color: #334155; font-size: 11px; font-weight: 700; line-height: 1.2; padding: 5px 2px; text-align: center; }
+        .approval td { height: 78px; border: .7px solid #94a3b8; }
+        .approval .name-row td { height: 17px; color: #64748b; font-size: 10px; text-align: center; }
 
         .document-footer { position: fixed; right: 0; bottom: -7mm; left: 0; border-top: .6px solid #cbd5e1; color: #64748b; font-size: 8px; padding-top: 2px; }
         .document-footer .page-number:after { content: counter(page); }

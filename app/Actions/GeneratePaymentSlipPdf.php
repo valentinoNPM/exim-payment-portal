@@ -12,8 +12,13 @@ class GeneratePaymentSlipPdf
         // Eager load relations for PDF content
         $slip->load(['supplier', 'customer', 'buyer', 'invoices.buyer', 'invoices.documentFile', 'invoices.items.unit', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
 
-        return Pdf::loadView('pdf.payment-slip', [
+        $view = $slip->transaction_type === PaymentSlip::TYPE_GENERAL
+            ? 'pdf.payment-slips.general'
+            : 'pdf.payment-slips.exim';
+
+        // F4 Indonesia: 210 x 330 mm, converted to PDF points.
+        return Pdf::loadView($view, [
             'slip' => $slip,
-        ])->setPaper('a4', 'portrait');
+        ])->setPaper([0, 0, 595.28, 935.43], 'portrait');
     }
 }

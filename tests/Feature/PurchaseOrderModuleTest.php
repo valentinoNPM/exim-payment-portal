@@ -25,6 +25,7 @@ use Carbon\Carbon;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 use Tests\Fixtures\ErpPaymentSlip;
@@ -645,8 +646,13 @@ class PurchaseOrderModuleTest extends TestCase
             ->assertSee('000045')
             ->assertSee('000046');
 
-        $linkedPo->delete();
-        $this->assertSame(2, Invoice::query()->whereNull('purchase_order_id')->count());
+        try {
+            $linkedPo->delete();
+            $this->fail('PO terkait invoice tidak boleh dihapus.');
+        } catch (ValidationException) {
+            $this->assertSame(2, Invoice::query()->where('purchase_order_id', $linkedPo->id)->count());
+            $this->assertModelExists($linkedPo);
+        }
     }
 
     public function test_item_master_generates_unique_codes_from_config(): void
@@ -763,6 +769,39 @@ class PurchaseOrderModuleTest extends TestCase
         $this->assertSame(0, preg_match_all('/<input\b/i', $html));
         $this->assertSame(0, preg_match_all('/<select\b/i', $html));
         $this->assertSame(0, preg_match_all('/wire:model/i', $html));
+    }
+
+    public function test_ecount_archive_label_only_appears_for_ineligible_purchase_orders(): void
+    {
+        $this->actingAs($this->gaMaker);
+        $supplier = Supplier::create(['code' => 'SUP-ARCHIVE', 'name' => 'Vendor Arsip', 'is_active' => true]);
+        $archive = $this->createPurchaseOrder($supplier, 'PO arsip');
+        $archive->forceFill(['source' => 'ecount', 'source_code' => '15/10/2026 -1'])->saveQuietly();
+        $eligible = $this->createPurchaseOrder($supplier, 'PO aplikasi');
+        $eligible->forceFill(['source' => 'manual', 'source_code' => null])->saveQuietly();
+
+        Livewire::test(ViewPurchaseOrder::class, ['record' => $archive->getRouteKey()])
+            ->assertSee('Dokumen arsip ECOUNT - hanya dokumentasi, tidak dapat diterbitkan menjadi payment slip.');
+
+        Livewire::test(ViewPurchaseOrder::class, ['record' => $eligible->getRouteKey()])
+            ->assertDontSee('Dokumen arsip ECOUNT - hanya dokumentasi, tidak dapat diterbitkan menjadi payment slip.');
+
+        $list = Livewire::test(ListPurchaseOrders::class);
+        $columns = collect($list->instance()->getDefaultTableColumnState())
+            ->map(fn (array $column): array => $column['name'] === 'source_code'
+                ? [...$column, 'isToggled' => true]
+                : $column)
+            ->all();
+        $list->call('applyTableColumnManager', $columns);
+
+        $list->assertSee('15/10/2026 -1 - Arsip ECOUNT')
+            ->assertSee('15/10/2026 -1');
+
+        $archive->delete();
+
+        Livewire::test(ListPurchaseOrders::class)
+            ->call('applyTableColumnManager', $columns)
+            ->assertDontSee('Arsip ECOUNT');
     }
 
     public function test_selecting_item_master_fills_line_defaults_and_persists_snapshots(): void

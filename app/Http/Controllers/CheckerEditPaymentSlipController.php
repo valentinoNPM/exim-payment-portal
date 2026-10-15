@@ -25,6 +25,8 @@ class CheckerEditPaymentSlipController extends Controller
             'invoices.buyer',
             'invoices.documentFile',
             'invoices.items.chartOfAccount',
+            'invoices.items.unit',
+            'invoices.purchaseOrder',
         ]);
 
         $html = view('payment-slips.checker-edit', [

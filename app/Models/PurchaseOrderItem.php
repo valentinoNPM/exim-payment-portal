@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Support\MoneyRounding;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Validation\ValidationException;
 
 class PurchaseOrderItem extends Model
 {
@@ -43,6 +45,13 @@ class PurchaseOrderItem extends Model
 
     protected static function booted(): void
     {
+        $guard = function (PurchaseOrderItem $item): void {
+            if ($item->purchaseOrder?->isSourceLocked()) {
+                throw ValidationException::withMessages(['items' => 'Item PO Final/terkait slip terkunci.']);
+            }
+        };
+        static::saving($guard);
+        static::deleting($guard);
         static::saving(function (PurchaseOrderItem $item): void {
             if (! $item->line_number) {
                 $item->line_number = ((int) static::query()
@@ -83,9 +92,13 @@ class PurchaseOrderItem extends Model
                     ->update(['unit_id' => $item->unit_id]);
             }
 
-            $item->subtotal_amount = round((float) $item->quantity * (float) $item->unit_price_amount, 2);
-            $item->tax_amount = round((float) ($item->tax_amount ?? 0), 2);
-            $item->total_amount = $item->subtotal_amount + $item->tax_amount;
+            // Metadata-only edits must not rewrite historical ECOUNT amounts.
+            if (! $item->exists || $item->isDirty(['quantity', 'unit_price_amount'])) {
+                $currency = $item->purchaseOrder->currency;
+                $item->subtotal_amount = MoneyRounding::round((float) $item->quantity * (float) $item->unit_price_amount, $currency);
+                $item->tax_amount = MoneyRounding::round((float) ($item->tax_amount ?? 0), $currency);
+                $item->total_amount = $item->subtotal_amount + $item->tax_amount;
+            }
         });
 
         static::saved(function (PurchaseOrderItem $item): void {
@@ -158,7 +171,7 @@ class PurchaseOrderItem extends Model
         foreach ($taxes as $tax) {
             $tax->forceFill([
                 'taxable_amount' => $subtotal,
-                'tax_amount' => round($subtotal * ((float) $tax->rate_snapshot / 100), 2),
+                'tax_amount' => MoneyRounding::round($subtotal * ((float) $tax->rate_snapshot / 100), $this->purchaseOrder->currency),
             ])->saveQuietly();
         }
 

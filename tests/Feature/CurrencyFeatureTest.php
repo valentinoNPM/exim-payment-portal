@@ -230,7 +230,7 @@ class CurrencyFeatureTest extends TestCase
         $this->assertSame(PaymentSlip::CURRENCY_EUR, $slip->fresh()->currency);
     }
 
-    public function test_view_general_shows_currency_in_form(): void
+    public function test_view_general_shows_currency_in_read_only_detail(): void
     {
         $supplier = Supplier::create(['code' => 'VIEW-SUP', 'name' => 'View Supplier', 'is_active' => true]);
         $slip = PaymentSlip::withoutEvents(fn () => PaymentSlip::create([
@@ -243,8 +243,7 @@ class CurrencyFeatureTest extends TestCase
         ]));
 
         $viewPage = Livewire::test(ViewPaymentSlip::class, ['record' => $slip->id]);
-        $viewState = $viewPage->get('data');
-        $this->assertSame(PaymentSlip::CURRENCY_EUR, $viewState['currency']);
+        $viewPage->assertSee('Currency')->assertSee(PaymentSlip::CURRENCY_EUR);
     }
 
     public function test_table_formats_idr_correctly(): void
@@ -310,7 +309,7 @@ class CurrencyFeatureTest extends TestCase
         ]);
         $slip->load(['supplier', 'buyer', 'invoices.buyer', 'invoices.items', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
 
-        $html = view('pdf.payment-slip', ['slip' => $slip])->render();
+        $html = view('pdf.payment-slips.general', ['slip' => $slip])->render();
 
         $this->assertStringContainsString('Rp 500.000', $html);
         $this->assertStringContainsString('Rp 1.500.000', $html);
@@ -334,7 +333,7 @@ class CurrencyFeatureTest extends TestCase
         ]);
         $slip->load(['supplier', 'buyer', 'invoices.buyer', 'invoices.items', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
 
-        $html = view('pdf.payment-slip', ['slip' => $slip])->render();
+        $html = view('pdf.payment-slips.general', ['slip' => $slip])->render();
 
         $this->assertStringContainsString('USD 1,500.75', $html);
         $this->assertStringContainsString('#003f97', $html);
@@ -356,7 +355,7 @@ class CurrencyFeatureTest extends TestCase
         ]);
         $slip->load(['supplier', 'buyer', 'invoices.buyer', 'invoices.items', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
 
-        $html = view('pdf.payment-slip', ['slip' => $slip])->render();
+        $html = view('pdf.payment-slips.general', ['slip' => $slip])->render();
 
         $this->assertStringContainsString('EUR 1,500.75', $html);
         $this->assertStringNotContainsString('Rp ', $html);
@@ -369,7 +368,7 @@ class CurrencyFeatureTest extends TestCase
         $this->assertSame('export', $slip->transaction_type);
         $slip->load(['supplier', 'buyer', 'invoices.buyer', 'invoices.items', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
 
-        $html = view('pdf.payment-slip', ['slip' => $slip])->render();
+        $html = view('pdf.payment-slips.exim', ['slip' => $slip])->render();
 
         // Export PDF must use Rp format
         $this->assertStringContainsString('Rp ', $html);

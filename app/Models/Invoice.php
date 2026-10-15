@@ -3,12 +3,15 @@
 namespace App\Models;
 
 use App\Services\InvoiceAmountCalculator;
+use App\Services\PaymentSlips\GeneralInvoiceTotal;
+use App\Support\MoneyRounding;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class Invoice extends Model
 {
@@ -17,6 +20,8 @@ class Invoice extends Model
     protected $fillable = [
         'payment_slip_id',
         'purchase_order_id',
+        'discount_amount',
+        'shipping_amount',
         'buyer_id',
         'invoice_number',
         'invoice_date',
@@ -32,6 +37,8 @@ class Invoice extends Model
     ];
 
     protected $casts = [
+        'discount_amount' => 'decimal:2',
+        'shipping_amount' => 'decimal:2',
         'invoice_date' => 'date',
         'subtotal_amount' => 'decimal:2',
         'tax_addition_amount' => 'decimal:2',
@@ -89,8 +96,21 @@ class Invoice extends Model
 
     protected static function booted()
     {
+        static::updating(function (Invoice $invoice): void {
+            if ($invoice->getRawOriginal('purchase_order_id') && $invoice->isDirty(['purchase_order_id', 'payment_slip_id', 'tax_calculation_mode', 'ppn_tax_id', 'pph_tax_id', 'discount_amount', 'shipping_amount'])) {
+                throw ValidationException::withMessages(['invoices' => 'Sumber PO pada invoice terkunci.']);
+            }
+        });
+        static::deleting(function (Invoice $invoice): void {
+            if ($invoice->purchase_order_id) {
+                throw ValidationException::withMessages(['invoices' => 'Invoice dari PO tidak boleh dihapus.']);
+            }
+        });
         static::creating(function (Invoice $invoice): void {
             $parent = $invoice->paymentSlip ?? PaymentSlip::query()->find($invoice->payment_slip_id);
+            if ($parent?->hasPurchaseOrderSource()) {
+                throw ValidationException::withMessages(['invoices' => 'Tidak dapat menambah invoice pada slip sumber PO.']);
+            }
             if ($parent?->transaction_type === PaymentSlip::TYPE_GENERAL) {
                 $invoice->tax_calculation_mode = PaymentSlip::TAX_MODE_ITEMIZED;
 
@@ -116,6 +136,7 @@ class Invoice extends Model
                 $invoice->tax_addition_amount = $invoice->items()->sum('tax_addition_amount');
                 $invoice->tax_deduction_amount = $invoice->items()->sum('tax_deduction_amount');
                 $invoice->grand_total_amount = $invoice->subtotal_amount + $invoice->tax_addition_amount - $invoice->tax_deduction_amount;
+                $invoice->applyGeneralAdjustments();
 
                 return;
             }
@@ -135,6 +156,7 @@ class Invoice extends Model
                 $invoice->tax_deduction_amount = $amounts['tax_deduction'];
                 $invoice->grand_total_amount = $amounts['grand_total'];
             }
+            $invoice->applyGeneralAdjustments();
         });
 
         static::saved(function ($invoice) {
@@ -168,6 +190,7 @@ class Invoice extends Model
             $this->tax_addition_amount = $this->items()->sum('tax_addition_amount');
             $this->tax_deduction_amount = $this->items()->sum('tax_deduction_amount');
             $this->grand_total_amount = $this->subtotal_amount + $this->tax_addition_amount - $this->tax_deduction_amount;
+            $this->applyGeneralAdjustments();
             $this->saveQuietly();
 
             if ($this->paymentSlip) {
@@ -187,6 +210,7 @@ class Invoice extends Model
         $this->tax_addition_amount = $amounts['tax_addition'];
         $this->tax_deduction_amount = $amounts['tax_deduction'];
         $this->grand_total_amount = $amounts['grand_total'];
+        $this->applyGeneralAdjustments();
         $this->saveQuietly();
 
         if ($this->paymentSlip) {
@@ -203,6 +227,21 @@ class Invoice extends Model
         return $this->paymentSlip?->usesItemizedTaxes() ?? false;
     }
 
+    private ?array $sourceUnitNames = null;
+
+    public function unitNameFor(InvoiceItem $item): ?string
+    {
+        if (! $this->purchase_order_id) {
+            return $item->unit?->name;
+        }
+        if ($this->sourceUnitNames === null) {
+            $snapshot = $this->purchaseOrder?->audits()->where('event', 'payment_slip_issued')->first()?->new_values ?? [];
+            $this->sourceUnitNames = collect($snapshot['items'] ?? [])->pluck('unit_name', 'invoice_item_id')->all();
+        }
+
+        return $this->sourceUnitNames[$item->id] ?? $item->unit?->name;
+    }
+
     private function calculationCurrency(): string
     {
         $paymentSlip = $this->paymentSlip ?? PaymentSlip::query()->find($this->payment_slip_id);
@@ -210,5 +249,23 @@ class Invoice extends Model
         return $paymentSlip?->transaction_type === PaymentSlip::TYPE_GENERAL
             ? ($paymentSlip->currency ?? PaymentSlip::CURRENCY_IDR)
             : PaymentSlip::CURRENCY_IDR;
+    }
+
+    private function applyGeneralAdjustments(): void
+    {
+        if ($this->paymentSlip?->transaction_type !== PaymentSlip::TYPE_GENERAL) {
+            return;
+        }
+        foreach (['discount_amount', 'shipping_amount'] as $field) {
+            $this->{$field} = MoneyRounding::round((float) $this->{$field}, $this->calculationCurrency());
+        }
+        // An invoice is first inserted before its items. Validate the total after items exist.
+        if (! $this->exists) {
+            return;
+        }
+        $this->grand_total_amount = GeneralInvoiceTotal::calculate(
+            (float) $this->subtotal_amount, (float) $this->tax_addition_amount, (float) $this->tax_deduction_amount,
+            (float) $this->discount_amount, (float) $this->shipping_amount, $this->calculationCurrency(),
+        );
     }
 }

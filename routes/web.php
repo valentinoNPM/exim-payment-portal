@@ -2,9 +2,14 @@
 
 use App\Http\Controllers\CheckerEditPaymentSlipController;
 use App\Http\Controllers\DownloadErpExportController;
+use App\Http\Controllers\PaymentSlipEditorController;
+use App\Http\Controllers\PaymentSlipInvoiceExtractionController;
+use App\Http\Controllers\PaymentSlipInvoiceExtractionPreviewController;
+use App\Http\Controllers\PaymentSlipMasterOptionController;
 use App\Http\Controllers\PreviewPaymentSlipPdfController;
 use App\Http\Controllers\PreviewPurchaseOrderPdfController;
 use App\Http\Controllers\PurchaseOrderEditorController;
+use App\Http\Controllers\PurchaseOrderPaymentSlipController;
 use App\Models\DocumentFile;
 use Filament\Http\Middleware\Authenticate as FilamentAuthenticate;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +27,8 @@ Route::get('/purchase-orders/{purchaseOrder}/pdf', PreviewPurchaseOrderPdfContro
 Route::prefix('admin/purchase-orders')
     ->middleware(FilamentAuthenticate::class)
     ->group(function (): void {
+        Route::post('/{purchaseOrder}/issue-payment-slip', [PurchaseOrderPaymentSlipController::class, 'store'])
+            ->name('purchase-orders.issue-payment-slip');
         Route::post('/', [PurchaseOrderEditorController::class, 'store'])
             ->name('purchase-orders.editor.store');
         Route::put('/{purchaseOrder}', [PurchaseOrderEditorController::class, 'update'])
@@ -37,11 +44,24 @@ Route::get('/payment-slips/{paymentSlip}/checker-edit', [CheckerEditPaymentSlipC
 Route::post('/payment-slips/{paymentSlip}/checker-edit', [CheckerEditPaymentSlipController::class, 'update'])
     ->middleware('auth')->name('payment-slips.checker-edit.update');
 
+Route::put('/admin/payment-slips/{paymentSlip}/edit', [PaymentSlipEditorController::class, 'update'])
+    ->middleware(FilamentAuthenticate::class)->name('payment-slips.editor.update');
+Route::post('/admin/payment-slips/editor/{type}', [PaymentSlipEditorController::class, 'store'])
+    ->middleware(FilamentAuthenticate::class)->name('payment-slips.editor.store');
+Route::post('/admin/payment-slips/editor/master/{kind}', PaymentSlipMasterOptionController::class)
+    ->middleware(FilamentAuthenticate::class)->name('payment-slips.editor.master');
+Route::post('/admin/payment-slips/editor/extract/{type}', PaymentSlipInvoiceExtractionPreviewController::class)
+    ->middleware(FilamentAuthenticate::class)->name('payment-slips.editor.extract');
+Route::post('/admin/payment-slips/{paymentSlip}/extract-invoices', PaymentSlipInvoiceExtractionController::class)
+    ->middleware(FilamentAuthenticate::class)->name('payment-slips.editor.extract-invoices');
+
 Route::redirect('/', '/admin');
 
 Route::get('/document-files/{documentFile}/view', function (DocumentFile $documentFile) {
     if (! Storage::disk($documentFile->disk)->exists($documentFile->path)) {
-        abort(404);
+        return response()->view('errors.document-file-missing', [
+            'documentFile' => $documentFile,
+        ], 404);
     }
 
     return response()->file(Storage::disk($documentFile->disk)->path($documentFile->path), [

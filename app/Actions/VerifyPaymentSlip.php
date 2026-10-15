@@ -5,6 +5,7 @@ namespace App\Actions;
 use App\Models\PaymentSlip;
 use App\Models\User;
 use App\Services\Erp\ErpJournalBuilder;
+use App\Services\PaymentSlips\ValidateGeneralPaymentSlip;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -21,7 +22,11 @@ class VerifyPaymentSlip
             $record->load(['supplier', 'buyer', 'invoices.buyer', 'invoices.items.chartOfAccount', 'erpExportItem']);
             $record->status = 'approved';
             try {
-                app(ErpJournalBuilder::class)->build($record);
+                if ($record->transaction_type === PaymentSlip::TYPE_GENERAL) {
+                    app(ValidateGeneralPaymentSlip::class)->validate($record);
+                } else {
+                    app(ErpJournalBuilder::class)->build($record);
+                }
             } finally {
                 $record->status = 'submitted';
             }

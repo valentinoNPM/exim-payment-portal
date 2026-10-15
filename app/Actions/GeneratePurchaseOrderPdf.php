@@ -11,8 +11,9 @@ class GeneratePurchaseOrderPdf
     {
         $purchaseOrder->refresh()->load(['division', 'warehouse', 'supplier', 'creator', 'items.unit', 'items.item', 'taxes']);
 
+        // F4 Indonesia: 210 x 330 mm, converted to PDF points.
         return Pdf::loadView('pdf.purchase-order', [
             'purchaseOrder' => $purchaseOrder,
-        ])->setPaper('a4', 'portrait');
+        ])->setPaper([0, 0, 595.28, 935.43], 'portrait');
     }
 }

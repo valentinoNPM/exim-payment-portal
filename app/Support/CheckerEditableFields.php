@@ -4,6 +4,8 @@ namespace App\Support;
 
 use App\Models\Invoice;
 use App\Models\PaymentSlip;
+use App\Support\CheckerFields\EximCheckerFields;
+use App\Support\CheckerFields\GeneralCheckerFields;
 
 class CheckerEditableFields
 {
@@ -18,8 +20,11 @@ class CheckerEditableFields
             return false;
         }
 
-        return $slip->transaction_type === PaymentSlip::TYPE_IMPORT
-            || ($slip->transaction_type === PaymentSlip::TYPE_EXPORT && $invoice->usesItemizedTaxes());
+        return match ($slip->transaction_type) {
+            PaymentSlip::TYPE_GENERAL => (new GeneralCheckerFields)->canEditItemVat($invoice),
+            PaymentSlip::TYPE_IMPORT, PaymentSlip::TYPE_EXPORT => (new EximCheckerFields($slip))->canEditItemVat($invoice),
+            default => false,
+        };
     }
 
     public static function canEditItemCoa(PaymentSlip $slip): bool

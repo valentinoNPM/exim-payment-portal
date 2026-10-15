@@ -4,14 +4,20 @@ namespace App\Filament\Resources\PaymentSlips\Pages;
 
 use App\Actions\VerifyPaymentSlip;
 use App\Filament\Resources\PaymentSlips\PaymentSlipResource;
-use App\Filament\Resources\PaymentSlips\Schemas\PaymentSlipForm;
 use App\Models\DocumentFile;
 use App\Models\PaymentSlip;
+use App\Services\PaymentSlips\EximPaymentSlipData;
+use App\Services\PaymentSlips\GeneralPaymentSlipData;
+use App\Services\PaymentSlips\InvoiceDraftCalculator;
+use Closure;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 class EditPaymentSlip extends EditRecord
 {
@@ -23,13 +29,53 @@ class EditPaymentSlip extends EditRecord
 
     public ?string $activePdfUrl = null;
 
+    public function hydrate(): void
+    {
+        if (PaymentSlipResource::canEdit($this->getRecord())) {
+            return;
+        }
+
+        throw new AuthorizationException('Payment slip edit access has been revoked.');
+    }
+
+    public function exception(Throwable $e, Closure $stopPropagation): void
+    {
+        if (! $e instanceof AuthorizationException) {
+            return;
+        }
+
+        $stopPropagation();
+
+        Notification::make()
+            ->title('Slip tidak dapat diedit lagi')
+            ->body('Status atau izin slip sudah berubah. Perubahan terakhir tidak disimpan.')
+            ->warning()
+            ->send();
+
+        $url = PaymentSlipResource::getUrl('view', ['record' => $this->getRecord()]);
+
+        $this->redirect($url, navigate: true);
+    }
+
+    /** @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        $record = $this->getRecord();
+
+        return $record->transaction_type === PaymentSlip::TYPE_GENERAL
+            ? GeneralPaymentSlipData::prepareEdit($data)
+            : EximPaymentSlipData::prepareEdit($data, $record);
+    }
+
     public function updated(string $property): void
     {
         if (! preg_match('/^data\.invoices\.[^.]+\.items\.[^.]+(?:\.(?:quantity|unit_price_amount|ppn_tax_id|pph_tax_id))?$/', $property)) {
             return;
         }
 
-        PaymentSlipForm::recalculateLiveItemizedInvoice($this->data, $property);
+        InvoiceDraftCalculator::recalculateLiveItemizedInvoice($this->data, $property);
 
         // Force Livewire to detect the nested data mutation by re-assigning
         // the top-level key. Without this, changes made by reference inside
@@ -42,7 +88,7 @@ class EditPaymentSlip extends EditRecord
     public function setActivePdf(int $documentFileId): void
     {
         $doc = DocumentFile::find($documentFileId);
-        if ($doc) {
+        if ($doc && Storage::disk($doc->disk)->exists($doc->path)) {
             $this->activePdfUrl = route('document-files.view', $doc);
         }
     }
@@ -76,7 +122,7 @@ class EditPaymentSlip extends EditRecord
                     $this->save();
                     app(VerifyPaymentSlip::class)->execute($this->getRecord(), auth()->user());
                     Notification::make()
-                        ->title('Payment Slip verified and ready for ERP export.')
+                        ->title($this->getRecord()->transaction_type === PaymentSlip::TYPE_GENERAL ? 'Payment Slip General berhasil diverifikasi.' : 'Payment Slip verified and ready for ERP export.')
                         ->success()
                         ->send();
                 }),

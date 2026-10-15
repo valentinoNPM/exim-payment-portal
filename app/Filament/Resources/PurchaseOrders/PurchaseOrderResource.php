@@ -81,13 +81,13 @@ class PurchaseOrderResource extends Resource
 
     public static function canEdit(Model $record): bool
     {
-        return static::canView($record);
+        return static::canView($record) && ! $record->isSourceLocked();
     }
 
     public static function canDelete(Model $record): bool
     {
         // Hanya PO yang belum dikirim ke vendor yang boleh dihapus.
-        return static::canView($record) && $record->status === PurchaseOrder::STATUS_NEW;
+        return static::canView($record) && $record->status === PurchaseOrder::STATUS_NEW && ! $record->hasIssuedPaymentSlip();
     }
 
     public static function canDeleteAny(): bool
@@ -100,6 +100,7 @@ class PurchaseOrderResource extends Resource
         return [
             'index' => ListPurchaseOrders::route('/'),
             'create' => CreatePurchaseOrder::route('/create'),
+            'issue-payment-slip' => Pages\IssuePaymentSlip::route('/{record}/issue-payment-slip'),
             'view' => ViewPurchaseOrder::route('/{record}'),
             'edit' => EditPurchaseOrder::route('/{record}/edit'),
         ];

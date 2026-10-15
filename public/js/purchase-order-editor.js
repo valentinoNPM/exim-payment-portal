@@ -76,24 +76,29 @@
         };
 
         const calculate = () => {
+            const roundMoney = value => Math.sign(value) * Math.round((Math.abs(value) + Number.EPSILON) * (currency.value === 'IDR' ? 1 : 100)) / (currency.value === 'IDR' ? 1 : 100);
             const additionRate = rate(additionTax);
             const deductionRate = rate(deductionTax);
             let subtotal = 0;
+            let addition = 0;
+            let deduction = 0;
 
             rows().forEach((row) => {
                 const quantity = parseNumber(row.querySelector('[data-field="quantity"]')?.value);
                 const unitPrice = parseNumber(row.querySelector('[data-field="unit_price_amount"]')?.value);
-                const lineSubtotal = quantity * unitPrice;
-                const lineTax = lineSubtotal * ((additionRate - deductionRate) / 100);
+                const lineSubtotal = roundMoney(quantity * unitPrice);
+                const lineAddition = roundMoney(lineSubtotal * additionRate / 100);
+                const lineDeduction = roundMoney(lineSubtotal * deductionRate / 100);
+                const lineTax = lineAddition - lineDeduction;
+                addition += lineAddition;
+                deduction += lineDeduction;
                 subtotal += lineSubtotal;
                 row.querySelector('[data-line-subtotal]').textContent = formatMoney(lineSubtotal);
                 row.querySelector('[data-line-tax]').textContent = formatMoney(lineTax);
             });
 
-            const addition = subtotal * (additionRate / 100);
-            const deduction = subtotal * (deductionRate / 100);
-            const discountAmount = parseNumber(discount?.value);
-            const shippingAmount = parseNumber(shipping?.value);
+            const discountAmount = roundMoney(parseNumber(discount?.value));
+            const shippingAmount = roundMoney(parseNumber(shipping?.value));
             const total = subtotal + addition - deduction - discountAmount + shippingAmount;
 
             root.querySelector('[data-summary-subtotal]').textContent = formatMoney(subtotal);

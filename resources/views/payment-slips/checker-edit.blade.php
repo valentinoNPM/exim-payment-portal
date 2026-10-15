@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
     <title>Check {{ $paymentSlip->slip_number }} — EXIM Payment Portal</title>
-    <link rel="stylesheet" href="{{ asset('css/checker-edit.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/checker-edit.css') }}?v={{ filemtime(public_path('css/checker-edit.css')) }}">
 </head>
 <body>
     <main class="checker-page">
@@ -44,14 +44,25 @@
             <dl>
                 <div><dt>Type</dt><dd>{{ \App\Models\PaymentSlip::TRANSACTION_TYPE_LABELS[$paymentSlip->transaction_type] ?? ucfirst($paymentSlip->transaction_type) }}</dd></div>
                 <div><dt>Supplier</dt><dd>{{ $paymentSlip->supplier?->name ?? '—' }}</dd></div>
-                <div><dt>Buyer</dt><dd>{{ $paymentSlip->buyer?->name ?? 'Per invoice' }}</dd></div>
+                @if ($paymentSlip->transaction_type !== \App\Models\PaymentSlip::TYPE_GENERAL)
+                    <div><dt>Buyer</dt><dd>{{ $paymentSlip->buyer?->name ?? 'Per invoice' }}</dd></div>
+                @endif
                 <div><dt>Currency</dt><dd>{{ $paymentSlip->currency ?? 'IDR' }}</dd></div>
                 <div><dt>Created by</dt><dd>{{ $paymentSlip->creator?->name ?? '—' }} · {{ $paymentSlip->creator?->division?->name ?? '—' }}</dd></div>
                 <div><dt>Total</dt><dd class="checker-money">{{ \App\Support\CurrencyFormatter::format($paymentSlip->grand_total_amount, $paymentSlip->currency ?? 'IDR') }}</dd></div>
             </dl>
         </section>
 
-        <form method="POST" action="{{ route('payment-slips.checker-edit.update', $paymentSlip) }}">
+        <div class="checker-workspace" data-checker-workspace>
+        <div class="checker-tools" role="group" aria-label="Tampilan verifikasi">
+            <span>Verifikasi VAT &amp; COA</span>
+            <div>
+                <button type="button" class="checker-button checker-button--secondary" data-checker-mode="form" aria-pressed="true">Form</button>
+                <button type="button" class="checker-button checker-button--secondary" data-checker-mode="split" aria-pressed="false">Split</button>
+                <button type="button" class="checker-button checker-button--secondary" data-checker-mode="pdf" aria-pressed="false">PDF</button>
+            </div>
+        </div>
+        <form method="POST" action="{{ route('payment-slips.checker-edit.update', $paymentSlip) }}" data-checker-form>
             @csrf
 
             <div class="checker-invoices">
@@ -62,10 +73,16 @@
                             <div>
                                 <p class="checker-eyebrow">Invoice {{ $loop->iteration }}</p>
                                 <h2 id="invoice-{{ $invoice->id }}-title">{{ $invoice->invoice_number }}</h2>
-                                <p>{{ $invoice->invoice_date?->format('d M Y') }} · {{ $invoice->buyer?->name ?? $paymentSlip->buyer?->name ?? 'Buyer unavailable' }}</p>
+                                <p>{{ $invoice->invoice_date?->format('d M Y') }}@if ($paymentSlip->transaction_type !== \App\Models\PaymentSlip::TYPE_GENERAL) · {{ $invoice->buyer?->name ?? $paymentSlip->buyer?->name ?? 'Buyer unavailable' }}@endif</p>
+                                @if ($paymentSlip->transaction_type === \App\Models\PaymentSlip::TYPE_GENERAL && $invoice->purchaseOrder)
+                                    <p>Referensi PO: {{ $invoice->purchaseOrder->po_number }}</p>
+                                @endif
                             </div>
-                            @if ($invoice->documentFile)
-                                <a href="{{ route('document-files.view', $invoice->documentFile) }}" target="_blank" rel="noopener noreferrer" class="checker-document-link">Open invoice PDF ↗</a>
+                            @if ($invoice->documentFile && \Illuminate\Support\Facades\Storage::disk($invoice->documentFile->disk)->exists($invoice->documentFile->path))
+                                <div class="checker-document-actions">
+                                    <button type="button" class="checker-button checker-button--secondary" data-checker-preview="{{ route('document-files.view', $invoice->documentFile) }}" data-checker-title="{{ $invoice->invoice_number }}">Preview PDF</button>
+                                    <a href="{{ route('document-files.view', $invoice->documentFile) }}" target="_blank" rel="noopener noreferrer" class="checker-document-link">Open invoice PDF ↗</a>
+                                </div>
                             @endif
                         </header>
 
@@ -73,6 +90,10 @@
                             <div><span>Subtotal</span><strong>{{ \App\Support\CurrencyFormatter::format($invoice->subtotal_amount, $paymentSlip->currency ?? 'IDR') }}</strong></div>
                             <div><span>PPN</span><strong>{{ \App\Support\CurrencyFormatter::format($invoice->tax_addition_amount, $paymentSlip->currency ?? 'IDR') }}</strong></div>
                             <div><span>PPh</span><strong>{{ \App\Support\CurrencyFormatter::format($invoice->tax_deduction_amount, $paymentSlip->currency ?? 'IDR') }}</strong></div>
+                            @if ($paymentSlip->transaction_type === \App\Models\PaymentSlip::TYPE_GENERAL)
+                                <div><span>Diskon (pengurang)</span><strong>{{ \App\Support\CurrencyFormatter::format($invoice->discount_amount, $paymentSlip->currency ?? 'IDR') }}</strong></div>
+                                <div><span>Ongkir</span><strong>{{ \App\Support\CurrencyFormatter::format($invoice->shipping_amount, $paymentSlip->currency ?? 'IDR') }}</strong></div>
+                            @endif
                             <div><span>Grand total</span><strong>{{ \App\Support\CurrencyFormatter::format($invoice->grand_total_amount, $paymentSlip->currency ?? 'IDR') }}</strong></div>
                         </div>
 
@@ -106,19 +127,19 @@
                                 <tbody>
                                     @foreach ($invoice->items as $item)
                                         <tr>
-                                            <td>{{ $item->line_number }}</td>
-                                            <td>
+                                            <td data-label="Line">{{ $item->line_number }}</td>
+                                            <td data-label="Item" class="checker-item-name">
                                                 <strong>{{ $item->item_name }}</strong>
-                                                @if ($item->source_supplier_name)<small>{{ $item->source_supplier_name }}</small>@endif
+                                                @if ($item->source_supplier_name)<small>Supplier Pendukung: {{ $item->source_supplier_name }}</small>@endif
                                             </td>
-                                            <td class="checker-number">{{ rtrim(rtrim(number_format((float) $item->quantity, 4, '.', ','), '0'), '.') }}</td>
-                                            <td class="checker-number">{{ \App\Support\CurrencyFormatter::format($item->unit_price_amount, $paymentSlip->currency ?? 'IDR') }}</td>
-                                            <td class="checker-number">{{ \App\Support\CurrencyFormatter::format($item->subtotal_amount, $paymentSlip->currency ?? 'IDR') }}</td>
-                                            <td class="checker-number">{{ \App\Support\CurrencyFormatter::format($item->tax_addition_amount, $paymentSlip->currency ?? 'IDR') }}</td>
-                                            <td class="checker-number">{{ \App\Support\CurrencyFormatter::format($item->tax_deduction_amount, $paymentSlip->currency ?? 'IDR') }}</td>
-                                            <td class="checker-number">{{ \App\Support\CurrencyFormatter::format($item->net_amount, $paymentSlip->currency ?? 'IDR') }}</td>
+                                            <td data-label="Qty" class="checker-number">{{ rtrim(rtrim(number_format((float) $item->quantity, 4, '.', ','), '0'), '.') }}@if ($paymentSlip->transaction_type === \App\Models\PaymentSlip::TYPE_GENERAL)<small>{{ $invoice->unitNameFor($item) ?? '—' }}</small>@endif</td>
+                                            <td data-label="Unit price" class="checker-number">{{ \App\Support\CurrencyFormatter::format($item->unit_price_amount, $paymentSlip->currency ?? 'IDR') }}</td>
+                                            <td data-label="Subtotal" class="checker-number">{{ \App\Support\CurrencyFormatter::format($item->subtotal_amount, $paymentSlip->currency ?? 'IDR') }}</td>
+                                            <td data-label="PPN" class="checker-number">{{ \App\Support\CurrencyFormatter::format($item->tax_addition_amount, $paymentSlip->currency ?? 'IDR') }}</td>
+                                            <td data-label="PPh" class="checker-number">{{ \App\Support\CurrencyFormatter::format($item->tax_deduction_amount, $paymentSlip->currency ?? 'IDR') }}</td>
+                                            <td data-label="Net" class="checker-number">{{ \App\Support\CurrencyFormatter::format($item->net_amount, $paymentSlip->currency ?? 'IDR') }}</td>
                                             @if ($showItemVat)
-                                                <td>
+                                                <td data-label="VAT Invoice No. (Item)" class="checker-accounting-field">
                                                     <label class="checker-sr-only" for="item-{{ $item->id }}-vat">VAT invoice number for {{ $item->item_name }}</label>
                                                     <input
                                                         id="item-{{ $item->id }}-vat"
@@ -129,7 +150,7 @@
                                                     >
                                                 </td>
                                             @endif
-                                            <td>
+                                            <td data-label="COA" class="checker-accounting-field">
                                                 <label class="checker-sr-only" for="item-{{ $item->id }}-coa">COA for {{ $item->item_name }}</label>
                                                 <select id="item-{{ $item->id }}-coa" name="items[{{ $item->id }}][coa_id]">
                                                     <option value="">Select COA</option>
@@ -149,11 +170,36 @@
                 @endforeach
             </div>
 
+            <section class="checker-summary checker-overview" aria-labelledby="checker-overview-title">
+                <h2 id="checker-overview-title">Overview</h2>
+                <dl>
+                    @foreach ($paymentSlip->invoices as $invoice)
+                        <div>
+                            <dt>Invoice {{ $loop->iteration }}<span>No. Invoice: {{ $invoice->invoice_number }}</span>
+                                @if ($paymentSlip->transaction_type !== \App\Models\PaymentSlip::TYPE_GENERAL)
+                                    <span>Buyer: {{ $invoice->buyer?->name ?? $paymentSlip->buyer?->name ?? '—' }}</span>
+                                @endif
+                            </dt>
+                            <dd class="checker-number">{{ \App\Support\CurrencyFormatter::format($invoice->grand_total_amount, $paymentSlip->currency ?? 'IDR') }}</dd>
+                        </div>
+                    @endforeach
+                    <div><dt>Total Amount</dt><dd class="checker-number">{{ \App\Support\CurrencyFormatter::format($paymentSlip->grand_total_amount, $paymentSlip->currency ?? 'IDR') }}</dd></div>
+                </dl>
+            </section>
+
             <footer class="checker-footer">
                 <p>Only VAT invoice numbers and item COA will be updated.</p>
                 <button type="submit" class="checker-button checker-button--primary">Save checker fields</button>
             </footer>
         </form>
+        <div class="checker-divider" role="separator" tabindex="0" aria-label="Lebar form dan PDF" aria-orientation="vertical" aria-valuemin="35" aria-valuemax="65" aria-valuenow="55" data-checker-divider hidden></div>
+        <aside class="checker-viewer" aria-label="PDF invoice sumber" hidden>
+            <header><h2 data-checker-pdf-title>Invoice PDF</h2><button type="button" class="checker-button checker-button--secondary" data-checker-mode="form">Tutup PDF</button></header>
+            <p data-checker-empty>Pilih Preview PDF pada invoice yang ingin dicocokkan.</p>
+            <iframe title="PDF invoice sumber" data-checker-frame hidden></iframe>
+        </aside>
+        </div>
     </main>
+    <script src="{{ asset('js/checker-workspace.js') }}?v={{ filemtime(public_path('js/checker-workspace.js')) }}" defer></script>
 </body>
 </html>

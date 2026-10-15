@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\PaymentSlips\Schemas;
 
+use App\Filament\Resources\PaymentSlips\Schemas\Concerns\EximInvoiceTaxActions;
 use App\Models\DocumentFile;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
@@ -10,7 +11,6 @@ use App\Models\Supplier;
 use App\Models\Tax;
 use App\Services\DocumentFileRegistrar;
 use App\Services\GeminiInvoiceExtractor;
-use App\Services\InvoiceAmountCalculator;
 use App\Services\InvoiceExtractionDataMapper;
 use App\Support\CurrencyFormatter;
 use Carbon\Carbon;
@@ -33,11 +33,16 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException;
+use Throwable;
 
-class PaymentSlipForm
+class EximPaymentSlipForm extends PaymentSlipFormSupport
 {
-    private const CLEAR_BULK_TAX = '__clear_tax__';
+    use EximInvoiceTaxActions;
+
+    protected static function isItemizedMode(Get $get): bool
+    {
+        return $get('../../tax_calculation_mode') !== PaymentSlip::TAX_MODE_INVOICE_LEGACY;
+    }
 
     public static function configure(Schema $schema): Schema
     {
@@ -54,53 +59,23 @@ class PaymentSlipForm
                         ->disabled()
                         ->visible(fn (string $operation) => $operation !== 'create'),
                     Select::make('transaction_type')
-                        ->options(function ($livewire, ?object $record): array {
-                            if ($record) {
-                                return PaymentSlip::TRANSACTION_TYPE_LABELS;
-                            }
-
-                            return method_exists($livewire, 'getFixedTransactionType') && $livewire->getFixedTransactionType() === PaymentSlip::TYPE_GENERAL
-                                ? [PaymentSlip::TYPE_GENERAL => 'Lain-lain']
-                                : [PaymentSlip::TYPE_EXPORT => 'Export', PaymentSlip::TYPE_IMPORT => 'Import'];
-                        })
+                        ->options([
+                            PaymentSlip::TYPE_EXPORT => 'Export',
+                            PaymentSlip::TYPE_IMPORT => 'Import',
+                        ])
                         ->required()
                         ->live()
-                        ->disabled(fn (?object $record, $livewire): bool => $record !== null
-                            || (method_exists($livewire, 'getFixedTransactionType') && $livewire->getFixedTransactionType() === PaymentSlip::TYPE_GENERAL))
+                        ->disabled(fn (?object $record): bool => $record !== null)
                         ->dehydrated(),
                     Hidden::make('tax_calculation_mode')
                         ->default(PaymentSlip::TAX_MODE_ITEMIZED),
-                    Select::make('currency')
-                        ->label('Currency')
-                        ->options([
-                            PaymentSlip::CURRENCY_IDR => 'IDR - Rupiah',
-                            PaymentSlip::CURRENCY_USD => 'USD - US Dollar',
-                            PaymentSlip::CURRENCY_EUR => 'EUR - Euro',
-                        ])
-                        ->default(PaymentSlip::CURRENCY_IDR)
-                        ->required()
-                        ->live()
-                        ->visible(fn (Get $get): bool => $get('transaction_type') === PaymentSlip::TYPE_GENERAL)
-                        ->disabled(fn (?object $record): bool => $record !== null
-                            && $record->status !== 'draft'
-                            && ! ($record->status === 'submitted' && auth()->user()?->hasRole('checker')))
-                        ->dehydrated(),
                     TextInput::make('invoice_receipt_number')
                         ->label('Nomor Tanda Terima Invoice')
                         ->placeholder('HIJ / 001 / VIII / 2026')
                         ->maxLength(100)
-                        ->visible(fn (Get $get): bool => in_array($get('transaction_type'), [PaymentSlip::TYPE_IMPORT, PaymentSlip::TYPE_EXPORT], true))
                         ->disabled(fn (?object $record): bool => $record !== null
                             && $record->status !== 'draft'
                             && ! ($record->status === 'submitted' && auth()->user()?->hasRole('checker'))),
-                    TextInput::make('transaction_description')
-                        ->label('Keterangan Transaksi')
-                        ->placeholder('Contoh: biaya operasional kantor')
-                        ->helperText('Tampil pada PDF sebagai “CHARGE [KETERANGAN]”.')
-                        ->maxLength(255)
-                        ->required(fn (Get $get): bool => $get('transaction_type') === PaymentSlip::TYPE_GENERAL)
-                        ->visible(fn (Get $get): bool => $get('transaction_type') === PaymentSlip::TYPE_GENERAL)
-                        ->disabled(fn (?object $record): bool => $record !== null && $record->status !== 'draft'),
                     Select::make('supplier_id')
                         ->relationship('supplier', 'name')
                         ->searchable()
@@ -117,28 +92,6 @@ class PaymentSlipForm
                                 ->label('Supplier Name')
                                 ->required()
                                 ->placeholder('Nama Perusahaan/Supplier'),
-                            Textarea::make('address')
-                                ->label('Address')
-                                ->columnSpanFull()
-                                ->placeholder('Alamat Lengkap'),
-                        ]),
-                    Select::make('customer_id')
-                        ->label('Customer')
-                        ->relationship('customer', 'name')
-                        ->searchable()
-                        ->placeholder('Pilih Customer (opsional)')
-                        ->visible(fn (Get $get): bool => $get('transaction_type') === PaymentSlip::TYPE_GENERAL)
-                        ->disabled(fn (?object $record): bool => $record !== null && $record->status !== 'draft')
-                        ->createOptionForm([
-                            TextInput::make('code')
-                                ->label('Customer Code')
-                                ->required()
-                                ->unique('customers', 'code')
-                                ->placeholder('Contoh: CUST-001'),
-                            TextInput::make('name')
-                                ->label('Customer Name')
-                                ->required()
-                                ->placeholder('Nama Customer'),
                             Textarea::make('address')
                                 ->label('Address')
                                 ->columnSpanFull()
@@ -189,8 +142,7 @@ class PaymentSlipForm
                         Action::make('extract_via_gemini')
                             ->label('Extract Invoices via Gemini')
                             ->icon('heroicon-o-sparkles')
-                            ->hidden(fn (string $operation, ?object $record, Get $get): bool => $operation === 'view'
-                                || $get('transaction_type') === PaymentSlip::TYPE_GENERAL
+                            ->hidden(fn (string $operation, ?object $record): bool => $operation === 'view'
                                 || ($record && $record->status !== 'draft'))
                             ->form([
                                 FileUpload::make('raw_pdf_files')
@@ -231,6 +183,7 @@ class PaymentSlipForm
                                 $newInvoices = [];
                                 $invoiceCount = 0;
                                 $itemCount = 0;
+                                $processedFileCount = 0;
 
                                 foreach ($report['successful'] as $successful) {
                                     $storedPath = collect($files)->first(fn (string $path): bool => Storage::disk('local')->path($path) === $successful['path']);
@@ -238,15 +191,26 @@ class PaymentSlipForm
                                         continue;
                                     }
 
-                                    $documentIds = app(DocumentFileRegistrar::class)
-                                        ->registerLocalUploads([$storedPath], $fileNames);
-                                    $mapper = app(InvoiceExtractionDataMapper::class);
-                                    $mappedInvoices = $mapper->toRepeaterState(
-                                        $successful['invoices'],
-                                        $documentIds,
-                                        preferBaseAmount: $get('transaction_type') === PaymentSlip::TYPE_IMPORT
-                                            || ($get('transaction_type') === PaymentSlip::TYPE_EXPORT && $get('tax_calculation_mode') === PaymentSlip::TAX_MODE_ITEMIZED),
-                                    );
+                                    try {
+                                        $documentIds = app(DocumentFileRegistrar::class)
+                                            ->registerLocalUploads([$storedPath], $fileNames);
+                                        $mapper = app(InvoiceExtractionDataMapper::class);
+                                        $mappedInvoices = $mapper->toRepeaterState(
+                                            $successful['invoices'],
+                                            $documentIds,
+                                            preferBaseAmount: $get('transaction_type') === PaymentSlip::TYPE_IMPORT
+                                                || ($get('transaction_type') === PaymentSlip::TYPE_EXPORT && $get('tax_calculation_mode') === PaymentSlip::TAX_MODE_ITEMIZED),
+                                        );
+                                    } catch (Throwable $exception) {
+                                        $report['failed'][] = [
+                                            'original_name' => $successful['original_name'],
+                                            'message' => 'Registrasi dokumen gagal: '.$exception->getMessage(),
+                                        ];
+
+                                        continue;
+                                    }
+
+                                    $processedFileCount++;
                                     $newInvoices = array_merge($newInvoices, $mappedInvoices);
                                     $invoiceCount += count($mappedInvoices);
                                     $itemCount += array_sum(array_map(
@@ -260,12 +224,12 @@ class PaymentSlipForm
                                 }
 
                                 $failedNames = array_column($report['failed'], 'original_name');
-                                $summary = count($report['successful']).' file berhasil, '.count($report['failed']).' file gagal. ';
+                                $summary = $processedFileCount.' file berhasil, '.count($report['failed']).' file gagal. ';
                                 $summary .= $invoiceCount.' invoice dan '.$itemCount.' item ditemukan.';
 
                                 if ($report['failed'] === []) {
                                     Notification::make()->title('Ekstraksi berhasil')->body($summary)->success()->send();
-                                } elseif ($report['successful'] !== []) {
+                                } elseif ($processedFileCount > 0) {
                                     Notification::make()
                                         ->title('Ekstraksi selesai sebagian')
                                         ->body($summary.' File gagal: '.implode(', ', $failedNames).'. Data dari file yang berhasil tetap dimasukkan.')
@@ -306,7 +270,7 @@ class PaymentSlipForm
                                     ->placeholder('Pilih Buyer untuk invoice ini')
                                     ->disabled(fn (?Invoice $record): bool => $record && $record->paymentSlip?->status !== 'draft'),
                                 TextInput::make('invoice_number')
-                                    ->label(fn (Get $get): string => $get('../../transaction_type') === PaymentSlip::TYPE_GENERAL ? 'Nomor Nota' : 'Invoice number')
+                                    ->label('Invoice number')
                                     ->required()
                                     ->disabled(fn (?Invoice $record) => $record && $record->paymentSlip?->status !== 'draft'),
                                 DatePicker::make('invoice_date')
@@ -326,7 +290,8 @@ class PaymentSlipForm
                                 Hidden::make('tax_calculation_mode')
                                     ->default(PaymentSlip::TAX_MODE_ITEMIZED),
                                 Select::make('document_file_id')
-                                    ->relationship('documentFile', 'original_name')
+                                    ->label('Document file')
+                                    ->options(fn (Select $component): array => self::selectedDocumentFileOption($component))
                                     ->disabled()
                                     ->dehydrated(),
 
@@ -437,7 +402,6 @@ class PaymentSlipForm
                                     ])
                                     ->columns(['default' => 1, '2xl' => 2])
                                     ->visible(fn (Get $get, ?Invoice $record, string $operation): bool => $operation !== 'view'
-                                        && $get('../../transaction_type') !== PaymentSlip::TYPE_GENERAL
                                         && self::isItemizedExim($get, $record)
                                         && (! $record || $record->paymentSlip?->status === 'draft')),
 
@@ -538,26 +502,6 @@ class PaymentSlipForm
                                             ->live(onBlur: true)
                                             ->afterStateUpdated(fn (Get $get, Set $set) => self::recalculateInvoiceFromItem($get, $set))
                                             ->disabled(fn (?InvoiceItem $record) => $record && $record->invoice?->paymentSlip?->status !== 'draft'),
-                                        Select::make('unit_id')
-                                            ->label('Satuan')
-                                            ->relationship('unit', 'name')
-                                            ->searchable()
-                                            ->preload()
-                                            ->placeholder('Pilih Satuan')
-                                            ->required(fn (Get $get, ?InvoiceItem $record): bool => $get('../../../../transaction_type') === PaymentSlip::TYPE_GENERAL && $record === null)
-                                            ->visible(fn (Get $get): bool => $get('../../../../transaction_type') === PaymentSlip::TYPE_GENERAL)
-                                            ->disabled(fn (?InvoiceItem $record): bool => $record && $record->invoice?->paymentSlip?->status !== 'draft')
-                                            ->createOptionForm([
-                                                TextInput::make('code')
-                                                    ->label('Kode Satuan')
-                                                    ->placeholder('Contoh: PCS')
-                                                    ->required()
-                                                    ->unique('units', 'code'),
-                                                TextInput::make('name')
-                                                    ->label('Nama Satuan')
-                                                    ->placeholder('Contoh: Pieces')
-                                                    ->required(),
-                                            ]),
                                         TextInput::make('unit_price_amount')
                                             ->numeric()
                                             ->prefix(fn (Get $get): string => CurrencyFormatter::prefix($get('../../../../currency') ?? 'IDR'))
@@ -570,13 +514,12 @@ class PaymentSlipForm
                                             ->helperText('Supplier pada nota atau biaya reimbursement ini.')
                                             ->maxLength(255)
                                             ->live(onBlur: true)
-                                            ->visible(fn (Get $get): bool => $get('../../../../transaction_type') === PaymentSlip::TYPE_IMPORT)
                                             ->disabled(fn (?InvoiceItem $record) => $record && $record->invoice?->paymentSlip?->status !== 'draft'),
                                         TextInput::make('vat_invoice_number')
                                             ->label('VAT Invoice No. (Item)')
                                             ->maxLength(255)
-                                            ->visible(fn (Get $get, ?InvoiceItem $record): bool => $get('../../../../transaction_type') !== PaymentSlip::TYPE_GENERAL
-                                                && ($get('../../../../transaction_type') === PaymentSlip::TYPE_IMPORT || self::isItemizedItem($get, $record)))
+                                            ->visible(fn (Get $get, ?InvoiceItem $record): bool => $get('../../../../transaction_type') === PaymentSlip::TYPE_IMPORT
+                                                || self::isItemizedItem($get, $record))
                                             ->disabled(function (Get $get, ?InvoiceItem $record): bool {
                                                 $status = $get('../../../../status');
                                                 if ($status) {
@@ -677,408 +620,5 @@ class PaymentSlipForm
                             ->disabled(),
                     ])->columns(2),
             ]);
-    }
-
-    private static function setCalculatedAmounts(Set $set, float $subtotal, mixed $ppnTaxId, mixed $pphTaxId, string $currency = PaymentSlip::CURRENCY_IDR): void
-    {
-        $amounts = InvoiceAmountCalculator::calculateForCurrency(
-            $subtotal,
-            Tax::find($ppnTaxId)?->rate,
-            Tax::find($pphTaxId)?->rate,
-            $currency,
-        );
-
-        $set('tax_addition_amount', CurrencyFormatter::formatFormStateNoDecimals($amounts['tax_addition'], $currency));
-        $set('tax_deduction_amount', CurrencyFormatter::formatFormStateNoDecimals($amounts['tax_deduction'], $currency));
-        $set('grand_total_amount', CurrencyFormatter::formatFormStateNoDecimals($amounts['grand_total'], $currency));
-    }
-
-    private static function recalculateInvoiceFromItem(Get $get, Set $set, ?string $changedTax = null): void
-    {
-        $transactionType = $get('../../../../transaction_type');
-        $itemized = $transactionType === PaymentSlip::TYPE_GENERAL
-            || $get('../../tax_calculation_mode') !== PaymentSlip::TAX_MODE_INVOICE_LEGACY;
-        $subtotal = self::money($get('quantity')) * self::money($get('unit_price_amount'));
-
-        // Compute fresh tax amounts for the *current* item so we can use them
-        // both for setting the item fields and for the net_amount calculation.
-        $currentPpnAmount = 0.0;
-        $currentPphAmount = 0.0;
-        $currency = $get('../../../../currency') ?? 'IDR';
-
-        if ($itemized) {
-            $taxAmounts = InvoiceAmountCalculator::calculateForCurrency(
-                $subtotal,
-                Tax::find($get('ppn_tax_id'))?->rate,
-                Tax::find($get('pph_tax_id'))?->rate,
-                $currency,
-            );
-
-            $currentPpnAmount = (filled($get('ppn_tax_id')) || $changedTax === 'ppn')
-                ? $taxAmounts['tax_addition']
-                : self::money($get('tax_addition_amount'));
-            $currentPphAmount = (filled($get('pph_tax_id')) || $changedTax === 'pph')
-                ? $taxAmounts['tax_deduction']
-                : self::money($get('tax_deduction_amount'));
-
-            if (filled($get('ppn_tax_id')) || $changedTax === 'ppn') {
-                $set('tax_addition_amount', CurrencyFormatter::formatFormStateNoDecimals($taxAmounts['tax_addition'], $currency));
-            }
-            if (filled($get('pph_tax_id')) || $changedTax === 'pph') {
-                $set('tax_deduction_amount', CurrencyFormatter::formatFormStateNoDecimals($taxAmounts['tax_deduction'], $currency));
-            }
-        }
-
-        $net = $itemized
-            ? $subtotal + $currentPpnAmount - $currentPphAmount
-            : $subtotal;
-        $set('net_amount', CurrencyFormatter::formatFormState($net, $currency));
-
-        // Aggregate invoice totals from all items.  Instead of reading
-        // tax_addition_amount / tax_deduction_amount hidden fields (which may
-        // still hold stale values because $set() is deferred), recalculate
-        // each item's taxes from its ppn_tax_id / pph_tax_id on-the-fly.
-        $taxCache = [];
-        $invoiceSubtotal = 0.0;
-        $invoicePpn = 0.0;
-        $invoicePph = 0.0;
-        foreach (($get('../../items') ?? []) as $item) {
-            $itemSubtotal = self::money($item['quantity'] ?? 0) * self::money($item['unit_price_amount'] ?? 0);
-            $invoiceSubtotal += $itemSubtotal;
-            if ($itemized) {
-                $ppnId = $item['ppn_tax_id'] ?? null;
-                $pphId = $item['pph_tax_id'] ?? null;
-                $ppnRate = null;
-                $pphRate = null;
-                if (filled($ppnId)) {
-                    $ppnRate = $taxCache[$ppnId] ??= Tax::find($ppnId)?->rate;
-                }
-                if (filled($pphId)) {
-                    $pphRate = $taxCache[$pphId] ??= Tax::find($pphId)?->rate;
-                }
-                $itemTax = InvoiceAmountCalculator::calculateForCurrency($itemSubtotal, $ppnRate, $pphRate, $currency);
-                $invoicePpn += $itemTax['tax_addition'];
-                $invoicePph += $itemTax['tax_deduction'];
-            }
-        }
-
-        if (! $itemized) {
-            $amounts = InvoiceAmountCalculator::calculateForCurrency(
-                $invoiceSubtotal,
-                Tax::find($get('../../ppn_tax_id'))?->rate,
-                Tax::find($get('../../pph_tax_id'))?->rate,
-                $currency,
-            );
-            $invoicePpn = $amounts['tax_addition'];
-            $invoicePph = $amounts['tax_deduction'];
-        }
-
-        $set('../../subtotal_amount', CurrencyFormatter::formatFormState($invoiceSubtotal, $currency));
-        $set('../../tax_addition_amount', CurrencyFormatter::formatFormStateNoDecimals($invoicePpn, $currency));
-        $set('../../tax_deduction_amount', CurrencyFormatter::formatFormStateNoDecimals($invoicePph, $currency));
-        $set('../../grand_total_amount', CurrencyFormatter::formatFormStateNoDecimals($invoiceSubtotal + $invoicePpn - $invoicePph, $currency));
-    }
-
-    /**
-     * Keep the full repeater state in sync after a browser-driven item update.
-     * Nested Select updates can reach Livewire without running the component hook,
-     * so the page lifecycle provides a second, deterministic calculation path.
-     *
-     * @param  array<string, mixed>  $data
-     */
-    public static function recalculateLiveItemizedInvoice(array &$data, string $property): void
-    {
-        // Pattern 1: field-level update (e.g. data.invoices.{key}.items.{key}.ppn_tax_id)
-        if (preg_match('/^data\.invoices\.([^.]+)\.items\.([^.]+)\.(quantity|unit_price_amount|ppn_tax_id|pph_tax_id)$/', $property, $matches)) {
-            $changedField = $matches[3];
-            // Pattern 2: item-level update without field suffix (e.g. data.invoices.{key}.items.{key})
-            // Livewire sends this when a Select inside a programmatically populated
-            // repeater (e.g. from Gemini extraction) is changed by the user.
-        } elseif (preg_match('/^data\.invoices\.([^.]+)\.items\.([^.]+)$/', $property, $matches)) {
-            $changedField = null;
-        } else {
-            return;
-        }
-
-        if (! in_array($data['transaction_type'] ?? null, [PaymentSlip::TYPE_IMPORT, PaymentSlip::TYPE_EXPORT, PaymentSlip::TYPE_GENERAL], true)) {
-            return;
-        }
-
-        [$invoiceKey, $itemKey] = array_slice($matches, 1);
-        if (! isset($data['invoices'][$invoiceKey]['items'][$itemKey])) {
-            return;
-        }
-
-        $currency = $data['currency'] ?? 'IDR';
-
-        $taxMode = $data['invoices'][$invoiceKey]['tax_calculation_mode'] ?? PaymentSlip::TAX_MODE_ITEMIZED;
-        if (($data['transaction_type'] ?? null) !== PaymentSlip::TYPE_GENERAL && $taxMode === PaymentSlip::TAX_MODE_INVOICE_LEGACY) {
-            self::recalculateInvoiceTaxState($data['invoices'][$invoiceKey], $currency);
-
-            return;
-        }
-
-        self::recalculateItemizedInvoiceState($data['invoices'][$invoiceKey], $itemKey, $changedField, $currency);
-    }
-
-    private static function hasItemTaxConflict(Get $get): bool
-    {
-        foreach (($get('items') ?? []) as $item) {
-            if (filled($item['ppn_tax_id'] ?? null)
-                || filled($item['pph_tax_id'] ?? null)
-                || self::money($item['tax_addition_amount'] ?? 0) !== 0.0
-                || self::money($item['tax_deduction_amount'] ?? 0) !== 0.0) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static function applyInvoiceTax(
-        Get $get,
-        Set $set,
-        ?object $record,
-        string $taxField,
-        string $selectionField,
-        string $calculationType,
-    ): void {
-        $invoice = $record instanceof Invoice ? $record : null;
-        $paymentSlip = self::paymentSlipForActionRecord($record);
-        abort_unless(self::isItemizedExim($get, $invoice) && (! $paymentSlip || $paymentSlip->status === 'draft'), 403);
-
-        $selection = $get($selectionField);
-        if (blank($selection)) {
-            return;
-        }
-
-        $taxId = null;
-        if ($selection !== self::CLEAR_BULK_TAX) {
-            $taxId = Tax::query()
-                ->whereKey($selection)
-                ->where('calculation_type', $calculationType)
-                ->where('is_active', true)
-                ->value('id');
-            if (! $taxId) {
-                throw ValidationException::withMessages([$selectionField => 'Tarif pajak yang dipilih tidak valid atau tidak aktif.']);
-            }
-        }
-
-        $items = $get('items') ?? [];
-        if ($items === []) {
-            return;
-        }
-
-        $type = $get('../../transaction_type');
-        $hasImportDetails = $type === PaymentSlip::TYPE_IMPORT && collect($items)->contains(fn (array $item): bool => filled($item['source_supplier_name'] ?? null));
-        $hasVatDetails = in_array($type, [PaymentSlip::TYPE_IMPORT, PaymentSlip::TYPE_EXPORT], true) && collect($items)->contains(fn (array $item): bool => filled($item['vat_invoice_number'] ?? null));
-
-        if ($hasImportDetails || $hasVatDetails) {
-            throw ValidationException::withMessages([$selectionField => 'Invoice dengan supplier pendukung atau VAT per item harus memakai pajak per item agar detail ERP tidak hilang.']);
-        }
-
-        $invoice = [
-            'items' => $items,
-            'ppn_tax_id' => $taxField === 'ppn_tax_id' ? $taxId : null,
-            'pph_tax_id' => $taxField === 'pph_tax_id' ? $taxId : null,
-        ];
-        $otherSelectionField = $taxField === 'ppn_tax_id' ? 'bulk_pph_tax_id' : 'bulk_ppn_tax_id';
-        $otherSelection = $get($otherSelectionField);
-        if (filled($otherSelection) && $otherSelection !== self::CLEAR_BULK_TAX) {
-            $otherType = $taxField === 'ppn_tax_id' ? 'deduction' : 'addition';
-            $otherTaxId = Tax::query()->whereKey($otherSelection)->where('calculation_type', $otherType)->where('is_active', true)->value('id');
-            if (! $otherTaxId) {
-                throw ValidationException::withMessages([$otherSelectionField => 'Tarif pajak yang dipilih tidak valid atau tidak aktif.']);
-            }
-            $invoice[$taxField === 'ppn_tax_id' ? 'pph_tax_id' : 'ppn_tax_id'] = $otherTaxId;
-        }
-
-        foreach ($invoice['items'] as &$item) {
-            $item['ppn_tax_id'] = null;
-            $item['pph_tax_id'] = null;
-            $item['tax_addition_amount'] = 0;
-            $item['tax_deduction_amount'] = 0;
-        }
-        unset($item);
-
-        $currency = $get('../../currency') ?? 'IDR';
-        self::recalculateInvoiceTaxState($invoice, $currency);
-        $invoice['tax_calculation_mode'] = PaymentSlip::TAX_MODE_INVOICE_LEGACY;
-        foreach (['items', 'tax_calculation_mode', 'ppn_tax_id', 'pph_tax_id', 'subtotal_amount', 'tax_addition_amount', 'tax_deduction_amount', 'grand_total_amount'] as $field) {
-            $set($field, $invoice[$field]);
-        }
-    }
-
-    private static function paymentSlipForActionRecord(?object $record): ?PaymentSlip
-    {
-        if ($record instanceof PaymentSlip) {
-            return $record;
-        }
-
-        return $record instanceof Invoice ? $record->paymentSlip : null;
-    }
-
-    /** @param array<string, mixed> $invoice */
-    private static function recalculateInvoiceTaxState(array &$invoice, string $currency = 'IDR'): void
-    {
-        $subtotal = 0.0;
-        foreach ($invoice['items'] ?? [] as &$item) {
-            $itemSubtotal = self::money($item['quantity'] ?? 0) * self::money($item['unit_price_amount'] ?? 0);
-            $item['net_amount'] = CurrencyFormatter::formatFormState($itemSubtotal, $currency);
-            $subtotal += $itemSubtotal;
-        }
-        unset($item);
-
-        $amounts = InvoiceAmountCalculator::calculateForCurrency(
-            $subtotal,
-            Tax::find($invoice['ppn_tax_id'] ?? null)?->rate,
-            Tax::find($invoice['pph_tax_id'] ?? null)?->rate,
-            $currency,
-        );
-        $invoice['subtotal_amount'] = CurrencyFormatter::formatFormState($subtotal, $currency);
-        $invoice['tax_addition_amount'] = CurrencyFormatter::formatFormStateNoDecimals($amounts['tax_addition'], $currency);
-        $invoice['tax_deduction_amount'] = CurrencyFormatter::formatFormStateNoDecimals($amounts['tax_deduction'], $currency);
-        $invoice['grand_total_amount'] = CurrencyFormatter::formatFormStateNoDecimals($amounts['grand_total'], $currency);
-    }
-
-    /** @param array<string, mixed> $invoice */
-    private static function recalculateItemizedInvoiceState(array &$invoice, ?string $changedItemKey = null, ?string $changedField = null, string $currency = 'IDR'): void
-    {
-        $taxIds = collect($invoice['items'])
-            ->flatMap(fn (array $item): array => [$item['ppn_tax_id'] ?? null, $item['pph_tax_id'] ?? null])
-            ->filter()
-            ->unique()
-            ->all();
-        $taxes = Tax::query()->whereIn('id', $taxIds)->get()->keyBy('id');
-        $invoiceSubtotal = 0.0;
-        $invoicePpn = 0.0;
-        $invoicePph = 0.0;
-
-        foreach ($invoice['items'] as $key => &$item) {
-            $subtotal = self::money($item['quantity'] ?? 0) * self::money($item['unit_price_amount'] ?? 0);
-            $ppn = $taxes->get($item['ppn_tax_id'] ?? null);
-            $pph = $taxes->get($item['pph_tax_id'] ?? null);
-            $calculated = InvoiceAmountCalculator::calculateForCurrency(
-                $subtotal,
-                $ppn?->calculation_type === 'addition' ? (float) $ppn->rate : null,
-                $pph?->calculation_type === 'deduction' ? (float) $pph->rate : null,
-                $currency,
-            );
-
-            $addition = $ppn ? $calculated['tax_addition'] : self::money($item['tax_addition_amount'] ?? 0);
-            $deduction = $pph ? $calculated['tax_deduction'] : self::money($item['tax_deduction_amount'] ?? 0);
-            if ((! isset($item['id']) || ($key === $changedItemKey && $changedField === 'ppn_tax_id')) && blank($item['ppn_tax_id'] ?? null)) {
-                $addition = 0.0;
-            }
-            if ((! isset($item['id']) || ($key === $changedItemKey && $changedField === 'pph_tax_id')) && blank($item['pph_tax_id'] ?? null)) {
-                $deduction = 0.0;
-            }
-
-            $item['tax_addition_amount'] = CurrencyFormatter::formatFormStateNoDecimals($addition, $currency);
-            $item['tax_deduction_amount'] = CurrencyFormatter::formatFormStateNoDecimals($deduction, $currency);
-            $item['net_amount'] = CurrencyFormatter::formatFormState($subtotal + $addition - $deduction, $currency);
-            $invoiceSubtotal += $subtotal;
-            $invoicePpn += $addition;
-            $invoicePph += $deduction;
-        }
-        unset($item);
-
-        $invoice['subtotal_amount'] = CurrencyFormatter::formatFormState($invoiceSubtotal, $currency);
-        $invoice['tax_addition_amount'] = CurrencyFormatter::formatFormStateNoDecimals($invoicePpn, $currency);
-        $invoice['tax_deduction_amount'] = CurrencyFormatter::formatFormStateNoDecimals($invoicePph, $currency);
-        $invoice['grand_total_amount'] = CurrencyFormatter::formatFormStateNoDecimals($invoiceSubtotal + $invoicePpn - $invoicePph, $currency);
-    }
-
-    private static function isItemizedExim(Get $get, ?Invoice $record): bool
-    {
-        if ($get('../../transaction_type') === PaymentSlip::TYPE_GENERAL) {
-            return true;
-        }
-
-        return self::isEximInvoice($get, $record)
-            && ($get('tax_calculation_mode') ?? ($record?->exists ? ($record->usesItemizedTaxes() ? PaymentSlip::TAX_MODE_ITEMIZED : PaymentSlip::TAX_MODE_INVOICE_LEGACY) : PaymentSlip::TAX_MODE_ITEMIZED)) === PaymentSlip::TAX_MODE_ITEMIZED;
-    }
-
-    /** @param array<string, mixed> $data */
-    private static function prepareInvoiceTaxMode(array $data, Get $get): array
-    {
-        if ($get('../../transaction_type') === PaymentSlip::TYPE_GENERAL) {
-            $data['tax_calculation_mode'] = PaymentSlip::TAX_MODE_ITEMIZED;
-            $data['ppn_tax_id'] = null;
-            $data['pph_tax_id'] = null;
-        }
-
-        return $data;
-    }
-
-    private static function isItemizedItem(Get $get, ?InvoiceItem $record): bool
-    {
-        $type = $get('../../../../transaction_type');
-
-        if ($type === PaymentSlip::TYPE_GENERAL) {
-            return true;
-        }
-
-        return in_array($type, [PaymentSlip::TYPE_IMPORT, PaymentSlip::TYPE_EXPORT], true)
-            && ($get('../../tax_calculation_mode') ?? ($record?->exists ? ($record->invoice?->usesItemizedTaxes() ? PaymentSlip::TAX_MODE_ITEMIZED : PaymentSlip::TAX_MODE_INVOICE_LEGACY) : PaymentSlip::TAX_MODE_ITEMIZED)) === PaymentSlip::TAX_MODE_ITEMIZED;
-    }
-
-    private static function isEximInvoice(Get $get, ?Invoice $record = null): bool
-    {
-        $type = $get('../../transaction_type');
-
-        return $type === PaymentSlip::TYPE_IMPORT
-            || ($type === PaymentSlip::TYPE_EXPORT
-                && ($record?->paymentSlip?->usesItemizedTaxes()
-                    ?? $get('../../tax_calculation_mode') === PaymentSlip::TAX_MODE_ITEMIZED));
-    }
-
-    private static function money(mixed $value): float
-    {
-        if (is_int($value) || is_float($value)) {
-            return (float) $value;
-        }
-
-        if (is_string($value)) {
-            $value = trim($value);
-
-            $hasComma = str_contains($value, ',');
-            $hasDot = str_contains($value, '.');
-
-            if ($hasDot && ! $hasComma) {
-                // E.g. "11.000" or "1.500.000"
-                if (preg_match('/^-?\d{1,3}(?:\.\d{3})+$/', $value)) {
-                    return (float) str_replace('.', '', $value);
-                }
-
-                return (float) $value;
-            }
-
-            if ($hasComma && ! $hasDot) {
-                // E.g. "11,000" or "1,500,000"
-                if (preg_match('/^-?\d{1,3}(?:,\d{3})+$/', $value)) {
-                    return (float) str_replace(',', '', $value);
-                }
-
-                return (float) str_replace(',', '.', $value);
-            }
-
-            if ($hasComma && $hasDot) {
-                $lastComma = strrpos($value, ',');
-                $lastDot = strrpos($value, '.');
-
-                if ($lastDot > $lastComma) {
-                    // USD style: 1,500.50
-                    return (float) str_replace(',', '', $value);
-                } else {
-                    // IDR style: 1.500,50
-                    return (float) str_replace(['.', ','], ['', '.'], $value);
-                }
-            }
-
-            return (float) $value;
-        }
-
-        return (float) ($value ?? 0);
     }
 }

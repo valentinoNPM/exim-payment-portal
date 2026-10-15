@@ -2,14 +2,19 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Widgets\PaymentSlipQueueTable;
 use App\Models\ChartOfAccount;
+use App\Models\DocumentFile;
 use App\Models\InvoiceItem;
 use App\Models\PaymentSlip;
 use App\Models\PaymentSlipAudit;
 use App\Models\User;
+use App\Support\CheckerEditableFields;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 use Tests\Fixtures\ErpPaymentSlip;
 use Tests\TestCase;
@@ -30,6 +35,24 @@ class CheckerEditPaymentSlipTest extends TestCase
 
         $this->checker = User::factory()->create()->assignRole('checker');
         Filament::setCurrentPanel(Filament::getPanel('admin'));
+    }
+
+    public function test_guest_checker_page_redirects_to_panel_login(): void
+    {
+        $slip = $this->submittedSlip();
+        auth()->logout();
+        $this->get(route('payment-slips.checker-edit', $slip))
+            ->assertRedirect(route('filament.admin.auth.login'));
+    }
+
+    public function test_dashboard_queue_uses_the_checker_page_for_submitted_slips(): void
+    {
+        $slip = $this->submittedSlip();
+
+        $this->actingAs($this->checker);
+
+        Livewire::test(PaymentSlipQueueTable::class)
+            ->assertSee(route('payment-slips.checker-edit', $slip), false);
     }
 
     public function test_checker_can_save_invoice_vat_item_vat_and_coa_with_snapshots(): void
@@ -151,12 +174,56 @@ class CheckerEditPaymentSlipTest extends TestCase
             ->assertSee('Accounting verification')
             ->assertSee('VAT Invoice No. Utama')
             ->assertSee('VAT Invoice No. (Item)')
+            ->assertSee('data-checker-mode="split"', false)
+            ->assertSee('data-checker-divider', false)
+            ->assertSee('Overview')->assertSee('No. Invoice:')
+            ->assertDontSee('data-ps-extract', false)
             ->assertSee('Save checker fields');
 
         $html = $response->getContent();
         $this->assertStringNotContainsString('wire:', $html);
         $this->assertStringNotContainsString('x-data', $html);
         $this->assertSame(1, substr_count($html, '<form'));
+    }
+
+    public function test_checker_preview_is_available_only_for_an_existing_invoice_document(): void
+    {
+        Storage::fake('local');
+        $slip = $this->submittedSlip();
+        $invoice = $slip->invoices()->firstOrFail();
+        $document = DocumentFile::create([
+            'disk' => 'local', 'path' => 'qa/invoice.pdf', 'original_name' => 'invoice.pdf',
+            'mime_type' => 'application/pdf', 'size_bytes' => 10, 'uploaded_at' => now(),
+        ]);
+        $invoice->update(['document_file_id' => $document->id]);
+        $this->actingAs($this->checker)->get(route('payment-slips.checker-edit', $slip))
+            ->assertOk()->assertDontSee('data-checker-preview=', false);
+        Storage::disk('local')->put('qa/invoice.pdf', '%PDF-1.4');
+        $this->get(route('payment-slips.checker-edit', $slip))
+            ->assertOk()->assertSee('data-checker-preview=', false)
+            ->assertSee(route('document-files.view', $document), false);
+    }
+
+    public function test_type_specific_checker_policy_preserves_general_import_and_legacy_export_item_vat_rules(): void
+    {
+        $this->actingAs($this->checker);
+
+        $slip = $this->submittedSlip();
+        $slip->update(['transaction_type' => PaymentSlip::TYPE_GENERAL]);
+        $invoice = $slip->invoices()->firstOrFail();
+        $this->assertTrue(CheckerEditableFields::canEditInvoiceVat($slip));
+        $this->assertTrue(CheckerEditableFields::canEditItemCoa($slip));
+        $this->assertFalse(CheckerEditableFields::canEditItemVat($slip, $invoice));
+
+        $slip->update(['transaction_type' => PaymentSlip::TYPE_IMPORT]);
+        $this->assertTrue(CheckerEditableFields::canEditItemVat($slip, $invoice));
+
+        $slip->update(['transaction_type' => PaymentSlip::TYPE_EXPORT]);
+        $invoice->update(['tax_calculation_mode' => PaymentSlip::TAX_MODE_INVOICE_LEGACY]);
+        $this->assertFalse(CheckerEditableFields::canEditItemVat($slip, $invoice->fresh()));
+
+        $invoice->update(['tax_calculation_mode' => PaymentSlip::TAX_MODE_ITEMIZED]);
+        $this->assertTrue(CheckerEditableFields::canEditItemVat($slip, $invoice->fresh()));
     }
 
     private function submittedSlip(): PaymentSlip

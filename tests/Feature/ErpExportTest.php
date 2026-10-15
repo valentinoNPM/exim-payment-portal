@@ -209,7 +209,7 @@ class ErpExportTest extends TestCase
         $slip->invoices()->firstOrFail()->update(['buyer_id' => $invoiceBuyer->id]);
         $slip->load(['supplier', 'buyer', 'invoices.buyer', 'invoices.items', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
 
-        $html = view('pdf.payment-slip', ['slip' => $slip])->render();
+        $html = view('pdf.payment-slips.exim', ['slip' => $slip])->render();
 
         $this->assertStringContainsString('#003f97', $html);
         $this->assertStringContainsString('#EDF1F3', $html);
@@ -225,7 +225,7 @@ class ErpExportTest extends TestCase
         $slip->update(['invoice_receipt_number' => 'HIJ / EXP / 001 / IX / 2026']);
         $slip->load(['supplier', 'buyer', 'invoices.buyer', 'invoices.items', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
 
-        $html = view('pdf.payment-slip', ['slip' => $slip])->render();
+        $html = view('pdf.payment-slips.exim', ['slip' => $slip])->render();
 
         $this->assertStringContainsString('Tanda Terima Invoice', $html);
         $this->assertStringContainsString('HIJ / EXP / 001 / IX / 2026', $html);
@@ -249,7 +249,7 @@ class ErpExportTest extends TestCase
         ]);
         $slip->load(['supplier', 'buyer', 'invoices.buyer', 'invoices.items', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
 
-        $html = view('pdf.payment-slip', ['slip' => $slip])->render();
+        $html = view('pdf.payment-slips.general', ['slip' => $slip])->render();
 
         $this->assertStringContainsString('1. Kertas A4', $html);
         $this->assertStringContainsString('>Quantity</th>', $html);
@@ -336,7 +336,7 @@ class ErpExportTest extends TestCase
             ]]])
             ->assertSee('Nomor Tanda Terima Invoice')
             ->assertSee('Pilih Buyer untuk invoice ini')
-            ->assertDontSee('Supplier Pendukung')
+            ->assertSee('Supplier Pendukung')
             ->assertSee('PPN Nominal')
             ->assertSee('PPh Nominal');
 
@@ -856,6 +856,29 @@ class ErpExportTest extends TestCase
         $book->disconnectWorksheets();
     }
 
+    public function test_general_foreign_currency_export_is_blocked_without_losing_cents(): void
+    {
+        // General cannot silently become IDR in an ERP workbook. EXIM remains unchanged.
+        $slip = ErpPaymentSlip::create($this->checker, 'general');
+        $invoice = $slip->invoices()->firstOrFail();
+        $item = $invoice->items()->orderBy('line_number')->firstOrFail();
+        $item->forceFill(['subtotal_amount' => 100.25, 'net_amount' => 100.25])->saveQuietly();
+        $invoice->forceFill(['subtotal_amount' => 300.25, 'grand_total_amount' => 327.25])->saveQuietly();
+        foreach (['USD', 'EUR'] as $currency) {
+            $slip->forceFill(['currency' => $currency])->saveQuietly();
+            try {
+                app(ExportPaymentSlipToErp::class)->execute($slip->fresh(), $this->checker);
+                $this->fail('General foreign currency must not be exported as IDR.');
+            } catch (ValidationException $e) {
+                $this->assertStringContainsString('mata uang/kurs', $e->getMessage());
+            }
+            $this->assertSame('100.25', $item->fresh()->subtotal_amount);
+            $this->assertSame('approved', $slip->fresh()->status);
+            $this->assertDatabaseCount('erp_export_batches', 0);
+            $this->assertSame([], Storage::disk('local')->allFiles('erp-exports'));
+        }
+    }
+
     public function test_general_page_creates_shared_payment_slip_invoice_and_items(): void
     {
         $maker = $this->makerForDivision('HR');
@@ -1282,7 +1305,7 @@ class ErpExportTest extends TestCase
 
         Livewire::test(ViewPaymentSlip::class, ['record' => $slip->id])
             ->assertSee('Nomor Tanda Terima Invoice')
-            ->assertSet('data.invoice_receipt_number', 'HIJ / IMP / 001 / VIII / 2026');
+            ->assertSee('HIJ / IMP / 001 / VIII / 2026');
 
         Livewire::test(EditPaymentSlip::class, ['record' => $slip->id])
             ->set('data.invoice_receipt_number', 'HIJ / IMP / 002 / VIII / 2026')

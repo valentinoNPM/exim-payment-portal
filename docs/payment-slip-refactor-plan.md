@@ -1,5 +1,14 @@
 # Rencana Refactor Payment Slip
 
+> **Review 15 Oktober 2026:** dokumen ini menyimpan kontrak/baseline refactor dan
+> catatan historis, bukan status selesai terbaru. Revisi aktif Checker General,
+> batas aman ekspor General, keputusan diskon, dan permintaan **Supplier Pendukung
+> pada EXIM Export** ada di `po-to-general-payment-slip-implementation-plan.md`,
+> bagian "Revisi aktif — 15 Oktober 2026". Perubahan fitur tersebut dikerjakan
+> sebagai paket terpisah dari refactor; larangan redesign/ubah requirement di bawah
+> tidak membatalkan revisi eksplisit user. ERP EXIM tetap wajib identik; jangan
+> mengartikan form supplier pendukung sebagai izin mengubah supplier jurnal.
+
 ## 1. Tujuan
 
 Memisahkan implementasi Payment Slip General dan Payment Slip EXIM pada lapisan aplikasi, form, halaman, validasi, kalkulasi, dan PDF tanpa memisahkan atau memigrasikan struktur database yang sudah ada.
@@ -443,3 +452,70 @@ Refactor dinyatakan selesai hanya jika:
 - fitur integrasi PO yang kelak ditambahkan mengikuti pengamanan server-side pada rencana integrasi terpisah;
 - formatter, seluruh test suite, browser QA, PDF QA, dan ERP fixture comparison lulus;
 - tidak ada compatibility code mati atau branch tipe besar yang tertinggal.
+
+## 11. Catatan implementasi lokal — 11 Oktober 2026
+
+Baseline commit `1d263ce`; refactor setelah commit tersebut masih berada di working tree dan belum di-push/deploy. Schema General dan EXIM serta template PDF sudah dipisah. Suite lokal terakhir: 204 tes lulus, 1.235 assertion. Browser terautentikasi sebagai `Staff EXIM Maker` membuka create General/EXIM dengan susunan field dan workspace Form/PDF yang diharapkan. Akun tersebut tidak memiliki slip lokal, sehingga edit/view record nyata masih menunggu QA dengan akun yang berwenang.
+
+Pada form General dengan satu invoice, select PDF yang disabled sebelumnya memuat seluruh 279 opsi dokumen. Setelah opsi dibatasi pada dokumen terpilih, DOM turun dari 1.139 menjadi 860 elemen dan `outerHTML` dari 300.459 menjadi 234.488 karakter. Label `Document file` dan penyimpanan relasi PDF diverifikasi oleh tes.
+
+Probe sementara pada database test (sudah dihapus) mengukur HTML edit dengan satu invoice. Angka ini adalah ukuran HTML server Livewire dan jumlah opening tag, bukan memori browser:
+
+| Tipe | Item | HTML bytes | Opening tags |
+| --- | ---: | ---: | ---: |
+| General | 10 | 540.905 | 1.794 |
+| General | 50 | 2.213.666 | 7.274 |
+| General | 100 | 4.309.049 | 14.124 |
+| EXIM Export | 10 | 330.864 | 1.083 |
+| EXIM Export | 50 | 1.132.624 | 3.643 |
+| EXIM Export | 100 | 2.134.828 | 6.843 |
+
+Jadi pemisahan schema saja **belum** menyelesaikan bobot edit untuk slip besar. Sebelum rilis, lanjutkan pemisahan edit/view read-only, QA role/status, PDF multi-halaman, serta strategi render edit yang lebih ringan tanpa mengubah alur/label yang sudah disetujui. Jangan deploy working tree parsial ini.
+
+QA browser tambahan dengan akun Maker pemilik slip (`sugiyanto`) membuka record EXIM nyata tanpa menyimpan perubahan. Akun ini memiliki 41 Export dan 9 Import, tetapi tidak memiliki General; karena itu QA edit/view General tetap memerlukan akun pemilik record General atau Checker. Angka di bawah adalah DOM browser yang terautentikasi, bukan ukuran server-rendered probe di atas:
+
+| Halaman | Data | Elemen DOM | `outerHTML` karakter | Kontrol input |
+| --- | --- | ---: | ---: | ---: |
+| Edit EXIM Export | 11 invoice / 52 item | 6.489 | 1.691.866 | 399 |
+| Detail EXIM Export | record sama | 5.509 | 1.419.290 | 402 |
+| Edit EXIM Import | record nyata | 2.022 | 512.267 | 87 |
+| Detail EXIM Import | record sama | 1.707 | 426.186 | 86 |
+
+Detail masih merender komponen form/Livewire (`input`, `select`, dan `textarea`), bukan teks read-only sebagaimana target milestone 5 dan `docs/ui-guidelines.md`. Semua input yang terlihat pada sampel Import non-editable; input yang tetap enabled adalah field tersembunyi. Tombol Preview PDF invoice muncul, tetapi sampel lokal mengembalikan 404 karena file fisik dokumen terkait tidak ada di storage lokal (`DocumentFile` dan relasinya ada). Ini membatasi QA visual PDF invoice lokal dan bukan bukti regresi template Payment Slip. Tidak ada record yang disimpan atau diubah dalam QA browser ini.
+
+Tahap berikutnya mengganti **halaman detail saja** menjadi tampilan teks read-only yang terpisah untuk General dan EXIM. Section, label, action header, tab Form/PDF, dan pemilih PDF per invoice tetap ada; halaman edit belum diganti. Setelah perubahan, pengukuran pada record EXIM yang sama di panel login menunjukkan:
+
+| Halaman detail | Sebelum (elemen / karakter HTML / input) | Sesudah (elemen / karakter HTML / input) |
+| --- | ---: | ---: |
+| EXIM Import | 1.707 / 426.186 / 86 | 640 / 147.622 / 1 |
+| EXIM Export (11 invoice, 52 item) | 5.509 / 1.419.290 / 402 | 1.151 / 227.182 / 1 |
+
+Satu input tersisa berasal dari shell panel, bukan detail slip. Pergantian Preview PDF antar-invoice tetap mengubah URL iframe. Pada sampel lokal, isi iframe tetap 404 karena file fisik PDF tidak ada. Tes baru memastikan detail General dan EXIM menampilkan field tipe yang benar tanpa elemen input/select/textarea. Seluruh suite setelah perubahan: **205 tes lulus, 1.256 assertion**. Milestone 5 belum selesai: pemisahan editor, QA General dengan akun yang berwenang, dan perbandingan visual lintas status/role masih tersisa.
+
+Lanjutan 11 Oktober: penyimpanan edit sekarang melewati normalizer General/EXIM yang berbeda tanpa mengganti URL `/{record}/edit`, identitas tipe, atau mode pajak historis. View dipisah ke presenter General/EXIM; Checker memakai kebijakan tipe terpisah untuk VAT item. Delapan kombinasi mode slip/invoice historis diuji dengan fixture database test yang sengaja tidak dinormalisasi. Snapshot database lokal tetap 204 slip dan 446 invoice, dengan distribusi delapan kelompok sama seperti tabel Milestone 3. Tidak ada query mutatif ke database lokal nyata.
+
+Inspeksi PDF nyata: General ID 261 (10 invoice) dan EXIM Import ID 100 (9 invoice/95 item) masing-masing satu halaman; EXIM Export ID 232 (11 invoice/52 item) dua halaman. Pada baseline split-template, blok APPROVAL terbelah setelah header tabel di akhir halaman pertama. Blok APPROVAL, PAYMENT, dan Received/Confirmed kini diberi `page-break-inside: avoid` bersama; hasil render ulang memindahkan seluruh blok ke halaman kedua tanpa memotong baris. Isi dan nilai tidak berubah. QA visual dilakukan pada PNG setiap halaman. Karena file invoice scan fisik tidak tersedia di storage lokal, viewer invoice pada browser tetap 404; ini terpisah dari PDF Payment Slip yang berhasil dirender.
+
+Pengukuran browser terautentikasi untuk Edit EXIM Export ID 232 masih **6.489 elemen, 1.691.906 karakter HTML, 399 kontrol input, dan 579 node Alpine**. Satu item repeater rata-rata menghasilkan sekitar 37 KB HTML; pada record ini ada 63 instance repeater (11 invoice + 52 item). Form draft besar tetap melewati batas praktis. `collapsed()` hanya menyembunyikan dengan Alpine (`x-show`) dan tidak mengurangi DOM; penurunan ke bawah 3.000 elemen membutuhkan rendering bertahap/virtual atau editor konvensional yang akan mengubah cara interaksi item. Jangan mengklaim Milestone 7 selesai sebelum pendekatan itu dipilih dan diuji pada 10/50/100 item serta role General/EXIM.
+
+Penyelesaian akhir 11 Oktober memakai editor draft konvensional di route Filament yang sama (`/{record}/edit`). Seluruh invoice/item tetap dirender terbuka sekaligus; tambah/hapus invoice, tambah/hapus item, upload/ganti PDF, Preview PDF, pajak per item, shortcut pajak seluruh invoice, kembali ke pajak per item, Save, Submit, serta workspace Form/PDF dipertahankan. Editor memakai request tervalidasi dan service transaksi tersendiri; submitted Checker tetap melalui jalur terproteksi yang sudah ada. Schema General dibersihkan dari branch EXIM dan schema EXIM tidak lagi membawa compatibility branch General.
+
+Pengukuran response panel terautentikasi setelah editor konvensional (UTF-8 bytes; hitungan opening tag sebagai proksi DOM server) adalah:
+
+| Halaman | Data | Elemen | HTML bytes | Kontrol |
+| --- | --- | ---: | ---: | ---: |
+| Edit EXIM Export ID 232 | 11 invoice / 52 item | 2.659 | 357.331 | 348 |
+| Edit General ID 263 | 1 invoice / 2 item | 1.014 | 158.686 | 30 |
+| Detail General ID 263 | 1 invoice / 2 item | 472 | 129.998 | 1 |
+| Edit EXIM Import ID 47 | 4 invoice / 4 item | 1.344 | 190.092 | 84 |
+| Detail EXIM Import ID 100 | 9 invoice / 95 item | 1.890 | 320.697 | 1 |
+
+Fixture performance database-test 11 invoice / 52 item menghasilkan 2.535 opening tag, 283.684 byte HTML, dan 503 kontrol; tes regresi mengunci batas <3.500 elemen dan <1 MB. Semua invoice dan 52 item diverifikasi hadir di markup. Suite akhir setelah implementasi: 210 tes lulus, 1.344 assertion.
+
+PDF nyata dirender ulang menjadi PNG: General ID 263 dan Import ID 100 masing-masing satu halaman; Export ID 232 dan Import ID 168 masing-masing dua halaman. Semua halaman terbaca tanpa teks/tabel terpotong. Pada kedua dokumen dua halaman, APPROVAL, PAYMENT, dan Received/Confirmed berada utuh bersama pada halaman kedua.
+
+Perbandingan ERP menemukan artifact lokal `storage/app/private/erp-examples/PS-FIXTURE-002-ERP.xlsx` sudah tertinggal dari baseline commit: 60 baris worksheet diperiksa dan 12 sel berbeda (10 deskripsi jurnal serta pembulatan PPN/PPh invoice pertama). Source ERP tidak berubah terhadap baseline `1d263ce`, dan characterization suite ERP saat ini tetap lulus. Fixture lama tidak ditimpa karena instruksi QA meminta membandingkan terhadap fixture yang disetujui, bukan mengubahnya; drift ini dicatat sebagai temuan baseline, bukan regresi refactor.
+
+Perbaikan editor draft 11 Oktober menutup kegagalan simpan item pada EXIM Export ID 232. Reproduksi browser terautentikasi menunjukkan Quantity pertama berubah `1.0000` menjadi `2` di DOM, tetapi form tidak mengirim request karena `invoice_receipt_number` lama bernilai kosong sementara input dipaksa `required`; tidak ada blok error dan database tetap `1.0000`. Ekspresi Alpine action Submit juga terpotong pada kutip selector HTML dan menghasilkan `SyntaxError: Invalid or unexpected token`. Edit sekarang menerima nomor tanda terima kosong untuk kompatibilitas record lama (aturan create tidak berubah), memakai validasi server sebagai sumber pesan error yang terlihat, dan action Submit mengirim event Alpine pendek ke handler editor sehingga markup tidak lagi terpotong.
+
+QA browser sesudah perbaikan pada ID 232 berhasil menyimpan Quantity `1.0000` menjadi `2.0000`: subtotal item `183.000` menjadi `366.000`, subtotal/total invoice pertama `3.582.100`/`3.904.489` menjadi `3.765.100`/`4.103.959`, dan grand total slip `30.780.347` menjadi `30.979.817`. Console bersih. Quantity kemudian dikembalikan ke `1.0000`; seluruh nilai item, invoice, grand total slip, serta `payment_slips.updated_at` dikembalikan ke snapshot awal. ID 263 tidak diubah dan tetap grand total `1.100.000`. Tes baru `PaymentSlipDraftEditorTest` menyimpan perubahan melalui route editor untuk General, EXIM Import, dan EXIM Export dengan dua invoice, lalu memeriksa quantity, subtotal/net item, subtotal/total invoice, dan subtotal/grand total slip di database. Tes yang sama memastikan quantity kosong tidak mengubah database dan menghasilkan blok `Changes were not saved.`. Suite akhir: **213 tes lulus, 1.386 assertion**.

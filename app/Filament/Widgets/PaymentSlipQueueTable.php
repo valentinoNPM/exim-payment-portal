@@ -79,11 +79,13 @@ class PaymentSlipQueueTable extends BaseWidget
             ])
             ->recordActions([
                 Action::make('view_or_edit')
-                    ->label(fn (PaymentSlip $record): string => $record->status === 'draft' && auth()->user()->hasRole('maker') ? 'Edit' : 'Review'
+                    ->label(fn (PaymentSlip $record): string => $record->status === 'draft' && auth()->user()->hasRole('maker') ? 'Edit' : 'Check'
                     )
-                    ->icon(fn (PaymentSlip $record): string => $record->status === 'draft' && auth()->user()->hasRole('maker') ? 'heroicon-o-pencil' : 'heroicon-o-eye'
+                    ->icon(fn (PaymentSlip $record): string => $record->status === 'draft' && auth()->user()->hasRole('maker') ? 'heroicon-o-pencil' : 'heroicon-o-clipboard-document-check'
                     )
-                    ->url(fn (PaymentSlip $record): string => PaymentSlipResource::getUrl('edit', ['record' => $record])
+                    ->url(fn (PaymentSlip $record): string => $record->status === 'draft' && auth()->user()->hasRole('maker')
+                        ? PaymentSlipResource::getUrl('edit', ['record' => $record])
+                        : route('payment-slips.checker-edit', $record)
                     ),
             ]);
     }

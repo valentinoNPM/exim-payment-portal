@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\InvoiceAmountCalculator;
+use App\Support\MoneyRounding;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -37,6 +38,16 @@ class InvoiceItem extends Model
 
     protected static function booted()
     {
+        static::updating(function (InvoiceItem $item): void {
+            if ($item->invoice?->purchase_order_id && $item->isDirty(['invoice_id', 'item_name', 'quantity', 'unit_id', 'unit_price_amount', 'ppn_tax_id', 'pph_tax_id', 'subtotal_amount', 'tax_addition_amount', 'tax_deduction_amount', 'net_amount', 'line_number'])) {
+                throw ValidationException::withMessages(['items' => 'Item sumber PO terkunci.']);
+            }
+        });
+        static::deleting(function (InvoiceItem $item): void {
+            if ($item->invoice?->purchase_order_id) {
+                throw ValidationException::withMessages(['items' => 'Item sumber PO tidak boleh dihapus.']);
+            }
+        });
         static::saving(function (InvoiceItem $item): void {
             if ($item->isDirty(['coa_id', 'coa_code_snapshot', 'coa_name_snapshot'])) {
                 $user = auth()->user();
@@ -58,6 +69,9 @@ class InvoiceItem extends Model
             }
         });
         static::creating(function ($item) {
+            if ($item->invoice?->purchase_order_id) {
+                throw ValidationException::withMessages(['items' => 'Tidak dapat menambah item pada invoice sumber PO.']);
+            }
             $item->setCalculatedAmounts();
 
             if (empty($item->line_number)) {
@@ -128,6 +142,9 @@ class InvoiceItem extends Model
     private function setCalculatedAmounts(): void
     {
         $this->subtotal_amount = round((float) $this->quantity * (float) $this->unit_price_amount, 2);
+        if ($this->invoice?->paymentSlip?->transaction_type === PaymentSlip::TYPE_GENERAL) {
+            $this->subtotal_amount = MoneyRounding::round((float) $this->quantity * (float) $this->unit_price_amount, $this->calculationCurrency());
+        }
         $ppn = $this->taxFor('ppn_tax_id', 'addition');
         $pph = $this->taxFor('pph_tax_id', 'deduction');
         $amounts = InvoiceAmountCalculator::calculateForCurrency(

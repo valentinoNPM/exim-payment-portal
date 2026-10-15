@@ -6,12 +6,14 @@ use App\Filament\Resources\PurchaseOrders\Pages\CreatePurchaseOrder;
 use App\Filament\Resources\PurchaseOrders\Pages\EditPurchaseOrder;
 use App\Models\Division;
 use App\Models\Item;
+use App\Models\PaymentSlip;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
 use App\Models\Tax;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Services\PurchaseOrders\SavePurchaseOrder;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -465,5 +467,56 @@ class PurchaseOrderConventionalEditorTest extends TestCase
             'status' => PurchaseOrder::STATUS_NEW,
             'created_by' => $this->maker->id,
         ]);
+    }
+
+    public function test_po_and_general_slip_round_each_line_consistently(): void
+    {
+        $tax = Tax::create(['code' => 'ROUND11', 'name' => 'Test 11%', 'rate' => 11, 'calculation_type' => 'addition', 'is_active' => true]);
+        foreach (['IDR' => '12.00', 'USD' => '11.10'] as $currency => $expected) {
+            $po = app(SavePurchaseOrder::class)->execute($this->payload([
+                'currency' => $currency,
+                'addition_tax_id' => $tax->id,
+                'items' => [
+                    ['item_id' => $this->item->id, 'quantity' => 1, 'unit_price_amount' => 5, 'unit_id' => $this->unit->id],
+                    ['item_id' => $this->item->id, 'quantity' => 1, 'unit_price_amount' => 5, 'unit_id' => $this->unit->id],
+                ],
+            ]), $this->maker);
+            $slip = PaymentSlip::create(['slip_number' => 'ROUND-'.$currency, 'transaction_type' => 'general', 'currency' => $currency, 'supplier_id' => $this->supplier->id, 'created_by' => $this->maker->id, 'status' => 'draft']);
+            $invoice = $slip->invoices()->create(['invoice_number' => 'ROUND-'.$currency, 'invoice_date' => '2026-10-14', 'tax_calculation_mode' => 'itemized']);
+            foreach ($po->items as $line) {
+                $invoice->items()->create(['item_name' => 'Round test', 'quantity' => $line->quantity, 'unit_price_amount' => $line->unit_price_amount, 'unit_id' => $this->unit->id, 'ppn_tax_id' => $tax->id]);
+            }
+            $this->assertSame($expected, $po->fresh()->grand_total_amount);
+            $this->assertSame($expected, $slip->fresh()->grand_total_amount);
+            $this->assertSame($po->fresh()->tax_addition_amount, $slip->fresh()->tax_addition_amount);
+        }
+    }
+
+    public function test_metadata_edit_preserves_historical_po_fractional_amounts(): void
+    {
+        $po = $this->existingPurchaseOrder();
+        $line = $po->items()->create(['item_id' => $this->item->id, 'quantity' => 1.5, 'unit_price_amount' => 5]);
+        $this->assertSame('8.00', $line->fresh()->subtotal_amount);
+        $line->forceFill(['subtotal_amount' => 7.5, 'tax_amount' => 0.83, 'total_amount' => 8.33])->saveQuietly();
+        $line = $line->fresh();
+        $line->update(['notes' => 'Metadata only']);
+        $this->assertSame('7.50', $line->fresh()->subtotal_amount);
+        $this->assertSame('0.83', $line->fresh()->tax_amount);
+        $this->assertSame('8.33', $line->fresh()->total_amount);
+    }
+
+    public function test_currency_change_recalculates_po_lines_and_adjustments(): void
+    {
+        $data = $this->payload(['currency' => 'USD', 'discount_amount' => 0.5, 'shipping_amount' => 1.5, 'items' => [['quantity' => 1.5, 'unit_price_amount' => 5]]]);
+        $service = app(SavePurchaseOrder::class);
+        $po = $service->execute($data, $this->maker);
+        $this->assertSame('8.50', $po->grand_total_amount);
+        $data['items'][0]['id'] = $po->items()->firstOrFail()->id;
+        $data['currency'] = 'IDR';
+        $po = $service->execute($data, $this->maker, $po);
+        $this->assertSame('8.00', $po->items()->firstOrFail()->subtotal_amount);
+        $this->assertSame('1.00', $po->discount_amount);
+        $this->assertSame('2.00', $po->shipping_amount);
+        $this->assertSame('9.00', $po->grand_total_amount);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\CurrencyFormatter;
+use App\Support\MoneyRounding;
 
 final class InvoiceAmountCalculator
 {
@@ -32,9 +33,9 @@ final class InvoiceAmountCalculator
             return self::calculate($subtotal, $additionRate, $deductionRate);
         }
 
-        $roundedSubtotal = round($subtotal, 2, PHP_ROUND_HALF_UP);
-        $addition = $additionRate === null ? 0.0 : round($subtotal * ($additionRate / 100), 2, PHP_ROUND_HALF_UP);
-        $deduction = $deductionRate === null ? 0.0 : round($subtotal * ($deductionRate / 100), 2, PHP_ROUND_HALF_UP);
+        $roundedSubtotal = MoneyRounding::round($subtotal, $currency);
+        $addition = $additionRate === null ? 0.0 : MoneyRounding::round($subtotal * ($additionRate / 100), $currency);
+        $deduction = $deductionRate === null ? 0.0 : MoneyRounding::round($subtotal * ($deductionRate / 100), $currency);
 
         return [
             'subtotal' => $roundedSubtotal,
@@ -46,7 +47,7 @@ final class InvoiceAmountCalculator
 
     public static function roundRupiah(float $amount): float
     {
-        return round($amount, 0, PHP_ROUND_HALF_UP);
+        return MoneyRounding::round($amount, 'IDR');
     }
 
     public static function roundMinorUnits(int $amount): int

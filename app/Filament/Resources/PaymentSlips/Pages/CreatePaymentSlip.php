@@ -3,9 +3,11 @@
 namespace App\Filament\Resources\PaymentSlips\Pages;
 
 use App\Filament\Resources\PaymentSlips\PaymentSlipResource;
-use App\Filament\Resources\PaymentSlips\Schemas\PaymentSlipForm;
 use App\Models\DocumentFile;
 use App\Models\PaymentSlip;
+use App\Services\PaymentSlips\EximPaymentSlipData;
+use App\Services\PaymentSlips\GeneralPaymentSlipData;
+use App\Services\PaymentSlips\InvoiceDraftCalculator;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreatePaymentSlip extends CreateRecord
@@ -46,15 +48,14 @@ class CreatePaymentSlip extends CreateRecord
     protected function afterFill(): void
     {
         $this->data['transaction_type'] = $this->getFixedTransactionType();
-        $this->data['tax_calculation_mode'] = $this->getFixedTransactionType() === PaymentSlip::TYPE_GENERAL
-            ? PaymentSlip::TAX_MODE_INVOICE_LEGACY
-            : PaymentSlip::TAX_MODE_ITEMIZED;
-        $this->data['currency'] = PaymentSlip::CURRENCY_IDR;
+        $this->data = $this->getFixedTransactionType() === PaymentSlip::TYPE_GENERAL
+            ? GeneralPaymentSlipData::prepareCreate($this->data)
+            : EximPaymentSlipData::prepareCreate($this->data);
     }
 
     public function updated(string $property): void
     {
-        PaymentSlipForm::recalculateLiveItemizedInvoice($this->data, $property);
+        InvoiceDraftCalculator::recalculateLiveItemizedInvoice($this->data, $property);
 
         // Force Livewire to detect the nested data mutation by re-assigning
         // the top-level key. Without this, changes made by reference inside
@@ -74,16 +75,10 @@ class CreatePaymentSlip extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $data['transaction_type'] = $this->getFixedTransactionType() === PaymentSlip::TYPE_GENERAL
-            ? PaymentSlip::TYPE_GENERAL
-            : ($data['transaction_type'] ?? PaymentSlip::TYPE_EXPORT);
+        $data = $this->getFixedTransactionType() === PaymentSlip::TYPE_GENERAL
+            ? GeneralPaymentSlipData::prepareCreate($data)
+            : EximPaymentSlipData::prepareCreate($data);
         abort_unless(PaymentSlipResource::canCreateType(auth()->user(), $data['transaction_type']), 403);
-        $data['tax_calculation_mode'] = $data['transaction_type'] === PaymentSlip::TYPE_GENERAL
-            ? PaymentSlip::TAX_MODE_INVOICE_LEGACY
-            : PaymentSlip::TAX_MODE_ITEMIZED;
-        $data['currency'] = $data['transaction_type'] === PaymentSlip::TYPE_GENERAL
-            ? ($data['currency'] ?? PaymentSlip::CURRENCY_IDR)
-            : PaymentSlip::CURRENCY_IDR;
         $lastSlip = PaymentSlip::where('slip_number', 'like', 'PS-%-HANSOLL-%')
             ->lockForUpdate()
             ->orderBy('id', 'desc')

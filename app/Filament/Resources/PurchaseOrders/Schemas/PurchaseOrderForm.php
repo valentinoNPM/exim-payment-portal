@@ -11,6 +11,7 @@ use App\Models\Unit;
 use App\Models\Warehouse;
 use App\Services\PurchaseOrders\PurchaseOrderNumberGenerator;
 use App\Support\CurrencyFormatter;
+use App\Support\MoneyRounding;
 use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
@@ -212,12 +213,12 @@ class PurchaseOrderForm
                             ->relationship()
                             ->collapsed(fn (?PurchaseOrder $record): bool => ($record?->items()->count() ?? 0) > 20)
                             ->table([
-                                TableColumn::make('Nama Barang')->width('360px')->markAsRequired(),
-                                TableColumn::make('Spesifikasi')->width('170px'),
-                                TableColumn::make('Keterangan')->width('220px'),
-                                TableColumn::make('Kuantitas')->width('90px')->markAsRequired(),
+                                TableColumn::make('Nama Barang')->width('260px')->markAsRequired(),
+                                TableColumn::make('Spesifikasi')->width('150px'),
+                                TableColumn::make('Keterangan')->width('160px'),
+                                TableColumn::make('Kuantitas')->width('100px')->markAsRequired(),
                                 TableColumn::make('Satuan')->width('110px'),
-                                TableColumn::make('Harga')->width('150px')->markAsRequired(),
+                                TableColumn::make('Harga')->width('190px')->markAsRequired(),
                                 TableColumn::make('Jumlah Sebelum Pajak')->width('150px'),
                                 TableColumn::make('Dasar Pajak')->width('120px'),
                                 TableColumn::make('Pajak')->width('120px'),
@@ -313,10 +314,12 @@ class PurchaseOrderForm
                                             $get('quantity'),
                                             $get('unit_price_amount'),
                                             $get('../../addition_tax_rate'),
+                                            $get('../../currency') ?? 'IDR',
                                         ) - self::lineTax(
                                             $get('quantity'),
                                             $get('unit_price_amount'),
                                             $get('../../deduction_tax_rate'),
+                                            $get('../../currency') ?? 'IDR',
                                         ),
                                         $get('../../currency') ?? PurchaseOrder::CURRENCY_IDR,
                                     )),
@@ -350,19 +353,19 @@ class PurchaseOrderForm
                             Placeholder::make('subtotal_preview')
                                 ->label('Subtotal')
                                 ->content(fn (Get $get): string => CurrencyFormatter::format(
-                                    self::itemsSubtotal($get('items')),
+                                    self::itemsSubtotal($get('items'), $get('currency') ?? 'IDR'),
                                     $get('currency') ?? PurchaseOrder::CURRENCY_IDR,
                                 )),
                             Placeholder::make('addition_tax_preview')
                                 ->label('PPN (penambahan)')
                                 ->content(fn (Get $get): string => CurrencyFormatter::format(
-                                    self::itemsTax($get('items'), $get('addition_tax_rate')),
+                                    self::itemsTax($get('items'), $get('addition_tax_rate'), $get('currency') ?? 'IDR'),
                                     $get('currency') ?? PurchaseOrder::CURRENCY_IDR,
                                 )),
                             Placeholder::make('deduction_tax_preview')
                                 ->label('PPh (potongan)')
                                 ->content(fn (Get $get): string => CurrencyFormatter::format(
-                                    self::itemsTax($get('items'), $get('deduction_tax_rate')),
+                                    self::itemsTax($get('items'), $get('deduction_tax_rate'), $get('currency') ?? 'IDR'),
                                     $get('currency') ?? PurchaseOrder::CURRENCY_IDR,
                                 )),
                             Placeholder::make('discount_preview')
@@ -386,6 +389,7 @@ class PurchaseOrderForm
                                         $get('deduction_tax_rate'),
                                         $get('discount_amount'),
                                         $get('shipping_amount'),
+                                        $get('currency') ?? 'IDR',
                                     ),
                                     $get('currency') ?? PurchaseOrder::CURRENCY_IDR,
                                 )),
@@ -397,7 +401,7 @@ class PurchaseOrderForm
 
     private static function updateLineTotal(Get $get, Set $set): void
     {
-        $set('subtotal_amount', self::money($get('quantity')) * self::money($get('unit_price_amount')));
+        $set('subtotal_amount', MoneyRounding::round(self::money($get('quantity')) * self::money($get('unit_price_amount')), $get('../../currency') ?? 'IDR'));
     }
 
     private static function applyAdditionTaxToAllItems(mixed $state, Get $get, Set $set): void
@@ -420,27 +424,28 @@ class PurchaseOrderForm
         $set('deduction_tax_rate', $taxId ? Tax::query()->whereKey($taxId)->value('rate') : null);
     }
 
-    private static function itemsSubtotal(mixed $items): float
+    private static function itemsSubtotal(mixed $items, string $currency = 'IDR'): float
     {
         return collect(is_array($items) ? $items : [])->sum(
-            fn (array $item): float => self::money($item['quantity'] ?? 0) * self::money($item['unit_price_amount'] ?? 0),
+            fn (array $item): float => MoneyRounding::round(self::money($item['quantity'] ?? 0) * self::money($item['unit_price_amount'] ?? 0), $currency),
         );
     }
 
-    private static function itemsTax(mixed $items, mixed $rate): float
+    private static function itemsTax(mixed $items, mixed $rate, string $currency = 'IDR'): float
     {
         return collect(is_array($items) ? $items : [])->sum(
             fn (array $item): float => self::lineTax(
                 $item['quantity'] ?? 0,
                 $item['unit_price_amount'] ?? 0,
                 $rate,
+                $currency,
             ),
         );
     }
 
-    private static function lineTax(mixed $quantity, mixed $unitPrice, mixed $rate): float
+    private static function lineTax(mixed $quantity, mixed $unitPrice, mixed $rate, string $currency = 'IDR'): float
     {
-        return self::money($quantity) * self::money($unitPrice) * (self::money($rate) / 100);
+        return MoneyRounding::round(MoneyRounding::round(self::money($quantity) * self::money($unitPrice), $currency) * (self::money($rate) / 100), $currency);
     }
 
     /**
@@ -452,12 +457,13 @@ class PurchaseOrderForm
         mixed $deductionRate,
         mixed $discount,
         mixed $shipping,
+        string $currency = 'IDR',
     ): float {
-        return self::itemsSubtotal($items)
-            + self::itemsTax($items, $additionRate)
-            - self::itemsTax($items, $deductionRate)
-            - self::money($discount)
-            + self::money($shipping);
+        return self::itemsSubtotal($items, $currency)
+            + self::itemsTax($items, $additionRate, $currency)
+            - self::itemsTax($items, $deductionRate, $currency)
+            - MoneyRounding::round(self::money($discount), $currency)
+            + MoneyRounding::round(self::money($shipping), $currency);
     }
 
     private static function taxLabel(Tax $tax): string
