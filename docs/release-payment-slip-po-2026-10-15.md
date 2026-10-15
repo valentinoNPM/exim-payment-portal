@@ -52,8 +52,13 @@ yang tidak direferensikan aplikasi.
 4. Jalankan `php artisan migrate:status` setelah berkas masuk. Hanya migrasi
    14 Oktober di atas yang diharapkan pending. Jika ada migrasi lain pending,
    berhenti untuk audit. Bila sesuai, jalankan `php artisan migrate --force`
-   **sekali**, lalu `php artisan optimize:clear`. Tidak ada seeding atau
-   `key:generate`.
+   **sekali**. Jika menjalankan `php artisan optimize:clear`, segera jalankan
+   `php artisan config:cache` sebelum membuka maintenance. Pada VPS ini `.env`
+   tidak dapat dibaca langsung oleh user PHP-FPM (`www-data`); aplikasi web
+   bergantung pada `bootstrap/cache/config.php` yang dapat dibaca `www-data`.
+   Pastikan fingerprint `APP_KEY` efektif sebelum/sesudah sama, tanpa mencetak
+   nilainya. Jangan membuka maintenance jika config cache belum tersedia.
+   Tidak ada seeding atau `key:generate`.
 5. Sebelum keluar maintenance, periksa `route:list`, log error baru, dan
    halaman/PDF dengan record existing tanpa mengubah data. Sesudah dibuka,
    smoke test Maker General/EXIM, Checker, PO, PDF, dan ERP EXIM bersama user.
@@ -76,3 +81,18 @@ yang tidak direferensikan aplikasi.
 
 R5 (pemetaan diskon/ongkir/valas untuk ERP General) tetap ditunda dan bukan
 bagian paket rilis ini.
+
+## Catatan eksekusi 15 Oktober 2026
+
+- Kode `df4efb7` telah di-push ke `origin/main` dan 88 berkas runtime dalam
+  manifest dipasang ke VPS dengan SCP/staging tanpa `git pull`.
+- Backup sebelum deploy: `/home/valentino24/release-backups/exim-payment-portal-20261015-201514/`
+  berisi dump database dan arsip 37 berkas target yang sebelumnya ada.
+- Migrasi 14 Oktober berhasil; migrasi gudang tidak diulang. Suite lokal:
+  260 tes PHP/2.032 assertion dan 4 tes JS lulus. Render PDF produksi
+  General, Export, Import, dan PO dengan record lama juga berhasil.
+- `optimize:clear` sempat menghapus config cache dan menyebabkan HTTP 500
+  sementara karena PHP-FPM tidak dapat membaca `.env`. Aplikasi dikembalikan
+  ke maintenance, config cache dibangun ulang, fingerprint `APP_KEY` efektif
+  diverifikasi tidak berubah, lalu dibuka kembali. Sesudah pemulihan,
+  `/admin/login` merespons 200 dan rute admin terproteksi mengarah ke login.
