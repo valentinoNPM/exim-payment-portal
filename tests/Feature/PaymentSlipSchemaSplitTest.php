@@ -399,6 +399,7 @@ class PaymentSlipSchemaSplitTest extends TestCase
 
         $this->actingAs($maker)
             ->put(route('payment-slips.editor.update', $slip), [
+                'form_complete' => '1',
                 'currency' => PaymentSlip::CURRENCY_USD,
                 'transaction_description' => 'After edit',
                 'supplier_id' => $supplier->id,
@@ -426,6 +427,7 @@ class PaymentSlipSchemaSplitTest extends TestCase
         $this->assertSame('250.00', $slip->fresh()->grand_total_amount);
 
         $this->put(route('payment-slips.editor.update', $slip), [
+            'form_complete' => '1',
             'currency' => PaymentSlip::CURRENCY_USD,
             'transaction_description' => 'After edit',
             'supplier_id' => $supplier->id,

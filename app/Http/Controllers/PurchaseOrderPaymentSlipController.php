@@ -14,6 +14,11 @@ class PurchaseOrderPaymentSlipController extends Controller
     {
         $data = $request->validate([
             'transaction_description' => ['required', 'string', 'max:255'],
+            'approval_incharge' => ['nullable', 'string', 'max:255'],
+            'approval_passed_1' => ['nullable', 'string', 'max:255'],
+            'approval_passed_2' => ['nullable', 'string', 'max:255'],
+            'approval_passed_3' => ['nullable', 'string', 'max:255'],
+            'approval_director' => ['nullable', 'string', 'max:255'],
             'invoice_number' => ['required', 'string', 'max:255'],
             'invoice_date' => ['required', 'date'],
             'document_pdf' => ['nullable', 'file', 'mimetypes:application/pdf', 'max:102400'],

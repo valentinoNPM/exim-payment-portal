@@ -204,6 +204,48 @@ class PurchaseOrderPaymentSlipIntegrationTest extends TestCase
         $this->put(route('payment-slips.editor.update', $slip), $data)->assertSessionHasErrors();
     }
 
+    public function test_po_issued_slip_accepts_optional_approval_names_and_edit_keeps_po_data_locked(): void
+    {
+        $po = $this->po();
+        app(FinalizePurchaseOrder::class)->execute($po, $this->maker);
+        Livewire::test(IssuePaymentSlip::class, ['record' => $po->id])
+            ->assertSee('Nama Persetujuan')->assertSee('Passed 1 (opsional)');
+
+        $this->post(route('purchase-orders.issue-payment-slip', $po), [
+            'transaction_description' => 'Pembelian barang',
+            'invoice_number' => 'INV-APPROVAL',
+            'invoice_date' => '2026-10-14',
+            'approval_incharge' => 'Admin GA',
+            'approval_passed_1' => 'Kepala GA',
+            'approval_director' => 'Direktur PO',
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $slip = PaymentSlip::latest('id')->firstOrFail();
+        $this->assertSame('Admin GA', $slip->approval_incharge);
+        $this->assertSame('Kepala GA', $slip->approval_passed_1);
+        $this->assertSame('Direktur PO', $slip->approval_director);
+        $this->assertNull($slip->approval_passed_2);
+        $this->assertSame($this->maker->name, $slip->creator->name);
+
+        $invoice = $slip->invoices()->sole();
+        $this->put(route('payment-slips.editor.update', $slip), [
+            'transaction_description' => 'Pembelian barang',
+            'approval_incharge' => 'Admin GA Baru',
+            'approval_passed_1' => 'Kepala GA Baru',
+            'approval_director' => '',
+            'invoices' => [[
+                'id' => $invoice->id,
+                'invoice_number' => $invoice->invoice_number,
+                'invoice_date' => $invoice->invoice_date->toDateString(),
+            ]],
+        ])->assertSessionHasNoErrors()->assertRedirect();
+        $this->assertSame('Admin GA Baru', $slip->fresh()->approval_incharge);
+        $this->assertSame('Kepala GA Baru', $slip->fresh()->approval_passed_1);
+        $this->assertNull($slip->fresh()->approval_director);
+        $this->assertSame($po->grand_total_amount, $slip->fresh()->grand_total_amount);
+        $this->assertSame($po->id, $invoice->fresh()->purchase_order_id);
+    }
+
     public function test_wrong_role_is_forbidden_and_failed_issuance_rolls_back(): void
     {
         $po = $this->po();
@@ -314,6 +356,7 @@ class PurchaseOrderPaymentSlipIntegrationTest extends TestCase
     {
         $data = [
             'supplier_id' => $this->supplier->id, 'currency' => 'IDR', 'transaction_description' => 'Manual',
+            'form_complete' => '1',
             'invoices' => [['invoice_number' => 'MANUAL', 'invoice_date' => '2026-10-14', 'tax_calculation_mode' => 'itemized', 'discount_amount' => 1000,
                 'items' => [['item_name' => 'Item', 'quantity' => 1, 'unit_price_amount' => 100, 'unit_id' => $this->unit->id]]]],
         ];

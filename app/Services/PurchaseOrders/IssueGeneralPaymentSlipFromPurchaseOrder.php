@@ -36,6 +36,11 @@ final class IssueGeneralPaymentSlipFromPurchaseOrder
                 $slip = app(CreatePaymentSlip::class)->execute(PaymentSlip::TYPE_GENERAL, [
                     'supplier_id' => $po->supplier_id, 'currency' => $po->currency,
                     'transaction_description' => $data['transaction_description'],
+                    'approval_incharge' => $data['approval_incharge'] ?? null,
+                    'approval_passed_1' => $data['approval_passed_1'] ?? null,
+                    'approval_passed_2' => $data['approval_passed_2'] ?? null,
+                    'approval_passed_3' => $data['approval_passed_3'] ?? null,
+                    'approval_director' => $data['approval_director'] ?? null,
                     'invoices' => [[
                         'invoice_number' => $data['invoice_number'], 'invoice_date' => $data['invoice_date'],
                         'document_pdf' => $data['document_pdf'] ?? null,

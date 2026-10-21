@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\GeneratePaymentSlipPdf;
 use App\Actions\VerifyPaymentSlip;
 use App\Filament\Resources\PaymentSlips\PaymentSlipResource;
 use App\Models\Buyer;
@@ -56,6 +57,7 @@ class PaymentSlipConventionalEditorTest extends TestCase
         return [
             'supplier_id' => $this->supplier->id, 'currency' => $currency,
             'transaction_description' => 'Operasional',
+            'form_complete' => '1',
             'invoices' => [[
                 'buyer_id' => $this->buyer->id, 'invoice_number' => 'INV-BLADE',
                 'invoice_date' => '2026-10-13', 'tax_calculation_mode' => 'itemized',
@@ -97,6 +99,64 @@ class PaymentSlipConventionalEditorTest extends TestCase
         }
     }
 
+    public function test_general_approval_names_round_trip_through_create_edit_view_and_pdf(): void
+    {
+        $data = $this->payload();
+        $data['approval_passed_1'] = 'Manager Satu';
+        $data['approval_passed_2'] = 'Manager Dua';
+        $data['approval_passed_3'] = 'Manager Tiga';
+        $data['approval_director'] = 'Direktur Uji';
+
+        $this->get(PaymentSlipResource::getUrl('create-general'))
+            ->assertOk()->assertSee('name="approval_incharge"', false)
+            ->assertSee($this->maker->name)->assertSee('Passed 3 (opsional)');
+        $slip = $this->createSlip('general', $data);
+        $this->assertSame($this->maker->name, $slip->approval_incharge);
+        $this->assertSame('Manager Satu', $slip->approval_passed_1);
+        $this->assertSame('Direktur Uji', $slip->approval_director);
+        $this->get(PaymentSlipResource::getUrl('view', ['record' => $slip]))
+            ->assertOk()->assertSee('Nama Persetujuan PDF')->assertSee('Manager Dua')->assertSee('Direktur Uji');
+
+        $html = view('pdf.payment-slips.general', ['slip' => $slip->load('creator')])->render();
+        $this->assertStringContainsString($this->maker->name, $html);
+        $this->assertStringContainsString('<td rowspan="3" class="label-cell">APPROVAL</td>', $html);
+        $this->assertSame(5, substr_count($html, 'class="signature-space"'));
+        $this->assertSame(5, substr_count($html, 'class="signer-name"'));
+        foreach (['Manager Satu', 'Manager Dua', 'Manager Tiga', 'Direktur Uji'] as $name) {
+            $this->assertStringContainsString($name, $html);
+        }
+        $pdf = app(GeneratePaymentSlipPdf::class)->execute($slip);
+        $this->assertStringStartsWith('%PDF-', $pdf->output());
+        if ($path = getenv('APPROVAL_PDF_QA_OUTPUT')) {
+            $pdf->save($path);
+        }
+
+        $data['invoices'][0]['id'] = $slip->invoices()->sole()->id;
+        $data['invoices'][0]['items'][0]['id'] = $slip->invoices()->sole()->items()->sole()->id;
+        $data['approval_incharge'] = 'Petugas Pengganti';
+        $data['approval_passed_2'] = 'Manager Dua Baru';
+        $data['approval_director'] = '';
+        $this->put(route('payment-slips.editor.update', $slip), $data)->assertSessionHasNoErrors();
+        $this->assertSame('Petugas Pengganti', $slip->fresh()->approval_incharge);
+        $this->assertSame('Manager Dua Baru', $slip->fresh()->approval_passed_2);
+        $this->assertNull($slip->fresh()->approval_director);
+        $this->get(PaymentSlipResource::getUrl('view', ['record' => $slip]))
+            ->assertOk()->assertSee('Petugas Pengganti');
+        $html = view('pdf.payment-slips.general', ['slip' => $slip->fresh()->load('creator')])->render();
+        $this->assertStringContainsString('<td class="signer-name">Petugas Pengganti</td>', $html);
+        $this->assertSame($this->maker->id, $slip->fresh()->created_by);
+
+        $slip->update(['approval_incharge' => null]);
+        $legacyHtml = view('pdf.payment-slips.general', ['slip' => $slip->fresh()->load('creator')])->render();
+        $this->assertStringContainsString('<td class="signer-name">'.$this->maker->name.'</td>', $legacyHtml);
+
+        $exim = $this->createSlip('export');
+        $this->assertNull($exim->approval_incharge);
+        $this->assertNull($exim->approval_passed_1);
+        $eximHtml = view('pdf.payment-slips.exim', ['slip' => $exim->load('creator')])->render();
+        $this->assertStringNotContainsString('class="signer-name"', $eximHtml);
+    }
+
     public function test_create_requires_general_unit_and_exim_buyer_and_keeps_input_on_failure(): void
     {
         $data = $this->payload();
@@ -107,6 +167,24 @@ class PaymentSlipConventionalEditorTest extends TestCase
         unset($data['invoices'][0]['buyer_id']);
         $this->post(route('payment-slips.editor.store', 'export'), $data)->assertSessionHasErrors('invoices.0.buyer_id');
         $this->assertDatabaseCount('payment_slips', 0);
+    }
+
+    public function test_truncated_editor_request_cannot_delete_existing_invoices_or_items(): void
+    {
+        $slip = $this->createSlip('import');
+        $invoice = $slip->invoices()->sole();
+        $item = $invoice->items()->sole();
+        $data = $this->payload();
+        $data['invoices'][0]['id'] = $invoice->id;
+        $data['invoices'][0]['items'][0]['id'] = $item->id;
+        unset($data['form_complete']);
+
+        $this->put(route('payment-slips.editor.update', $slip), $data)
+            ->assertSessionHasErrors('form_complete');
+
+        $this->assertSame('draft', $slip->fresh()->status);
+        $this->assertDatabaseHas('invoices', ['id' => $invoice->id, 'payment_slip_id' => $slip->id]);
+        $this->assertDatabaseHas('invoice_items', ['id' => $item->id, 'invoice_id' => $invoice->id]);
     }
 
     public function test_export_supporting_supplier_round_trips_in_both_tax_modes_without_changing_erp(): void

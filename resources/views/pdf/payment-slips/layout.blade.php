@@ -9,7 +9,7 @@
         }
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            font-size: 11px;
+            font-size: 12px;
             color: #333;
             margin: 0;
             padding: 0;
@@ -45,12 +45,12 @@
             color: #333;
         }
         .company-address {
-            font-size: 10px;
+            font-size: 11.5px;
             color: #555;
             line-height: 1.2;
         }
         .document-title {
-            font-size: 22px;
+            font-size: 24px;
             font-weight: bold;
             color: #003f97;
             text-align: center;
@@ -65,16 +65,16 @@
         .approval-grid th {
             background-color: #EDF1F3;
             color: #003f97;
-            font-size: 9px;
+            font-size: 11px;
             font-weight: bold;
             text-align: center;
             padding: 3px 4px;
         }
         .approval-grid td {
             text-align: center;
-            height: 22px;
+            height: 26px;
             vertical-align: middle;
-            font-size: 9px;
+            font-size: 11px;
         }
         .approval-grid .label-cell {
             background-color: #EDF1F3;
@@ -82,12 +82,23 @@
             font-weight: bold;
             width: 15%;
         }
+        .approval-grid .signature-space {
+            height: 60px;
+        }
+        .approval-grid .signer-name {
+            height: 24px;
+            padding: 4px 3px;
+            font-size: 12px;
+            font-weight: bold;
+            line-height: 1.15;
+            word-wrap: break-word;
+        }
 
         /* Data Section */
         .data-table td {
             border: none;
             padding: 3px 6px;
-            font-size: 12px;
+            font-size: 13px;
             line-height: 1.25;
         }
         .data-label {
@@ -111,13 +122,13 @@
             background-color: #EDF1F3;
             color: #003f97;
             font-weight: bold;
-            font-size: 11px;
+            font-size: 12px;
             text-align: center;
             padding: 5px 4px;
         }
         .detail-table td {
             padding: 5px 7px;
-            font-size: 11px;
+            font-size: 12px;
             line-height: 1.25;
         }
         .detail-table .amount-cell {
@@ -136,11 +147,11 @@
             white-space: nowrap;
         }
         .detail-table .item-meta {
-            font-size: 10px;
+            font-size: 11px;
             color: #666;
         }
         .detail-table .grand-total {
-            font-size: 13px;
+            font-size: 14px;
         }
 
         /* Payment Box */
@@ -151,15 +162,15 @@
             background-color: #EDF1F3;
             color: #003f97;
             font-weight: bold;
-            font-size: 9px;
+            font-size: 11px;
             text-align: center;
             padding: 4px;
         }
         .payment-table td {
-            height: 30px;
+            height: 34px;
             text-align: center;
             vertical-align: middle;
-            font-size: 9px;
+            font-size: 11px;
         }
         .payment-label {
             background-color: #EDF1F3;
@@ -177,14 +188,15 @@
             background-color: #EDF1F3;
             color: #003f97;
             font-weight: bold;
-            font-size: 10px;
+            font-size: 11px;
             text-align: center;
             padding: 5px;
         }
         .footer-table td {
-            height: 25px;
+            height: 28px;
             text-align: center;
             vertical-align: middle;
+            font-size: 11px;
         }
         .signature-block {
             page-break-inside: avoid;
@@ -227,7 +239,7 @@
         <!-- Approval Grid -->
         <table class="approval-grid">
             <tr>
-                <td rowspan="2" class="label-cell">APPROVAL</td>
+                <td rowspan="{{ $slip->transaction_type === \App\Models\PaymentSlip::TYPE_GENERAL ? 3 : 2 }}" class="label-cell">APPROVAL</td>
                 <th>INCHARGE</th>
                 <th>PASSED</th>
                 <th>PASSED</th>
@@ -235,12 +247,29 @@
                 <th>DIRECTOR</th>
             </tr>
             <tr>
-                <td>&nbsp;</td>
-                <td>&nbsp;</td>
-                <td>&nbsp;</td>
-                <td>&nbsp;</td>
-                <td>&nbsp;</td>
+                @if ($slip->transaction_type === \App\Models\PaymentSlip::TYPE_GENERAL)
+                    <td class="signature-space">&nbsp;</td>
+                    <td class="signature-space">&nbsp;</td>
+                    <td class="signature-space">&nbsp;</td>
+                    <td class="signature-space">&nbsp;</td>
+                    <td class="signature-space">&nbsp;</td>
+                @else
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                @endif
             </tr>
+            @if ($slip->transaction_type === \App\Models\PaymentSlip::TYPE_GENERAL)
+                <tr>
+                    <td class="signer-name">{{ $slip->approval_incharge ?: ($slip->creator?->name ?: ' ') }}</td>
+                    <td class="signer-name">{{ $slip->approval_passed_1 ?: ' ' }}</td>
+                    <td class="signer-name">{{ $slip->approval_passed_2 ?: ' ' }}</td>
+                    <td class="signer-name">{{ $slip->approval_passed_3 ?: ' ' }}</td>
+                    <td class="signer-name">{{ $slip->approval_director ?: ' ' }}</td>
+                </tr>
+            @endif
         </table>
 
         <!-- Payment Signature Box -->

@@ -61,6 +61,7 @@ class PaymentSlipDraftEditorTest extends TestCase
 
             $response = $this->from(PaymentSlipResource::getUrl('edit', ['record' => $slip]))
                 ->put(route('payment-slips.editor.update', $slip), [
+                    'form_complete' => '1',
                     'currency' => $type === PaymentSlip::TYPE_GENERAL ? PaymentSlip::CURRENCY_IDR : null,
                     'transaction_description' => $type === PaymentSlip::TYPE_GENERAL ? 'Biaya editor' : null,
                     'invoice_receipt_number' => null,

@@ -26,6 +26,8 @@ trait PaymentSlipEditorMessages
             'invoices.*.invoice_number.required' => 'Nomor invoice #:position wajib diisi.',
             'invoices.*.items.*.unit_id.required' => 'Satuan pada invoice #:position, item #:second-position wajib dipilih.',
             'invoices.*.items.*.item_name.required' => 'Nama item pada invoice #:position, item #:second-position wajib diisi.',
+            'form_complete.required' => 'Form tidak terkirim utuh karena terlalu besar. Muat ulang halaman dan coba lagi; hubungi admin jika berulang.',
+            'form_complete.in' => 'Form tidak terkirim utuh. Muat ulang halaman dan coba lagi.',
         ];
     }
 

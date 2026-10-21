@@ -128,6 +128,10 @@
                     </div>
                 </section>
 
+                @if ($general)
+                    @include('filament.payment-slips.partials.general-approval-fields')
+                @endif
+
                 <section class="ps-editor__section" aria-labelledby="ps-invoices-heading">
                     <header class="ps-editor__section-heading">
                         <div><h2 id="ps-invoices-heading">Invoices</h2><p>Tambah invoice dan item, lalu periksa nominal sebelum menyimpan.</p></div>
@@ -159,6 +163,7 @@
                 </div>
                 <input type="hidden" name="submit_after_save" value="0" data-ps-submit-value>
                 <input type="hidden" name="create_another" value="0" data-ps-create-another>
+                <input type="hidden" name="form_complete" value="1">
 
                 <template data-ps-invoice-template>
                     @include('filament.payment-slips.partials.invoice', [

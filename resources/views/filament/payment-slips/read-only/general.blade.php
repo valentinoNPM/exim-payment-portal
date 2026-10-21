@@ -29,6 +29,17 @@
         </dl>
     </x-filament::section>
 
+    <x-filament::section heading="Nama Persetujuan PDF">
+        <dl class="payment-slip-detail__grid">
+            @foreach (['Incharge' => $slip->approval_incharge ?: $slip->creator?->name, 'Passed 1' => $slip->approval_passed_1, 'Passed 2' => $slip->approval_passed_2, 'Passed 3' => $slip->approval_passed_3, 'Director' => $slip->approval_director] as $label => $value)
+                <div class="payment-slip-detail__field">
+                    <dt>{{ $label }}</dt>
+                    <dd>{{ $display($value) }}</dd>
+                </div>
+            @endforeach
+        </dl>
+    </x-filament::section>
+
     <x-filament::section heading="Invoices">
         <div class="payment-slip-detail__invoices">
             @forelse ($slip->invoices as $invoice)

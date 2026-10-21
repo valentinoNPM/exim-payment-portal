@@ -13,6 +13,7 @@
                 <div class="ps-editor__field"><label for="po-slip-file">PDF Invoice (opsional)</label><input id="po-slip-file" type="file" name="document_pdf" accept="application/pdf,.pdf"><small>Maksimal 100 MB. File tidak dikirim ke Gemini.</small></div>
             </div>
         </section>
+        @include('filament.payment-slips.partials.general-approval-fields', ['record' => null])
         <div class="ps-editor__toolbar-actions">
             <button class="ps-editor__button ps-editor__button--primary" type="submit">Simpan Draft Payment Slip</button>
             <a class="ps-editor__button" href="{{ \App\Filament\Resources\PurchaseOrders\PurchaseOrderResource::getUrl('view', ['record' => $po]) }}">Kembali ke PO</a>

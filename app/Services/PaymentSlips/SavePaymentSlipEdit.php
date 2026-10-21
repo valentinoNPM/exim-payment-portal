@@ -39,7 +39,7 @@ final class SavePaymentSlipEdit
                 }
 
                 $slipData = $paymentSlip->transaction_type === PaymentSlip::TYPE_GENERAL
-                    ? GeneralPaymentSlipData::prepareEdit(Arr::only($data, ['currency', 'transaction_description', 'supplier_id', 'customer_id']))
+                    ? GeneralPaymentSlipData::prepareEdit(Arr::only($data, ['currency', 'transaction_description', 'supplier_id', 'customer_id', 'approval_incharge', 'approval_passed_1', 'approval_passed_2', 'approval_passed_3', 'approval_director']))
                     : EximPaymentSlipData::prepareEdit(Arr::only($data, ['invoice_receipt_number', 'supplier_id', 'buyer_id']), $paymentSlip);
                 $paymentSlip->update($slipData);
                 $currencyChanged = $paymentSlip->wasChanged('currency');
@@ -133,7 +133,7 @@ final class SavePaymentSlipEdit
 
     private function saveLinkedMetadata(PaymentSlip $slip, array $data): PaymentSlip
     {
-        if (array_diff(array_keys($data), ['transaction_description', 'invoices', 'submit_after_save']) !== []) {
+        if (array_diff(array_keys($data), ['transaction_description', 'approval_incharge', 'approval_passed_1', 'approval_passed_2', 'approval_passed_3', 'approval_director', 'invoices', 'submit_after_save']) !== []) {
             throw ValidationException::withMessages(['payment_slip' => 'Data sumber PO tidak dapat diubah.']);
         }
         $stored = $slip->invoices()->get()->keyBy('id');
@@ -152,7 +152,7 @@ final class SavePaymentSlipEdit
             }
             $invoice->save();
         }
-        $slip->update(Arr::only($data, ['transaction_description']));
+        $slip->update(Arr::only($data, ['transaction_description', 'approval_incharge', 'approval_passed_1', 'approval_passed_2', 'approval_passed_3', 'approval_director']));
 
         return $slip->fresh('invoices.items');
     }

@@ -15,6 +15,7 @@
                 </div>
             @endforeach
         </section>
+        @include('filament.payment-slips.partials.general-approval-fields')
         <button class="ps-editor__button ps-editor__button--primary" type="submit">Simpan</button>
         <button class="ps-editor__button" type="submit" name="submit_after_save" value="1">Simpan dan Submit</button>
     </form>
