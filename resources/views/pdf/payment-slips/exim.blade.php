@@ -117,15 +117,11 @@
                 @php
                     $detailRowCount++;
 
-                    // Import slips keep reimbursement details in ERP only.
+                    // Export and import slips show an invoice summary, not item details.
                     $description = "REF {$invoice->invoice_number}";
                     $invoiceBuyer = $invoice->buyer?->name ?: $slip->buyer?->name;
-                    if ($slip->transaction_type === 'import' && $invoiceBuyer) {
+                    if ($invoiceBuyer) {
                         $description .= " - {$invoiceBuyer}";
-                    }
-                    $itemNames = $invoice->items->pluck('item_name')->implode(', ');
-                    if ($slip->transaction_type !== 'import' && $itemNames) {
-                        $description .= " - {$itemNames}";
                     }
                 @endphp
                 <tr>

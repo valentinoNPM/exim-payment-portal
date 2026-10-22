@@ -223,12 +223,19 @@ class ErpExportTest extends TestCase
     {
         $slip = ErpPaymentSlip::create($this->checker);
         $slip->update(['invoice_receipt_number' => 'HIJ / EXP / 001 / IX / 2026']);
+        $invoice = $slip->invoices()->firstOrFail();
+        $invoice->items()->firstOrFail()->update(['item_name' => 'UNIQUE EXPORT ITEM DETAIL']);
+        $invoiceBuyer = Buyer::create(['code' => 'PDF-EXPORT-BUYER', 'name' => 'PDF Export Buyer', 'is_active' => true]);
+        $invoice->update(['buyer_id' => $invoiceBuyer->id]);
         $slip->load(['supplier', 'buyer', 'invoices.buyer', 'invoices.items', 'invoices.ppnTax', 'invoices.pphTax', 'creator.division']);
 
         $html = view('pdf.payment-slips.exim', ['slip' => $slip])->render();
 
         $this->assertStringContainsString('Tanda Terima Invoice', $html);
         $this->assertStringContainsString('HIJ / EXP / 001 / IX / 2026', $html);
+        $this->assertStringContainsString('REF 000045 - PDF Export Buyer', $html);
+        $this->assertStringContainsString('REF 000046 - Fixture Buyer', $html);
+        $this->assertStringNotContainsString('UNIQUE EXPORT ITEM DETAIL', $html);
     }
 
     public function test_general_pdf_shows_each_item_with_quantity_unit_price_and_subtotal(): void
