@@ -148,6 +148,7 @@
     function updateLabels() {
         invoices().forEach((invoice, invoiceIndex) => {
             invoice.querySelector('[data-ps-invoice-number]').textContent = invoiceIndex + 1;
+            invoice.querySelector('[data-ps-add-item-invoice-number]').textContent = invoiceIndex + 1;
             items(invoice).forEach((item, itemIndex) => {
                 item.querySelector('[data-ps-item-number]').textContent = `Item ${itemIndex + 1}`;
                 item.querySelector('[data-ps-remove-item]').disabled = items(invoice).length === 1;
@@ -255,8 +256,12 @@
         enhanceFields(items(invoice).at(-1));
         updateLabels();
         recalculate();
-        if (focus) items(invoice).at(-1).querySelector('input[name$="[item_name]"]')?.focus();
-        return items(invoice).at(-1);
+        const newItem = items(invoice).at(-1);
+        if (focus) {
+            newItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            newItem.querySelector('input[name$="[item_name]"]')?.focus({ preventScroll: true });
+        }
+        return newItem;
     }
 
     function showPreview(url) {

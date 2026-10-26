@@ -99,6 +99,22 @@ class PaymentSlipConventionalEditorTest extends TestCase
         }
     }
 
+    public function test_exim_item_action_stays_with_its_invoice_and_unit_price_has_no_spinner(): void
+    {
+        $html = $this->get(PaymentSlipResource::getUrl('create-export'))
+            ->assertOk()
+            ->assertSee('Item baru akan ditambahkan ke invoice ini.')
+            ->assertSee('data-ps-add-item-invoice-number', false)
+            ->assertSee('type="text" inputmode="decimal" autocomplete="off"', false)
+            ->getContent();
+
+        $this->assertLessThan(
+            strpos($html, 'data-ps-add-item'),
+            strpos($html, 'data-ps-items'),
+            'Tombol Tambah Item harus berada setelah daftar item invoice.',
+        );
+    }
+
     public function test_general_approval_names_round_trip_through_create_edit_view_and_pdf(): void
     {
         $data = $this->payload();

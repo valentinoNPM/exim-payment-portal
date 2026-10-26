@@ -21,7 +21,11 @@
         @endif
         <div class="ps-editor__field">
             <label>Unit price amount *</label>
-            <input type="number" step="0.01" name="invoices[{{ $invoiceIndex }}][items][{{ $itemIndex }}][unit_price_amount]" required data-ps-price value="{{ $item['unit_price_amount'] ?? '' }}">
+            @if ($general)
+                <input type="number" step="0.01" name="invoices[{{ $invoiceIndex }}][items][{{ $itemIndex }}][unit_price_amount]" required data-ps-price value="{{ $item['unit_price_amount'] ?? '' }}">
+            @else
+                <input type="text" inputmode="decimal" autocomplete="off" name="invoices[{{ $invoiceIndex }}][items][{{ $itemIndex }}][unit_price_amount]" required data-ps-price value="{{ $item['unit_price_amount'] ?? '' }}">
+            @endif
         </div>
         @if (! $general)
             <div class="ps-editor__field"><label>Supplier Pendukung<input maxlength="255" name="invoices[{{ $invoiceIndex }}][items][{{ $itemIndex }}][source_supplier_name]" value="{{ $item['source_supplier_name'] ?? '' }}"></label></div>

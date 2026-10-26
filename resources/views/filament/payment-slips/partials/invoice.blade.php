@@ -84,11 +84,17 @@
         </div>
     </div>
 
-    <div class="ps-editor__items-heading"><h4>Items</h4><button type="button" class="ps-editor__button ps-editor__button--add" data-ps-add-item>Tambah Item</button></div>
+    <div class="ps-editor__items-heading"><h4>Items</h4></div>
     <div class="ps-editor__items" data-ps-items>
         @foreach ($items as $itemIndex => $item)
             @include('filament.payment-slips.partials.item', compact('invoiceIndex', 'itemIndex', 'item', 'general', 'type', 'units', 'additionTaxes', 'deductionTaxes'))
         @endforeach
+    </div>
+    <div class="ps-editor__items-actions">
+        <small>Item baru akan ditambahkan ke invoice ini.</small>
+        <button type="button" class="ps-editor__button ps-editor__button--add" data-ps-add-item>
+            Tambah Item ke Invoice <span data-ps-add-item-invoice-number></span>
+        </button>
     </div>
     @if ($general)
         <div class="ps-editor__invoice-grid">

@@ -196,27 +196,50 @@
                 </div>
             </header>
 
-            <div class="po-editor__header-grid">
+            <div class="po-editor__signer-tables">
                 @foreach ([
-                    'signer_pic' => ['PIC', 'Kosongkan untuk memakai nama PIC PO'],
-                    'signer_area_manager' => ['Area Manager', 'Nama Area Manager'],
-                    'signer_factory_manager' => ['Factory Manager', 'Nama Factory Manager'],
-                    'signer_director' => ['Direktur', 'Nama Direktur'],
-                    'signer_ga' => ['GA', 'Nama GA'],
-                    'signer_manager' => ['Manager', 'Nama Manager'],
-                    'signer_ga_director' => ['Direktur (GA)', 'Nama Direktur pada tabel GA'],
-                ] as $field => [$label, $placeholder])
-                    <div class="po-editor__field">
-                        <label for="{{ str_replace('_', '-', $field) }}">{{ $label }}</label>
-                        <input
-                            id="{{ str_replace('_', '-', $field) }}"
-                            class="po-editor__input"
-                            name="{{ $field }}"
-                            maxlength="255"
-                            value="{{ old($field, $record?->{$field}) }}"
-                            placeholder="{{ $placeholder }}"
-                        >
-                    </div>
+                    [
+                        'heading' => 'Tabel Persetujuan',
+                        'description' => 'Tabel kiri pada PDF: PIC, Area Manager, Factory Manager, dan Direktur.',
+                        'fields' => [
+                            'signer_pic' => ['PIC', 'Kosongkan untuk memakai nama PIC PO'],
+                            'signer_area_manager' => ['Area Manager', 'Nama Area Manager'],
+                            'signer_factory_manager' => ['Factory Manager', 'Nama Factory Manager'],
+                            'signer_director' => ['Direktur', 'Nama Direktur'],
+                        ],
+                    ],
+                    [
+                        'heading' => 'Tabel GA',
+                        'description' => 'Tabel kanan pada PDF: GA, Manager, dan Direktur.',
+                        'fields' => [
+                            'signer_ga' => ['GA', 'Nama GA'],
+                            'signer_manager' => ['Manager', 'Nama Manager'],
+                            'signer_ga_director' => ['Direktur', 'Nama Direktur'],
+                        ],
+                    ],
+                ] as $signerTable)
+                    <section class="po-editor__signer-group" aria-labelledby="{{ Str::slug($signerTable['heading']) }}-heading">
+                        <header class="po-editor__signer-group-header">
+                            <h3 id="{{ Str::slug($signerTable['heading']) }}-heading">{{ $signerTable['heading'] }}</h3>
+                            <p>{{ $signerTable['description'] }}</p>
+                        </header>
+
+                        <div class="po-editor__signer-fields">
+                            @foreach ($signerTable['fields'] as $field => [$label, $placeholder])
+                                <div class="po-editor__field">
+                                    <label for="{{ str_replace('_', '-', $field) }}">{{ $label }}</label>
+                                    <input
+                                        id="{{ str_replace('_', '-', $field) }}"
+                                        class="po-editor__input"
+                                        name="{{ $field }}"
+                                        maxlength="255"
+                                        value="{{ old($field, $record?->{$field}) }}"
+                                        placeholder="{{ $placeholder }}"
+                                    >
+                                </div>
+                            @endforeach
+                        </div>
+                    </section>
                 @endforeach
             </div>
         </section>
