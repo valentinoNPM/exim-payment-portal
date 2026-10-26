@@ -11,7 +11,11 @@
         </div>
         <div class="ps-editor__field">
             <label>Quantity *</label>
-            <input type="number" step="any" name="invoices[{{ $invoiceIndex }}][items][{{ $itemIndex }}][quantity]" required data-ps-quantity value="{{ $item['quantity'] ?? 1 }}">
+            @if ($general)
+                <input type="number" step="any" name="invoices[{{ $invoiceIndex }}][items][{{ $itemIndex }}][quantity]" required data-ps-quantity value="{{ $item['quantity'] ?? 1 }}">
+            @else
+                <input type="text" inputmode="decimal" autocomplete="off" name="invoices[{{ $invoiceIndex }}][items][{{ $itemIndex }}][quantity]" required data-ps-quantity value="{{ $item['quantity'] ?? 1 }}">
+            @endif
         </div>
         @if ($general)
             <div class="ps-editor__field"><label>Satuan @if (blank($item['id'] ?? null))<span>*</span>@endif</label><select name="invoices[{{ $invoiceIndex }}][items][{{ $itemIndex }}][unit_id]" data-ps-master-select="unit" @required(blank($item['id'] ?? null))>

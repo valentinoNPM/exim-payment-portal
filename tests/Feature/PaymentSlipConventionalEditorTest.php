@@ -99,7 +99,7 @@ class PaymentSlipConventionalEditorTest extends TestCase
         }
     }
 
-    public function test_exim_item_action_stays_with_its_invoice_and_unit_price_has_no_spinner(): void
+    public function test_exim_item_action_stays_with_its_invoice_and_numeric_inputs_have_no_spinner(): void
     {
         $html = $this->get(PaymentSlipResource::getUrl('create-export'))
             ->assertOk()
@@ -108,6 +108,7 @@ class PaymentSlipConventionalEditorTest extends TestCase
             ->assertSee('type="text" inputmode="decimal" autocomplete="off"', false)
             ->getContent();
 
+        $this->assertGreaterThanOrEqual(2, substr_count($html, 'type="text" inputmode="decimal" autocomplete="off"'));
         $this->assertLessThan(
             strpos($html, 'data-ps-add-item'),
             strpos($html, 'data-ps-items'),

@@ -2194,7 +2194,7 @@
 .ps-editor__field label { font-size: .82rem; line-height: 1.5; }
 .ps-editor__field input, .ps-editor__field select, .ps-editor__select-trigger { min-height: 2.65rem; }
 .ps-editor__field input[type=number] { text-align: right; font-variant-numeric: tabular-nums; }
-.ps-editor__field [data-ps-price] { text-align: right; font-variant-numeric: tabular-nums; }
+.ps-editor__field [data-ps-price], .ps-editor__field [data-ps-quantity] { text-align: right; font-variant-numeric: tabular-nums; }
 .ps-editor__button { line-height: 1.45; transition: background-color .15s, border-color .15s; }
 .ps-editor__button:hover:not(:disabled) { border-color: #a1a1aa; background: #f4f4f5; }
 .ps-editor__button--primary:hover:not(:disabled), .ps-editor__button--add:hover:not(:disabled) { background: #fbbf24; border-color: #f59e0b; }
