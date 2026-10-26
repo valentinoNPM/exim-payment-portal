@@ -103,7 +103,7 @@ class PaymentSlipConventionalEditorTest extends TestCase
     {
         $html = $this->get(PaymentSlipResource::getUrl('create-export'))
             ->assertOk()
-            ->assertSee('Item baru akan ditambahkan ke invoice ini.')
+            ->assertSee('ps-editor__add-item-button', false)
             ->assertSee('data-ps-add-item-invoice-number', false)
             ->assertSee('type="text" inputmode="decimal" autocomplete="off"', false)
             ->getContent();

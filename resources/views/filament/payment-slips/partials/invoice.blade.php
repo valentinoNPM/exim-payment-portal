@@ -91,9 +91,9 @@
         @endforeach
     </div>
     <div class="ps-editor__items-actions">
-        <small>Item baru akan ditambahkan ke invoice ini.</small>
-        <button type="button" class="ps-editor__button ps-editor__button--add" data-ps-add-item>
-            Tambah Item ke Invoice <span data-ps-add-item-invoice-number></span>
+        <button type="button" class="ps-editor__button ps-editor__add-item-button" data-ps-add-item>
+            <span aria-hidden="true">＋</span>
+            <span>Tambah Item ke Invoice <span data-ps-add-item-invoice-number></span></span>
         </button>
     </div>
     @if ($general)
