@@ -188,6 +188,39 @@
             </div>
         </section>
 
+        <section class="po-editor__section" aria-labelledby="po-signers-heading">
+            <header class="po-editor__section-header">
+                <div>
+                    <h2 id="po-signers-heading">Nama Penandatangan</h2>
+                    <p>Nama ditampilkan di bawah ruang tanda tangan pada PDF. Semua kolom bersifat opsional.</p>
+                </div>
+            </header>
+
+            <div class="po-editor__header-grid">
+                @foreach ([
+                    'signer_pic' => ['PIC', 'Kosongkan untuk memakai nama PIC PO'],
+                    'signer_area_manager' => ['Area Manager', 'Nama Area Manager'],
+                    'signer_factory_manager' => ['Factory Manager', 'Nama Factory Manager'],
+                    'signer_director' => ['Direktur', 'Nama Direktur'],
+                    'signer_ga' => ['GA', 'Nama GA'],
+                    'signer_manager' => ['Manager', 'Nama Manager'],
+                    'signer_ga_director' => ['Direktur (GA)', 'Nama Direktur pada tabel GA'],
+                ] as $field => [$label, $placeholder])
+                    <div class="po-editor__field">
+                        <label for="{{ str_replace('_', '-', $field) }}">{{ $label }}</label>
+                        <input
+                            id="{{ str_replace('_', '-', $field) }}"
+                            class="po-editor__input"
+                            name="{{ $field }}"
+                            maxlength="255"
+                            value="{{ old($field, $record?->{$field}) }}"
+                            placeholder="{{ $placeholder }}"
+                        >
+                    </div>
+                @endforeach
+            </div>
+        </section>
+
         <section class="po-editor__section" aria-labelledby="po-items-heading">
             <header class="po-editor__section-header">
                 <div>

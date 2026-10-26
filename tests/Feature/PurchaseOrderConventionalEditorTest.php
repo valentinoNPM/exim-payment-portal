@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Filament\Resources\PurchaseOrders\Pages\CreatePurchaseOrder;
 use App\Filament\Resources\PurchaseOrders\Pages\EditPurchaseOrder;
+use App\Filament\Resources\PurchaseOrders\Pages\ViewPurchaseOrder;
 use App\Models\Division;
 use App\Models\Item;
 use App\Models\PaymentSlip;
@@ -168,6 +169,41 @@ class PurchaseOrderConventionalEditorTest extends TestCase
         $this->assertSame('23200.00', $purchaseOrder->grand_total_amount);
         $this->assertCount(1, $purchaseOrder->items->first()->taxes);
         $this->assertCount(1, $purchaseOrder->taxes);
+    }
+
+    public function test_signer_names_flow_through_create_edit_view_and_pdf(): void
+    {
+        $signers = [
+            'signer_pic' => 'PIC Tanda Tangan',
+            'signer_area_manager' => 'Area Manager Uji',
+            'signer_factory_manager' => 'Factory Manager Uji',
+            'signer_director' => 'Direktur Uji',
+            'signer_ga' => 'GA Uji',
+            'signer_manager' => 'Manager GA Uji',
+            'signer_ga_director' => 'Direktur GA Uji',
+        ];
+
+        $this->post(route('purchase-orders.editor.store'), $this->payload($signers))
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $purchaseOrder = PurchaseOrder::query()->firstOrFail();
+        foreach ($signers as $field => $name) {
+            $this->assertSame($name, $purchaseOrder->{$field});
+        }
+
+        $editHtml = Livewire::test(EditPurchaseOrder::class, ['record' => $purchaseOrder->getRouteKey()])->html();
+        $viewHtml = Livewire::test(ViewPurchaseOrder::class, ['record' => $purchaseOrder->getRouteKey()])->html();
+        $pdfHtml = view('pdf.purchase-order', [
+            'purchaseOrder' => $purchaseOrder->load(['division', 'warehouse', 'supplier', 'creator', 'items.unit', 'items.item', 'taxes']),
+        ])->render();
+
+        foreach ($signers as $field => $name) {
+            $this->assertStringContainsString('name="'.$field.'"', $editHtml);
+            $this->assertStringContainsString($name, $editHtml);
+            $this->assertStringContainsString($name, $viewHtml);
+            $this->assertStringContainsString($name, $pdfHtml);
+        }
     }
 
     public function test_new_master_item_requires_a_unit(): void

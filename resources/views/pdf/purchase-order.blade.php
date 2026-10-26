@@ -207,7 +207,12 @@
                 <table class="approval">
                     <tr><th>PIC</th><th>Area Manager</th><th>Factory Manager</th><th>Direktur</th></tr>
                     <tr><td></td><td></td><td></td><td></td></tr>
-                    <tr class="name-row"><td></td><td></td><td></td><td></td></tr>
+                    <tr class="name-row">
+                        <td>{{ $purchaseOrder->signer_pic ?: $purchaseOrder->pic_name }}</td>
+                        <td>{{ $purchaseOrder->signer_area_manager }}</td>
+                        <td>{{ $purchaseOrder->signer_factory_manager }}</td>
+                        <td>{{ $purchaseOrder->signer_director }}</td>
+                    </tr>
                 </table>
             </td>
             <td class="approval-gap"></td>
@@ -215,7 +220,11 @@
                 <table class="approval">
                     <tr><th>GA</th><th>Manager</th><th>Direktur</th></tr>
                     <tr><td></td><td></td><td></td></tr>
-                    <tr class="name-row"><td></td><td></td><td></td></tr>
+                    <tr class="name-row">
+                        <td>{{ $purchaseOrder->signer_ga }}</td>
+                        <td>{{ $purchaseOrder->signer_manager }}</td>
+                        <td>{{ $purchaseOrder->signer_ga_director }}</td>
+                    </tr>
                 </table>
             </td>
         </tr>

@@ -33,6 +33,13 @@ class SavePurchaseOrder
                 'delivery_date',
                 'warehouse_id',
                 'status',
+                'signer_pic',
+                'signer_area_manager',
+                'signer_factory_manager',
+                'signer_director',
+                'signer_ga',
+                'signer_manager',
+                'signer_ga_director',
                 'discount_amount',
                 'shipping_amount',
             ]);

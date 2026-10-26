@@ -91,6 +91,25 @@
             @include('filament.purchase-orders.linked-invoices', ['invoices' => $record->invoices])
         </x-filament::section>
 
+        <x-filament::section heading="Nama Penandatangan">
+            <dl class="po-view__grid">
+                @foreach ([
+                    'PIC' => $record->signer_pic ?: $record->pic_name,
+                    'Area Manager' => $record->signer_area_manager,
+                    'Factory Manager' => $record->signer_factory_manager,
+                    'Direktur' => $record->signer_director,
+                    'GA' => $record->signer_ga,
+                    'Manager' => $record->signer_manager,
+                    'Direktur (GA)' => $record->signer_ga_director,
+                ] as $label => $value)
+                    <div class="po-view__item">
+                        <dt class="po-view__label">{{ $label }}</dt>
+                        <dd class="po-view__value">{{ $isi($value) }}</dd>
+                    </div>
+                @endforeach
+            </dl>
+        </x-filament::section>
+
         <x-filament::section heading="Ringkasan">
             <dl class="po-view__summary">
                 @foreach (['Subtotal' => $record->subtotal_amount, 'PPN (Penambahan)' => $record->tax_addition_amount, 'PPh (Potongan)' => $record->tax_deduction_amount, 'Diskon' => $record->discount_amount, 'Biaya Kirim' => $record->shipping_amount, 'Total PO' => $record->grand_total_amount] as $label => $value)
