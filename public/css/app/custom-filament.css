@@ -2117,8 +2117,10 @@
 .ps-editor__items-heading{margin:1.15rem 0 .6rem}
 .ps-editor__items{display:grid;gap:.65rem}
 .ps-editor__items-actions{margin:.75rem 0 1.15rem}
-.ps-editor__add-item-button{width:100%;min-height:2.35rem;border:1px dashed #d97706;border-radius:.5rem;background:transparent;color:#92400e;gap:.35rem;font-weight:600}
-.ps-editor__add-item-button:hover:not(:disabled){border-color:#b45309;background:#fffbeb;color:#78350f}
+.ps-editor__add-item-button{width:100%;min-height:3rem;border:1.5px dashed #d97706;border-radius:.55rem;background:#fffbeb;color:#78350f;gap:.55rem;font-size:.875rem;font-weight:700}
+.ps-editor__add-item-icon{display:inline-flex;align-items:center;justify-content:center;width:1.45rem;height:1.45rem;border-radius:999px;background:#f59e0b;color:#18181b;font-size:1.05rem;font-weight:700;line-height:1}
+.ps-editor__add-item-button:hover:not(:disabled){border-color:#b45309;background:#fef3c7;color:#78350f}
+.ps-editor__add-item-button:hover:not(:disabled) .ps-editor__add-item-icon{background:#d97706;color:#fff}
 .ps-editor__add-item-button:focus-visible{outline:2px solid #f59e0b;outline-offset:2px}
 .ps-editor__item{background:#fff;border:1px solid #e4e4e7;border-radius:.55rem;padding:.75rem}
 .ps-editor__item-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:.55rem;color:#18181b;font-size:.8rem}
@@ -2249,8 +2251,9 @@
 .ps-editor__picker-option:hover, .ps-editor__picker-option[aria-pressed=true] { background: #fafafa; border-color: #f59e0b; }
 .dark .ps-editor__select-trigger, .dark .ps-editor__picker input, .dark .ps-editor__picker-option, .dark .ps-editor__file-list li, .dark .ps-editor__upload-row input, .dark .ps-editor__extract [role=status]:not(:empty) { background: #18181b; border-color: #52525b; color: #f4f4f5; }
 .dark .ps-editor__select-trigger--empty, .dark .ps-editor__field small, .dark .ps-editor__section-heading p, .dark .ps-editor__extract p, .dark .ps-editor__picker-status, .dark .ps-editor__item-title strong, .dark .ps-editor__invoice-summary dt, .dark .ps-editor__overview dt { color: #a1a1aa; }
-.dark .ps-editor__add-item-button{border-color:#f59e0b;background:transparent;color:#fbbf24}
+.dark .ps-editor__add-item-button{border-color:#f59e0b;background:#422006;color:#fef3c7}
 .dark .ps-editor__add-item-button:hover:not(:disabled){border-color:#fbbf24;background:#422006;color:#fef3c7}
+.dark .ps-editor__add-item-icon{background:#f59e0b;color:#18181b}
 .dark .ps-editor__invoice-heading, .dark .ps-editor__picker > header { border-color: #3f3f46; }
 .dark .ps-editor__invoice { border-top-color: #f59e0b; }
 .dark .ps-editor__field--amount output, .dark .ps-editor__picker-option:hover, .dark .ps-editor__picker-option[aria-pressed=true] { background: #27272a; color: #fafafa; }

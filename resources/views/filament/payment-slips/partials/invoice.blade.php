@@ -92,7 +92,7 @@
     </div>
     <div class="ps-editor__items-actions">
         <button type="button" class="ps-editor__button ps-editor__add-item-button" data-ps-add-item>
-            <span aria-hidden="true">＋</span>
+            <span class="ps-editor__add-item-icon" aria-hidden="true">+</span>
             <span>Tambah Item ke Invoice <span data-ps-add-item-invoice-number></span></span>
         </button>
     </div>
