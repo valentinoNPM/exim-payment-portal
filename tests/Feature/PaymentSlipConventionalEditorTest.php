@@ -109,7 +109,8 @@ class PaymentSlipConventionalEditorTest extends TestCase
 
         $this->get(PaymentSlipResource::getUrl('create-general'))
             ->assertOk()->assertSee('name="approval_incharge"', false)
-            ->assertSee($this->maker->name)->assertSee('Passed 3 (opsional)');
+            ->assertSee($this->maker->name)->assertSee('Passed 3 (opsional)')
+            ->assertSee('name="approval_director" maxlength="255" value="Mr DJ Kim"', false);
         $slip = $this->createSlip('general', $data);
         $this->assertSame($this->maker->name, $slip->approval_incharge);
         $this->assertSame('Manager Satu', $slip->approval_passed_1);
@@ -140,6 +141,8 @@ class PaymentSlipConventionalEditorTest extends TestCase
         $this->assertSame('Petugas Pengganti', $slip->fresh()->approval_incharge);
         $this->assertSame('Manager Dua Baru', $slip->fresh()->approval_passed_2);
         $this->assertNull($slip->fresh()->approval_director);
+        $this->get(PaymentSlipResource::getUrl('edit', ['record' => $slip]))
+            ->assertOk()->assertSee('name="approval_director" maxlength="255" value=""', false);
         $this->get(PaymentSlipResource::getUrl('view', ['record' => $slip]))
             ->assertOk()->assertSee('Petugas Pengganti');
         $html = view('pdf.payment-slips.general', ['slip' => $slip->fresh()->load('creator')])->render();

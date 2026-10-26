@@ -209,7 +209,8 @@ class PurchaseOrderPaymentSlipIntegrationTest extends TestCase
         $po = $this->po();
         app(FinalizePurchaseOrder::class)->execute($po, $this->maker);
         Livewire::test(IssuePaymentSlip::class, ['record' => $po->id])
-            ->assertSee('Nama Persetujuan')->assertSee('Passed 1 (opsional)');
+            ->assertSee('Nama Persetujuan')->assertSee('Passed 1 (opsional)')
+            ->assertSee('name="approval_director" maxlength="255" value="Mr DJ Kim"', false);
 
         $this->post(route('purchase-orders.issue-payment-slip', $po), [
             'transaction_description' => 'Pembelian barang',

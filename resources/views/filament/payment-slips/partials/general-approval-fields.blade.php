@@ -14,7 +14,7 @@
         @foreach (['approval_passed_1' => 'Passed 1', 'approval_passed_2' => 'Passed 2', 'approval_passed_3' => 'Passed 3', 'approval_director' => 'Director'] as $field => $label)
             <div class="ps-editor__field">
                 <label for="ps-{{ str_replace('_', '-', $field) }}">{{ $label }} (opsional)</label>
-                <input id="ps-{{ str_replace('_', '-', $field) }}" name="{{ $field }}" maxlength="255" value="{{ old($field, $record?->{$field}) }}" placeholder="Nama {{ $label }}">
+                <input id="ps-{{ str_replace('_', '-', $field) }}" name="{{ $field }}" maxlength="255" value="{{ old($field, $field === 'approval_director' && $record === null ? 'Mr DJ Kim' : $record?->{$field}) }}" placeholder="Nama {{ $label }}">
             </div>
         @endforeach
     </div>
