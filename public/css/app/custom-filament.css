@@ -1902,9 +1902,9 @@
 .po-editor__table-wrap + .po-editor__add-button {
     display: flex;
     justify-content: center;
-    width: 100%;
-    margin-top: 1rem;
-    margin-bottom: 0.25rem;
+    width: calc(100% - 2.5rem);
+    margin: 0 1.25rem 1.25rem;
+    padding-block: 0.625rem;
 }
 
 .dark .po-editor__add-button {
@@ -2105,7 +2105,8 @@
     }
 
     .po-editor__table-wrap + .po-editor__add-button {
-        width: 100%;
+        width: calc(100% - 1.5rem);
+        margin: 0 0.75rem 0.75rem;
     }
 }
 /* Conventional payment-slip editor: the panel supplies typography and navigation. */
