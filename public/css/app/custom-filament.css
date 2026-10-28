@@ -1900,8 +1900,11 @@
    memaksa pengguna menggulir ke atas. Tanpa pembungkus tambahan supaya berat DOM
    halaman editor tidak bertambah. */
 .po-editor__table-wrap + .po-editor__add-button {
-    margin-top: 0.75rem;
-    width: fit-content;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 1rem;
+    margin-bottom: 0.25rem;
 }
 
 .dark .po-editor__add-button {
