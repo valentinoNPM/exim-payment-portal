@@ -360,6 +360,11 @@
                 reindex();
                 markDirty();
                 calculate();
+
+                const addedRow = body.lastElementChild;
+                if (addedRow) {
+                    addedRow.scrollIntoView({ block: 'nearest' });
+                }
             }
 
             const closeButton = event.target.closest('[data-close-dialog]');

@@ -1896,6 +1896,14 @@
     cursor: not-allowed;
 }
 
+/* Tombol tambah baris item berada di bawah tabel agar pengisian banyak item tidak
+   memaksa pengguna menggulir ke atas. Tanpa pembungkus tambahan supaya berat DOM
+   halaman editor tidak bertambah. */
+.po-editor__table-wrap + .po-editor__add-button {
+    margin-top: 0.75rem;
+    width: fit-content;
+}
+
 .dark .po-editor__add-button {
     border-color: color-mix(in srgb, var(--po-editor-accent) 65%, var(--po-editor-border));
     background: color-mix(in srgb, var(--po-editor-accent) 14%, var(--po-editor-bg));
@@ -2091,6 +2099,10 @@
 
     .po-editor__field--wide {
         grid-column: auto;
+    }
+
+    .po-editor__table-wrap + .po-editor__add-button {
+        width: 100%;
     }
 }
 /* Conventional payment-slip editor: the panel supplies typography and navigation. */
