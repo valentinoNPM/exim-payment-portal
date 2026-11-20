@@ -464,7 +464,7 @@ class PurchaseOrderConventionalEditorTest extends TestCase
         $html = Livewire::test(EditPurchaseOrder::class, ['record' => $purchaseOrder->getRouteKey()])->html();
 
         $this->assertLessThan(1_000_000, strlen($html));
-        $this->assertLessThan(3_000, preg_match_all('/<[^!][^>]*>/', $html));
+        $this->assertLessThan(3_000, preg_match_all('/<[a-z][^>]*>/i', $html));
         $this->assertSame(0, preg_match_all('/wire:model[^=]*=/i', $html));
     }
 

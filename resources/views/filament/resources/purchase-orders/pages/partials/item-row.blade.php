@@ -17,6 +17,7 @@
         </button>
     </td>
     <td>
+        <label class="po-editor__item-detail-label">Spesifikasi</label>
         <input
             class="po-editor__input"
             name="items[{{ $index }}][specification]"
@@ -27,6 +28,7 @@
         >
     </td>
     <td>
+        <label class="po-editor__item-detail-label">Keterangan</label>
         <textarea
             class="po-editor__textarea po-editor__item-notes"
             name="items[{{ $index }}][notes]"
@@ -70,8 +72,10 @@
             >
         </div>
     </td>
-    <td class="po-editor__numeric" data-line-subtotal>Rp 0</td>
-    <td class="po-editor__numeric" data-line-tax>Rp 0</td>
+    <td class="po-editor__numeric po-editor__line-totals">
+        <span data-line-subtotal>Rp 0</span>
+        <small>Pajak: <span data-line-tax>Rp 0</span></small>
+    </td>
     <td class="po-editor__delete-cell">
         <button type="button" class="po-editor__delete-button" data-remove-row aria-label="Hapus item" title="Hapus item">×</button>
     </td>
