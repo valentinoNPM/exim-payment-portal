@@ -17,7 +17,6 @@
         </button>
     </td>
     <td>
-        <label class="po-editor__item-detail-label">Spesifikasi</label>
         <input
             class="po-editor__input"
             name="items[{{ $index }}][specification]"
@@ -28,15 +27,13 @@
         >
     </td>
     <td>
-        <label class="po-editor__item-detail-label">Keterangan</label>
         <textarea
             class="po-editor__textarea po-editor__item-notes"
             name="items[{{ $index }}][notes]"
             maxlength="1000"
-            rows="2"
+            rows="1"
             data-field="notes"
             aria-label="Keterangan item"
-            placeholder="Keterangan item"
         >{{ $row['notes'] ?? '' }}</textarea>
     </td>
     <td>

@@ -258,6 +258,8 @@
                         <tr>
                             <th aria-label="Urutan"></th>
                             <th>Nama Barang <span>*</span></th>
+                            <th>Spesifikasi</th>
+                            <th>Keterangan</th>
                             <th>Kuantitas <span>*</span></th>
                             <th>Satuan</th>
                             <th>Harga <span>*</span></th>
