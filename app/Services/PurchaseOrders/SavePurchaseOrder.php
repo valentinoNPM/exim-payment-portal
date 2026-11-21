@@ -5,6 +5,7 @@ namespace App\Services\PurchaseOrders;
 use App\Models\Division;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
+use App\Models\Supplier;
 use App\Models\User;
 use App\Support\MoneyRounding;
 use Illuminate\Support\Arr;
@@ -60,6 +61,12 @@ class SavePurchaseOrder
                 $header['pic_name'] = $picUser->name;
             } elseif (blank($purchaseOrder->pic_name)) {
                 $header['pic_name'] = $picUser->name;
+            }
+
+            if (! $isCreating && (int) $purchaseOrder->supplier_id !== (int) $data['supplier_id']) {
+                $supplier = Supplier::query()->findOrFail($data['supplier_id']);
+                $header['supplier_name_snapshot'] = $supplier->name;
+                $header['supplier_address_snapshot'] = $supplier->address;
             }
 
             $purchaseOrder->fill($header);

@@ -505,6 +505,53 @@ class PurchaseOrderConventionalEditorTest extends TestCase
         ]);
     }
 
+    public function test_changing_supplier_refreshes_pdf_snapshot_but_unchanged_supplier_preserves_history(): void
+    {
+        $po = $this->existingPurchaseOrder();
+        $supplier = Supplier::create(['code' => 'REPLACEMENT', 'name' => 'Vendor Pengganti', 'address' => 'Alamat pengganti', 'is_active' => true]);
+        $data = $this->payload(['supplier_id' => $supplier->id]);
+        $this->put(route('purchase-orders.editor.update', $po), $data)->assertSessionHasNoErrors()->assertRedirect();
+        $po->refresh();
+        $this->assertSame($supplier->name, $po->supplier_name_snapshot);
+        $this->assertSame($supplier->address, $po->supplier_address_snapshot);
+        $html = view('pdf.purchase-order', ['purchaseOrder' => $po->load(['items', 'taxes', 'supplier'])])->render();
+        $this->assertStringContainsString('Vendor Pengganti', $html);
+        $this->assertStringNotContainsString('Vendor Editor', $html);
+        $supplier->update(['name' => 'Nama master lebih baru']);
+        $data['items'][0]['id'] = $po->items()->firstOrFail()->id;
+        $this->put(route('purchase-orders.editor.update', $po), $data)->assertSessionHasNoErrors();
+        $this->assertSame('Vendor Pengganti', $po->fresh()->supplier_name_snapshot);
+    }
+
+    public function test_quick_create_master_options_and_validation_and_authorization(): void
+    {
+        $url = fn (string $kind): string => route('purchase-orders.editor.master', $kind);
+        $unit = $this->postJson($url('unit'), ['code' => 'BOX-QA', 'name' => 'Kotak'])->assertCreated()->json();
+        $supplier = $this->postJson($url('supplier'), ['code' => 'QUICK-SUP', 'name' => 'Supplier Baru', 'address' => 'Solo', 'email' => 'vendor@example.com'])->assertCreated()->json();
+        $item = $this->postJson($url('item'), ['name' => 'Barang Baru', 'specification' => 'Spec baru', 'unit_id' => $unit['id']])->assertCreated()->json();
+        $this->assertSame('Kotak', $item['unit_name']);
+        $this->assertNotEmpty($item['code']);
+        $this->assertDatabaseHas('suppliers', ['id' => $supplier['id'], 'address' => 'Solo']);
+        $this->postJson($url('unit'), ['code' => 'BOX-QA', 'name' => 'Duplikat'])->assertUnprocessable()->assertJsonValidationErrors('code');
+        $this->postJson($url('item'), ['name' => 'Invalid', 'unit_id' => 999999])->assertUnprocessable();
+        $this->postJson($url('supplier'), ['code' => 'BAD', 'name' => 'Invalid', 'email' => 'not-email'])->assertUnprocessable();
+        $this->postJson($url('invalid'), ['name' => 'Invalid'])->assertNotFound();
+        $user = User::factory()->create(['division_id' => $this->division->id]);
+        $this->actingAs($user)->postJson($url('unit'), ['code' => 'DENIED', 'name' => 'Tidak boleh'])->assertForbidden();
+    }
+
+    public function test_quantity_display_removes_only_trailing_decimal_zeroes(): void
+    {
+        $po = $this->existingPurchaseOrder();
+        foreach ([10, 1.25] as $index => $quantity) {
+            $po->items()->create(['line_number' => $index + 1, 'item_id' => $this->item->id, 'quantity' => $quantity, 'unit_id' => $this->unit->id, 'unit_price_amount' => 100]);
+        }
+        $html = Livewire::test(EditPurchaseOrder::class, ['record' => $po->getRouteKey()])->html();
+        $this->assertStringContainsString('value="10"', $html);
+        $this->assertStringContainsString('value="1.25"', $html);
+        $this->assertStringNotContainsString('value="10.0000"', $html);
+    }
+
     public function test_po_and_general_slip_round_each_line_consistently(): void
     {
         $tax = Tax::create(['code' => 'ROUND11', 'name' => 'Test 11%', 'rate' => 11, 'calculation_type' => 'addition', 'is_active' => true]);

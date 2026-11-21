@@ -41,6 +41,7 @@
         data-po-editor
         data-item-search-url="{{ route('purchase-orders.editor.items') }}"
         data-number-preview-url="{{ route('purchase-orders.editor.number-preview') }}"
+        data-master-url="{{ route('purchase-orders.editor.master', ['kind' => '__KIND__']) }}"
         data-is-edit="{{ $isEdit ? '1' : '0' }}"
         novalidate
         wire:ignore
@@ -322,6 +323,7 @@
                 <p class="po-editor__empty" data-header-picker-empty hidden>Data tidak ditemukan.</p>
                 <footer class="po-editor__dialog-footer">
                     <span data-header-picker-count></span>
+                    <button type="button" class="po-editor__add-button" data-create-po-master="supplier" data-create-supplier hidden>Buat Supplier</button>
                 </footer>
             </div>
         </dialog>
@@ -347,6 +349,7 @@
                 </div>
                 <footer class="po-editor__dialog-footer">
                     <span data-item-page-label></span>
+                    <button type="button" class="po-editor__add-button" data-create-po-master="item">Buat Barang</button>
                     <div>
                         <button type="button" class="po-editor__secondary-button" data-item-prev>Sebelumnya</button>
                         <button type="button" class="po-editor__secondary-button" data-item-next>Berikutnya</button>
@@ -375,6 +378,32 @@
                     @endforeach
                 </div>
                 <p class="po-editor__empty" data-unit-empty hidden>Satuan tidak ditemukan.</p>
+                <footer class="po-editor__dialog-footer">
+                    <button type="button" class="po-editor__add-button" data-create-po-master="unit">Buat Satuan</button>
+                </footer>
+            </div>
+        </dialog>
+
+        <dialog class="po-editor__dialog po-editor__dialog--relation" data-po-master-dialog aria-labelledby="po-master-title">
+            <div class="po-editor__dialog-panel">
+                <header class="po-editor__dialog-header">
+                    <div><h2 id="po-master-title" data-po-master-title></h2><p>Data yang disimpan langsung dipilih pada PO ini.</p></div>
+                    <button type="button" class="po-editor__dialog-close" data-close-dialog aria-label="Tutup">×</button>
+                </header>
+                <div class="po-editor__master-fields">
+                    <label class="po-editor__field" data-master-code-field>Kode *<input class="po-editor__input" data-master-field="code" maxlength="255"></label>
+                    <label class="po-editor__field">Nama *<input class="po-editor__input" data-master-field="name" maxlength="255"></label>
+                    <label class="po-editor__field" data-master-kind="item">Spesifikasi<input class="po-editor__input" data-master-field="specification" maxlength="500"></label>
+                    <label class="po-editor__field" data-master-kind="item">Satuan<select class="po-editor__select" data-master-field="unit_id"></select></label>
+                    <label class="po-editor__field" data-master-kind="supplier">Alamat<textarea class="po-editor__textarea" data-master-field="address" rows="2" maxlength="5000"></textarea></label>
+                    <label class="po-editor__field" data-master-kind="supplier">Email<input class="po-editor__input" data-master-field="email" type="email" maxlength="255"></label>
+                    <label class="po-editor__field" data-master-kind="supplier">Telepon<input class="po-editor__input" data-master-field="phone" maxlength="255"></label>
+                    <p class="po-editor__alert" data-po-master-error role="alert" hidden></p>
+                </div>
+                <footer class="po-editor__dialog-footer">
+                    <button type="button" class="po-editor__secondary-button" data-close-dialog>Batal</button>
+                    <button type="button" class="po-editor__primary-button" data-save-po-master>Simpan dan Pilih</button>
+                </footer>
             </div>
         </dialog>
     </form>

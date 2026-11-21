@@ -45,6 +45,9 @@
         let itemRequest = null;
         let searchTimer = null;
         let dirty = false;
+        const masterDialog = root.querySelector('[data-po-master-dialog]');
+        let masterKind = null;
+        let masterParent = null;
 
         const rows = () => Array.from(body.querySelectorAll('[data-po-item-row]'));
 
@@ -217,6 +220,7 @@
             }
 
             activeHeaderPicker = type;
+            root.querySelector('[data-create-supplier]').hidden = type !== 'supplier';
             headerPickerTitle.textContent = config.title;
             headerPickerDescription.textContent = config.description;
             headerPickerSearch.placeholder = config.placeholder;
@@ -296,6 +300,22 @@
         };
 
         root.addEventListener('click', (event) => {
+            const createMaster = event.target.closest('[data-create-po-master]');
+            if (createMaster) {
+                masterKind = createMaster.dataset.createPoMaster;
+                masterParent = createMaster.closest('dialog');
+                closeDialog(masterParent);
+                masterDialog.querySelector('[data-po-master-title]').textContent = `Buat ${ {item: 'Barang', supplier: 'Supplier', unit: 'Satuan'}[masterKind] }`;
+                masterDialog.querySelectorAll('[data-master-field]').forEach(field => { field.value = ''; });
+                masterDialog.querySelectorAll('[data-master-kind]').forEach(field => { field.hidden = field.dataset.masterKind !== masterKind; });
+                masterDialog.querySelector('[data-master-code-field]').hidden = masterKind === 'item';
+                masterDialog.querySelector('[data-po-master-error]').hidden = true;
+                const unitSelect = masterDialog.querySelector('[data-master-field="unit_id"]');
+                unitSelect.replaceChildren(new Option('Tanpa satuan', ''));
+                root.querySelectorAll('[data-unit-choice]').forEach(choice => unitSelect.add(new Option(choice.dataset.unitName, choice.dataset.unitId)));
+                openDialog(masterDialog);
+                masterDialog.querySelector(`[data-master-field="${masterKind === 'item' ? 'name' : 'code'}"]`).focus();
+            }
             const itemButton = event.target.closest('[data-open-item-picker]');
             const unitButton = event.target.closest('[data-open-unit-picker]');
             const removeButton = event.target.closest('[data-remove-row]');
@@ -379,6 +399,53 @@
                 markDirty();
                 closeDialog(unitDialog);
             }
+        });
+
+        masterDialog.addEventListener('close', () => { if (masterParent) openDialog(masterParent); });
+        masterDialog.addEventListener('cancel', event => {
+            if (masterDialog.querySelector('[data-save-po-master]').disabled) event.preventDefault();
+        });
+        masterDialog.addEventListener('keydown', event => {
+            if (event.key === 'Enter' && event.target.tagName === 'INPUT') {
+                event.preventDefault();
+                masterDialog.querySelector('[data-save-po-master]').click();
+            }
+        });
+        masterDialog.querySelector('[data-save-po-master]').addEventListener('click', async event => {
+            const button = event.currentTarget;
+            const error = masterDialog.querySelector('[data-po-master-error]');
+            const fields = [...masterDialog.querySelectorAll('[data-master-field]')].filter(field => !field.closest('[hidden]'));
+            const data = Object.fromEntries(fields.map(field => [field.dataset.masterField, field.value.trim()]));
+            error.hidden = true;
+            masterDialog.querySelectorAll('button').forEach(control => { control.disabled = true; });
+            try {
+                const response = await fetch(root.dataset.masterUrl.replace('__KIND__', masterKind), {
+                    method: 'POST', headers: {Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': root.querySelector('[name="_token"]').value}, body: JSON.stringify(data),
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(Object.values(result.errors || {}).flat().join(' ') || result.message || 'Data gagal disimpan.');
+                masterParent = null;
+                closeDialog(masterDialog);
+                if (masterKind === 'supplier') {
+                    headerPickerData.supplier.push({id: result.id, label: result.name, meta: result.code});
+                    chooseHeaderValue('supplier', {id: result.id, label: result.name});
+                } else if (masterKind === 'unit') {
+                    const choice = document.createElement('button');
+                    choice.type = 'button'; choice.dataset.unitChoice = ''; choice.dataset.unitId = result.id; choice.dataset.unitName = result.name; choice.textContent = result.name;
+                    root.querySelector('[data-unit-list]').append(choice);
+                    activeRow.querySelector('[data-field="unit_id"]').value = result.id;
+                    activeRow.querySelector('[data-unit-label]').textContent = result.name;
+                } else {
+                    activeRow.querySelector('[data-field="item_id"]').value = result.id;
+                    activeRow.querySelector('[data-item-label]').textContent = `${result.code} - ${result.name}`;
+                    activeRow.querySelector('[data-field="specification"]').value = result.specification || '';
+                    activeRow.querySelector('[data-field="unit_id"]').value = result.unit_id || '';
+                    activeRow.querySelector('[data-unit-label]').textContent = result.unit_name || 'Pilih satuan';
+                }
+                markDirty(); calculate();
+            } catch (failure) {
+                error.textContent = failure.message; error.hidden = false;
+            } finally { masterDialog.querySelectorAll('button').forEach(control => { control.disabled = false; }); }
         });
 
         root.addEventListener('input', (event) => {

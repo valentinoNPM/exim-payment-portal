@@ -1975,6 +1975,12 @@
     padding: 1rem 1.25rem;
 }
 
+.po-editor [data-po-master-dialog] .po-editor__dialog-panel { grid-template-rows: auto minmax(0, 1fr) auto; }
+.po-editor__master-fields { display: grid; gap: 1rem; padding: 1.25rem; overflow-y: auto; }
+.po-editor__master-fields [hidden], .po-editor [data-create-supplier][hidden] { display: none !important; }
+.po-editor__master-fields label { color: var(--po-editor-text); }
+.dark .po-editor__master-fields label { color: var(--po-editor-text); }
+
 .po-editor__dialog-table-wrap {
     overflow: auto;
     padding: 0 1.25rem 1rem;

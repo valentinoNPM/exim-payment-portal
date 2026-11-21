@@ -1,6 +1,8 @@
 @php
     $unitPriceInput = $row['unit_price_amount'] ?? null;
     $unitPriceInput = is_numeric($unitPriceInput) && (float) $unitPriceInput === 0.0 ? '' : $unitPriceInput;
+    $quantityInput = $row['quantity'] ?? 1;
+    $quantityInput = is_numeric($quantityInput) ? rtrim(rtrim(number_format((float) $quantityInput, 4, '.', ''), '0'), '.') : $quantityInput;
 @endphp
 
 <tr class="po-editor__item-row" data-po-item-row>
@@ -41,7 +43,7 @@
             class="po-editor__input po-editor__number-input"
             type="number"
             name="items[{{ $index }}][quantity]"
-            value="{{ $row['quantity'] ?? 1 }}"
+            value="{{ $quantityInput }}"
             min="0"
             step="1"
             required

@@ -9,6 +9,7 @@ use App\Http\Controllers\PaymentSlipMasterOptionController;
 use App\Http\Controllers\PreviewPaymentSlipPdfController;
 use App\Http\Controllers\PreviewPurchaseOrderPdfController;
 use App\Http\Controllers\PurchaseOrderEditorController;
+use App\Http\Controllers\PurchaseOrderMasterOptionController;
 use App\Http\Controllers\PurchaseOrderPaymentSlipController;
 use App\Models\DocumentFile;
 use Filament\Http\Middleware\Authenticate as FilamentAuthenticate;
@@ -35,6 +36,8 @@ Route::prefix('admin/purchase-orders')
             ->name('purchase-orders.editor.update');
         Route::get('/editor/items', [PurchaseOrderEditorController::class, 'items'])
             ->name('purchase-orders.editor.items');
+        Route::post('/editor/master/{kind}', PurchaseOrderMasterOptionController::class)
+            ->name('purchase-orders.editor.master');
         Route::get('/editor/number-preview', [PurchaseOrderEditorController::class, 'numberPreview'])
             ->name('purchase-orders.editor.number-preview');
     });
