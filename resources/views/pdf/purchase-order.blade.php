@@ -40,6 +40,14 @@
         .items td { border: .7px solid #94a3b8; color: #1f2937; font-size: 11px; line-height: 1.3; padding: 4.5px; }
         .items .item-name { color: #111827; font-weight: 700; }
         .items .item-spec { margin-top: 2px; color: #4b5563; font-size: 9.5px; }
+        /* Dompdf must be allowed to break long tokens (sizes, codes, URLs),
+           including when measuring table columns. Keep numeric cells intact. */
+        .items .item-description, .items .item-notes,
+        .items .item-name, .items .item-spec {
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: anywhere;
+        }
         .items .grand-row td { border-top: 1px solid #475569; background: #f8fafc; color: #111827; font-weight: 700; }
 
         .below-items { margin-top: 7px; page-break-inside: avoid; }
@@ -157,20 +165,20 @@
             @foreach ($purchaseOrder->items as $item)
                 <tr>
                     <td class="center">{{ $item->item_code_snapshot ?: ($item->item?->source_code ?: ($item->item_code ?: '-')) }}</td>
-                    <td>
+                    <td class="item-description">
                         <div class="item-name">{{ $item->item_name_snapshot ?: $item->item_name }}</div>
                         @if ($item->specification ?: $item->specification_snapshot)
                             <div class="item-spec">{{ $item->specification ?: $item->specification_snapshot }}</div>
                         @endif
                     </td>
                     <td class="numeric">{{ $quantity($item->quantity) }}</td>
-                    <td class="center">{{ $item->unit_code_snapshot ?: ($item->unit?->code ?: '-') }}</td>
+                    <td class="center">{{ $item->unit?->name ?: ($item->unit_code_snapshot ?: '-') }}</td>
                     <td class="numeric">{{ $money($item->unit_price_amount) }}</td>
                     <td class="numeric">{{ $money($item->subtotal_amount) }}</td>
                     @if ($foreignCurrency)
                         <td class="center">{{ $currency }}</td>
                     @endif
-                    <td>{!! nl2br(e($item->notes)) !!}</td>
+                    <td class="item-notes">{!! nl2br(e($item->notes)) !!}</td>
                 </tr>
             @endforeach
             <tr class="grand-row">

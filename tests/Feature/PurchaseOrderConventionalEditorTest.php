@@ -552,6 +552,25 @@ class PurchaseOrderConventionalEditorTest extends TestCase
         $this->assertStringNotContainsString('value="10.0000"', $html);
     }
 
+    public function test_detail_and_pdf_display_unit_name_with_historical_code_fallback(): void
+    {
+        $this->unit->update(['code' => 'z01', 'name' => 'Zak']);
+        $po = $this->existingPurchaseOrder();
+        $line = $po->items()->create(['item_id' => $this->item->id, 'quantity' => 1, 'unit_id' => $this->unit->id, 'unit_price_amount' => 100]);
+        $html = Livewire::test(ViewPurchaseOrder::class, ['record' => $po->getRouteKey()])->html();
+        $this->assertStringContainsString('Zak', $html);
+        $this->assertStringNotContainsString('>z01<', $html);
+        $pdfHtml = view('pdf.purchase-order', ['purchaseOrder' => $po->fresh()->load(['items.unit', 'taxes'])])->render();
+        $this->assertStringContainsString('<td class="center">Zak</td>', $pdfHtml);
+        $this->assertSame('z01', $line->fresh()->unit_code_snapshot);
+
+        $line->forceFill(['unit_id' => null, 'unit_code_snapshot' => 'HISTORICAL'])->saveQuietly();
+        $pdfHtml = view('pdf.purchase-order', ['purchaseOrder' => $po->fresh()->load(['items.unit', 'taxes'])])->render();
+        $this->assertStringContainsString('<td class="center">HISTORICAL</td>', $pdfHtml);
+        $detailHtml = Livewire::test(ViewPurchaseOrder::class, ['record' => $po->getRouteKey()])->html();
+        $this->assertStringContainsString('HISTORICAL', $detailHtml);
+    }
+
     public function test_po_and_general_slip_round_each_line_consistently(): void
     {
         $tax = Tax::create(['code' => 'ROUND11', 'name' => 'Test 11%', 'rate' => 11, 'calculation_type' => 'addition', 'is_active' => true]);
